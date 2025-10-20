@@ -99,13 +99,26 @@ impl Core {
                         ),
                 );
             }
-            #[cfg(not(target_os = "android"))]
+
+            #[cfg(target_os = "ios")]
+            {
+                let os_logger =
+                    oslog::OsLogger::new("app.musicopy").level_filter(log::LevelFilter::Debug);
+                let logger = env_filter::FilteredLog::new(
+                    os_logger,
+                    env_filter::Builder::new().parse("musicopy=debug").build(),
+                );
+                log::set_boxed_logger(Box::new(logger)).expect("failed to initialize logger");
+            }
+
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
                 env_logger::Builder::from_env(
                     env_logger::Env::default().default_filter_or("musicopy=debug"),
                 )
                 .init();
             }
+
             log_panics::init();
         }
 
@@ -459,6 +472,7 @@ impl Core {
     }
 }
 
+// on android, expose a jni function to initialize ndk_context
 #[cfg(target_os = "android")]
 #[unsafe(no_mangle)]
 #[allow(non_snake_case)]
