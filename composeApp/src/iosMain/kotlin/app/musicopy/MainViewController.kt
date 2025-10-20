@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.window.ComposeUIViewController
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -13,11 +14,13 @@ fun MainViewController(): UIViewController {
     val platformAppContext = PlatformAppContext()
     val platformActivityContext = PlatformActivityContext()
 
+    val coreInstanceState: MutableState<CoreInstance?> = mutableStateOf(null)
+    GlobalScope.launch {
+        coreInstanceState.value = CoreInstance.start(platformAppContext)
+    }
+
     return ComposeUIViewController {
-        var coreInstance: CoreInstance? by remember { mutableStateOf(null) }
-        GlobalScope.launch {
-            coreInstance = CoreInstance.start(platformAppContext)
-        }
+        var coreInstance by coreInstanceState
 
         coreInstance?.let { coreInstance ->
             App(
