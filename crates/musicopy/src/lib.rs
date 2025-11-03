@@ -470,6 +470,13 @@ impl Core {
 
         Ok(())
     }
+
+    pub fn write_test_file(&self, root: String) -> Result<(), CoreError> {
+        self.node
+            .send(NodeCommand::WriteTestFile(root))
+            .context("failed to send to node thread")?;
+        Ok(())
+    }
 }
 
 // on android, expose a jni function to initialize ndk_context

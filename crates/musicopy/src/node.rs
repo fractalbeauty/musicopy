@@ -216,6 +216,9 @@ pub enum NodeCommand {
     UntrustNode(NodeId),
 
     Stop,
+
+    // unused, for debugging filesystem code
+    WriteTestFile(String),
 }
 
 /// An event sent from a server or client to the node.
@@ -583,6 +586,41 @@ impl Node {
 
                             // update model
                             self.update_model(NodeModelUpdate::UpdateTrustedNodes);
+                        }
+
+                        NodeCommand::WriteTestFile(root) => {
+                            log::warn!("core: received NodeCommand::WriteTestFile");
+
+                            tokio::spawn(async move {
+                                log::debug!("core: inside WriteTestFile task");
+
+                                let mut path = crate::fs::TreePath::from_root(root);
+                                path.push("test.txt");
+
+                                log::debug!("core: WriteTestFile opening or creating file at {:?}", path);
+
+                                let mut file = match crate::fs::TreeFile::open_or_create(
+                                    &path,
+                                    crate::fs::OpenMode::Write,
+                                )
+                                .await
+                                {
+                                    Ok(f) => f,
+                                    Err(e) => {
+                                        log::error!("core: WriteTestFile failed to open or create file: {e:#}");
+                                        return;
+                                    }
+                                };
+
+                                log::debug!("core: WriteTestFile opened or created file successfully");
+
+                                if let Err(e) = file.write_all(b"meow meow").await {
+                                    log::error!("core: WriteTestFile failed to write to file: {e:#}");
+                                    return;
+                                }
+
+                                log::debug!("core: WriteTestFile wrote to file successfully");
+                            });
                         }
 
                         NodeCommand::Stop => break,
