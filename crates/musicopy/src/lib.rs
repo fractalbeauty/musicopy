@@ -504,3 +504,28 @@ pub extern "system" fn Java_app_musicopy_RustNdkContext_init(
         ndk_context::initialize_android_context(java_vm_ptr, context_ptr);
     }
 }
+
+#[uniffi::export]
+pub fn log_trace(message: String) {
+    log::trace!("compose: {}", message);
+}
+
+#[uniffi::export]
+pub fn log_debug(message: String) {
+    log::debug!("compose: {}", message);
+}
+
+#[uniffi::export]
+pub fn log_info(message: String) {
+    log::info!("compose: {}", message);
+}
+
+#[uniffi::export]
+pub fn log_warn(message: String) {
+    log::warn!("compose: {}", message);
+}
+
+#[uniffi::export]
+pub fn log_error(message: String) {
+    log::error!("compose: {}", message);
+}
