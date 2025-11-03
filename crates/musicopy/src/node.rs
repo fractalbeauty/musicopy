@@ -2275,7 +2275,7 @@ impl Client {
                 // poll the stream to download items with limited concurrency
                 while let Some(res) = buffer.next().await {
                     if let Err(e) = res {
-                        log::error!("error downloading item: {e}");
+                        log::error!("error downloading item: {e:#}");
                     }
                 }
             }
