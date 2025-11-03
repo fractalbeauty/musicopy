@@ -1,7 +1,10 @@
 package app.musicopy
 
-expect class DirectoryPicker {
-    constructor(platformContext: PlatformActivityContext)
+import androidx.compose.runtime.Composable
 
+expect class DirectoryPicker {
     suspend fun pickDownloadDirectory()
 }
+
+@Composable
+expect fun rememberDirectoryPicker(platformContext: PlatformActivityContext): DirectoryPicker

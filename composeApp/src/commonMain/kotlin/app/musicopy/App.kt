@@ -50,7 +50,7 @@ fun App(
     val libraryModel by coreInstance.libraryState.collectAsState()
     val nodeModel by coreInstance.nodeState.collectAsState()
 
-    val directoryPicker = remember { DirectoryPicker(platformActivityContext) }
+    val directoryPicker = rememberDirectoryPicker(platformActivityContext)
 
     val scope = rememberCoroutineScope()
 

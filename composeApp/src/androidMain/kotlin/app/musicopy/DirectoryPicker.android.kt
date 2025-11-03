@@ -1,9 +1,12 @@
 package app.musicopy
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+
 actual class DirectoryPicker {
     private var activity: MainActivity
 
-    actual constructor(platformContext: PlatformActivityContext) {
+    internal constructor(platformContext: PlatformActivityContext) {
         this.activity = platformContext.mainActivity
     }
 
@@ -11,3 +14,7 @@ actual class DirectoryPicker {
         activity.observer.openDocumentTree.launch(null)
     }
 }
+
+@Composable
+actual fun rememberDirectoryPicker(platformContext: PlatformActivityContext) =
+    remember { DirectoryPicker(platformContext) }
