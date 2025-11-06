@@ -160,11 +160,11 @@ fun App(
                             directoryPicker.pickDownloadDirectory()
                         }
                     },
-                    onConnectQRButtonClicked = { navController.navigate(ConnectQR) },
+                    onConnectQRButtonClicked = {
+                        navController.navigate(ConnectQR)
+                    },
                     onConnectManuallyButtonClicked = {
-                        navController.navigate(
-                            ConnectManually
-                        )
+                        navController.navigate(ConnectManually)
                     },
                     onConnectRecent = onConnect,
                 )

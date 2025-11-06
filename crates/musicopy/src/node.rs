@@ -594,7 +594,13 @@ impl Node {
                             tokio::spawn(async move {
                                 log::debug!("core: inside WriteTestFile task");
 
-                                let mut path = crate::fs::TreePath::from_root(root);
+                                let mut path = match crate::fs::TreePath::from_root(root) {
+                                    Ok(p) => p,
+                                    Err(e) => {
+                                        log::error!("core: WriteTestFile failed to create TreePath from root: {e:#}");
+                                        return;
+                                    }
+                                };
                                 path.push("test.txt");
 
                                 log::debug!("core: WriteTestFile opening or creating file at {:?}", path);
@@ -1138,7 +1144,8 @@ impl Node {
             let path = TreePath::new(
                 remote_file.local_tree.clone(),
                 remote_file.local_path.into(),
-            );
+            )
+            .context("failed to construct TreePath")?;
 
             if !path.exists() {
                 missing_files.push((remote_file.node_id, remote_file.root, remote_file.path));
@@ -2204,7 +2211,7 @@ impl Client {
                                 let root_dir_name =
                                     format!("musicopy-{}-{}", &file_node_id, &file_root);
                                 let mut local_path =
-                                    TreePath::new(download_directory, root_dir_name.into());
+                                    TreePath::new(download_directory, root_dir_name.into())?;
                                 local_path.push(&file_path);
                                 local_path.set_extension("ogg");
                                 local_path

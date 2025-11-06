@@ -11,159 +11,73 @@
 //! - When done, stop accessing security-scoped resources for the URL
 //!
 //! Document picking, bookmark creation, and storage are done in the UI layer.
-//! Bookmark resolution and refreshing are also done in the UI layer using a
-//! UniFFI trait interface. The core layer is responsible for tracking access
+//! The core layer is responsible for bookmark resolution and tracking access
 //! to security-scoped resources.
 
-use super::ios_uniffi::*;
-use core_foundation::{
-    base::{CFRelease, TCFTypeRef},
-    string::kCFStringEncodingUTF8,
-    url::{
-        CFURLCreateWithBytes, CFURLStartAccessingSecurityScopedResource,
-        CFURLStopAccessingSecurityScopedResource,
-    },
-};
-use dashmap::DashMap;
-use std::sync::{Arc, LazyLock, OnceLock};
+use anyhow::Context;
+use base64::{Engine, prelude::BASE64_STANDARD};
+use objc2_core_foundation::{CFData, CFRetained, CFURL, CFURLBookmarkResolutionOptions};
+use std::path::PathBuf;
 
-static IOS_BOOKMARK_RESOLVER: OnceLock<Arc<dyn IosBookmarkResolver>> = OnceLock::new();
+/// Resolves a bookmark base64 string, returning the file path and an access
+/// guard. The guard should be held until access is no longer needed.
+pub fn resolve_bookmark(bookmark: String) -> anyhow::Result<(PathBuf, IosUrlAccessGuard)> {
+    // decode bookmark
+    let bookmark_bytes = BASE64_STANDARD
+        .decode(bookmark)
+        .context("failed to decode bookmark string")?;
 
-/// Sets the global iOS bookmark resolver.
-///
-/// Should be called once at app startup.
-pub fn set_ios_bookmark_resolver(resolver: Arc<dyn IosBookmarkResolver>) {
-    let _ = IOS_BOOKMARK_RESOLVER.set(resolver);
-}
+    let bookmark_data = CFData::from_bytes(&bookmark_bytes);
 
-/// Calls the global iOS bookmark resolver to resolve a bookmark.
-pub fn resolve_bookmark(bookmark: String) -> Result<String, ResolveBookmarkError> {
-    let resolver = IOS_BOOKMARK_RESOLVER
-        .get()
-        .ok_or_else(|| ResolveBookmarkError::Unexpected {
-            reason: "ios bookmark resolver not initialized".into(),
-        })?;
-
-    resolver.resolve_bookmark(bookmark)
-}
-
-static URL_ACCESS_COUNTS: LazyLock<DashMap<String, usize>> = LazyLock::new(|| DashMap::new());
-
-/// Increases the count for the security-scoped resource at the given URL.
-///
-/// If this is the first user, also starts accessing the security-scoped resource.
-fn start_accessing_url(url: &str) -> anyhow::Result<()> {
-    log::trace!("fs::ios: start_accessing_url called with url: {}", url);
-
-    let mut count = URL_ACCESS_COUNTS.entry(url.to_string()).or_insert(0);
-    *count += 1;
-
-    log::trace!("fs::ios: access count increased to {} for {}", *count, url);
-
-    if *count == 1 {
-        log::trace!("fs::ios: start accessing security scoped resource: {}", url);
-        start_accessing_security_scoped_resource(url)?;
-    }
-
-    Ok(())
-}
-
-/// Decreases the count for the security-scoped resource at the given URL.
-///
-/// If this is the last user, also stops accessing the security-scoped resource.
-fn stop_accessing_url(url: &str) -> anyhow::Result<()> {
-    log::trace!("fs::ios: stop_accessing_url called with url: {}", url);
-
-    let mut count = URL_ACCESS_COUNTS
-        .entry(url.to_string())
-        // shouldn't happen, but preferable to call stop twice than panic
-        .or_insert(1);
-    *count -= 1;
-
-    log::trace!("fs::ios: access count decreased to {} for {}", *count, url);
-
-    if *count == 0 {
-        // drop the entry reference to prevent deadlocking
-        drop(count);
-
-        URL_ACCESS_COUNTS.remove(url);
-
-        log::trace!("fs::ios: stop accessing security scoped resource: {}", url);
-        stop_accessing_security_scoped_resource(url)?;
-    }
-
-    Ok(())
-}
-
-// wrapper for CFURLStartAccessingSecurityScopedResource
-fn start_accessing_security_scoped_resource(url: &str) -> anyhow::Result<()> {
-    let url_bytes = url.as_bytes();
-
-    let cf_url = unsafe {
-        CFURLCreateWithBytes(
-            std::ptr::null(),
-            url_bytes.as_ptr(),
-            url_bytes.len() as isize,
-            kCFStringEncodingUTF8,
-            std::ptr::null(),
+    // resolve bookmark
+    let mut is_stale: u8 = 0;
+    let Some(bookmark_url) = (unsafe {
+        CFURL::new_by_resolving_bookmark_data(
+            None,
+            Some(&bookmark_data),
+            CFURLBookmarkResolutionOptions::CFURLBookmarkResolutionWithSecurityScope,
+            None,
+            None,
+            &mut is_stale,
+            std::ptr::null_mut(),
         )
+    }) else {
+        return Err(anyhow::anyhow!("failed to resolve bookmark data"));
     };
-    if cf_url.is_null() {
-        anyhow::bail!("CFURLCreateWithBytes failed");
+
+    if is_stale == 1 {
+        log::warn!("resolved bookmark is stale");
+
+        // TODO: handle refreshing the bookmark. annoying bc we should update
+        // references to the stale bookmark in the database, and the bookmark
+        // is currently stored in the ui layer
     }
 
-    let success = unsafe { CFURLStartAccessingSecurityScopedResource(cf_url) };
-    unsafe { CFRelease(cf_url.as_void_ptr()) };
+    // start accessing security-scoped resource
+    let guard = IosUrlAccessGuard::new(bookmark_url.clone());
 
-    if success == 0 {
-        anyhow::bail!("CFURLStartAccessingSecurityScopedResource failed");
-    }
+    // get file path
+    let path = bookmark_url
+        .to_file_path()
+        .ok_or_else(|| anyhow::anyhow!("failed to get file path from URL"))?;
 
-    Ok(())
-}
-
-// wrapper for CFURLStopAccessingSecurityScopedResource
-fn stop_accessing_security_scoped_resource(url: &str) -> anyhow::Result<()> {
-    let url_bytes = url.as_bytes();
-
-    let cf_url = unsafe {
-        CFURLCreateWithBytes(
-            std::ptr::null(),
-            url_bytes.as_ptr(),
-            url_bytes.len() as isize,
-            kCFStringEncodingUTF8,
-            std::ptr::null(),
-        )
-    };
-    if cf_url.is_null() {
-        anyhow::bail!("CFURLCreateWithBytes failed");
-    }
-
-    unsafe { CFURLStopAccessingSecurityScopedResource(cf_url) };
-    unsafe { CFRelease(cf_url.as_void_ptr()) };
-
-    Ok(())
+    Ok((path, guard))
 }
 
 /// Guard that starts accessing a URL on creation and stops accessing it on drop.
 #[derive(Debug)]
 pub struct IosUrlAccessGuard {
-    url: String,
+    url: CFRetained<CFURL>,
 }
 
 impl IosUrlAccessGuard {
-    pub fn new(url: String) -> Self {
-        log::trace!("fs::ios::IosUrlAccessGuard::new called with url: {}", url);
-
-        if let Err(e) = start_accessing_url(&url) {
+    pub fn new(url: CFRetained<CFURL>) -> Self {
+        let success = unsafe { url.start_accessing_security_scoped_resource() };
+        if !success {
             log::error!(
-                "fs::ios::IosUrlAccessGuard failed to start accessing url {}: {}",
-                url,
-                e
+                "IosUrlAccessGuard::new: CFURLStartAccessingSecurityScopedResource returned false"
             );
         }
-
-        log::trace!("fs::ios::IosUrlAccessGuard started accessing url: {}", url);
 
         Self { url }
     }
@@ -172,24 +86,17 @@ impl IosUrlAccessGuard {
 // stop accessing url on drop
 impl Drop for IosUrlAccessGuard {
     fn drop(&mut self) {
-        if let Err(e) = stop_accessing_url(&self.url) {
-            log::error!(
-                "fs::ios: IosUrlAccessGuard Drop failed to stop accessing url {}: {}",
-                self.url,
-                e
-            );
-        }
+        unsafe { self.url.stop_accessing_security_scoped_resource() };
     }
 }
 
-// make sure to also increase access count on clone
+// make sure to start accessing another time on clone
 impl Clone for IosUrlAccessGuard {
     fn clone(&self) -> Self {
-        if let Err(e) = start_accessing_url(&self.url) {
+        let success = unsafe { self.url.start_accessing_security_scoped_resource() };
+        if !success {
             log::error!(
-                "fs::ios::IosUrlAccessGuard failed to start accessing url on clone {}: {}",
-                self.url,
-                e
+                "IosUrlAccessGuard::clone: CFURLStartAccessingSecurityScopedResource returned false"
             );
         }
 

@@ -10,13 +10,11 @@
 //! - For now we're not returning URIs anywhere, mostly just files.
 //!     - We might want a notion of resolved vs unresolved, so we can return a URI to a document
 //!       in a deep subfolder instead of its path to not have to resolve it again.
-//! - Will add support for iOS/MacOS sandboxing ("bookmarks"?) later
 
 #[cfg(target_os = "android")]
 mod android;
 #[cfg(target_os = "ios")]
 mod ios;
-mod ios_uniffi;
 
 use anyhow::Context;
 use std::{borrow::Cow, path::PathBuf, pin::Pin};
@@ -40,23 +38,26 @@ pub enum OpenMode {
 /// path to the tree.
 ///
 /// On iOS, the root at creation should be a base64-encoded bookmark. It will
-/// be resolved immediately using the global IosBookmarkResolver. It then
-/// starts accessing security-scoped resources for the resolved URL. When
-/// the TreePath is dropped, it eventually stops accessing the security-scoped
-/// resource if it was the last user of that URL.
+/// be resolved immediately, but the result will be stored separately so that
+/// the original bookmark can be retrieved later. It also starts accessing
+/// security-scoped resources for the resolved URL. When the TreePath is
+/// dropped, it stops accessing security-scoped resources for the URL.
 #[derive(Debug, Clone)]
 pub struct TreePath {
     /// The URI of the tree.
     ///
     /// On Android, this is a tree URI.
     ///
-    /// On iOS, this is a file URL resolved from a bookmark.
+    /// On iOS, this is base64-encoded bookmark.
     ///
     /// Otherwise, this is a regular path.
     tree: String,
     /// The subpath within the tree.
     path: PathBuf,
 
+    // on ios, we resolve the bookmark immediately but store it separately
+    #[cfg(target_os = "ios")]
+    resolved_bookmark: PathBuf,
     // on ios, this guard handles starting and stopping security-scoped access
     #[cfg(target_os = "ios")]
     url_access_guard: ios::IosUrlAccessGuard,
@@ -66,25 +67,27 @@ impl TreePath {
     /// Creates a TreePath from the given root and path.
     ///
     /// On iOS, the root should be a base64-encoded bookmark.
-    pub fn new(root: String, path: PathBuf) -> Self {
+    pub fn new(root: String, path: PathBuf) -> anyhow::Result<Self> {
         // resolve bookmark
-        // TODO: handle error?
         #[cfg(target_os = "ios")]
-        let root = ios::resolve_bookmark(root).expect("failed to resolve ios bookmark");
+        let (resolved_bookmark, url_access_guard) =
+            ios::resolve_bookmark(root.clone()).context("failed to resolve ios bookmark")?;
 
-        Self {
+        Ok(Self {
             #[cfg(target_os = "ios")]
-            url_access_guard: ios::IosUrlAccessGuard::new(root.clone()),
+            resolved_bookmark,
+            #[cfg(target_os = "ios")]
+            url_access_guard,
 
             tree: root,
             path,
-        }
+        })
     }
 
     /// Creates a TreePath from the given root.
     ///
     /// On iOS, the root should be a base64-encoded bookmark.
-    pub fn from_root(root: String) -> Self {
+    pub fn from_root(root: String) -> anyhow::Result<Self> {
         Self::new(root, PathBuf::new())
     }
 
@@ -108,6 +111,8 @@ impl TreePath {
             path: new_path,
 
             #[cfg(target_os = "ios")]
+            resolved_bookmark: self.resolved_bookmark.clone(),
+            #[cfg(target_os = "ios")]
             url_access_guard: self.url_access_guard.clone(),
         }
     }
@@ -121,10 +126,12 @@ impl TreePath {
     }
 
     pub fn parent(&self) -> Option<Self> {
-        self.path.parent().map(|p| Self {
+        self.path.parent().map(|parent_path| Self {
             tree: self.tree.clone(),
-            path: p.to_path_buf(),
+            path: parent_path.to_path_buf(),
 
+            #[cfg(target_os = "ios")]
+            resolved_bookmark: self.resolved_bookmark.clone(),
             #[cfg(target_os = "ios")]
             url_access_guard: self.url_access_guard.clone(),
         })
@@ -136,33 +143,23 @@ impl TreePath {
 
     // on desktop, just join the tree and path
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    pub fn resolve_path(&self) -> anyhow::Result<PathBuf> {
+    pub fn resolve_path(&self) -> PathBuf {
         let mut p = PathBuf::from(&self.tree);
         p.push(&self.path);
-        Ok(p)
+        p
     }
 
-    // on ios, we need to convert the file url to a real file path (to remove
-    // the scheme and percent encoding)
+    // on ios, we use the previously resolved bookmark instead
     #[cfg(target_os = "ios")]
-    pub fn resolve_path(&self) -> anyhow::Result<PathBuf> {
-        let tree_url = url::Url::parse(&self.tree).context("failed to parse tree url")?;
-
-        let mut path = tree_url
-            .to_file_path()
-            .map_err(|_| anyhow::anyhow!("failed to convert tree url to file path"))?;
-
-        path.push(&self.path);
-
-        Ok(path)
+    pub fn resolve_path(&self) -> PathBuf {
+        self.resolved_bookmark.join(&self.path)
     }
 
     pub fn exists(&self) -> bool {
         #[cfg(not(target_os = "android"))]
         {
-            let mut p = PathBuf::from(&self.tree);
-            p.push(&self.path);
-            p.exists()
+            let path = self.resolve_path();
+            path.exists()
         }
         #[cfg(target_os = "android")]
         {
@@ -183,7 +180,7 @@ impl TreeFile {
     pub async fn create(path: &TreePath) -> anyhow::Result<Self> {
         #[cfg(not(target_os = "android"))]
         {
-            let resolved_path = path.resolve_path()?;
+            let resolved_path = path.resolve_path();
             let file = TokioFile::create(&resolved_path).await?;
             Ok(Self { file })
         }
@@ -198,7 +195,7 @@ impl TreeFile {
     pub async fn open(path: &TreePath, mode: OpenMode) -> anyhow::Result<Self> {
         #[cfg(not(target_os = "android"))]
         {
-            let resolved_path = path.resolve_path()?;
+            let resolved_path = path.resolve_path();
             let file = match mode {
                 OpenMode::Read => OpenOptions::new().read(true).open(&resolved_path).await?,
                 OpenMode::Write => {
@@ -221,7 +218,7 @@ impl TreeFile {
     pub async fn open_or_create(path: &TreePath, mode: OpenMode) -> anyhow::Result<Self> {
         #[cfg(not(target_os = "android"))]
         {
-            let resolved_path = path.resolve_path()?;
+            let resolved_path = path.resolve_path();
             let file = match mode {
                 OpenMode::Read => {
                     OpenOptions::new()
@@ -326,7 +323,7 @@ impl AsyncWrite for TreeFile {
 pub async fn create_dir_all(path: &TreePath) -> anyhow::Result<()> {
     #[cfg(not(target_os = "android"))]
     {
-        let resolved_path = path.resolve_path()?;
+        let resolved_path = path.resolve_path();
         tokio::fs::create_dir_all(&resolved_path).await?;
         Ok(())
     }

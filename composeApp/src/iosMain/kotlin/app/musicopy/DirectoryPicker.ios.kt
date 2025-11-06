@@ -17,6 +17,7 @@ import platform.UniformTypeIdentifiers.UTType
 import platform.UniformTypeIdentifiers.UTTypeDirectory
 import platform.UniformTypeIdentifiers.UTTypeFolder
 import platform.darwin.NSObject
+import uniffi.musicopy.logError
 import kotlin.collections.listOf
 
 actual class DirectoryPicker internal constructor(val onPick: () -> Unit) {
@@ -41,17 +42,26 @@ actual fun rememberDirectoryPicker(platformContext: PlatformActivityContext): Di
                 }
                 val url = didPickDocumentsAtURLs.first() as NSURL
 
+                // important: we need to call startAccessing before creating the bookmark
+                val accessingSSR = url.startAccessingSecurityScopedResource()
+
                 val bookmarkData = url.bookmarkDataWithOptions(
-                    NSURLBookmarkCreationWithSecurityScope, //NSURLBookmarkCreationMinimalBookmark,
+                    NSURLBookmarkCreationWithSecurityScope,
                     null,
                     null,
                     null
                 )
                 if (bookmarkData == null) {
+                    logError("DirectoryPicker: bookmarkDataWithOptions returned null")
                     return
                 }
 
-                AppSettings.downloadDirectory = bookmarkData.base64EncodedStringWithOptions(0uL)
+                if (accessingSSR) {
+                    url.stopAccessingSecurityScopedResource()
+                }
+
+                val bookmarkString = bookmarkData.base64EncodedStringWithOptions(0uL)
+                AppSettings.downloadDirectory = bookmarkString
                 // TODO: display something nicer
             }
         }
