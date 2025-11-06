@@ -974,6 +974,11 @@ impl Node {
                             return;
                         };
 
+                        let download_directory = {
+                            let download_directory = self.download_directory.lock().unwrap();
+                            download_directory.clone()
+                        };
+
                         let index = client_handle.index.lock().unwrap().as_ref().cloned();
                         if let Some(index) = index {
                             let db = self.db.lock().unwrap();
@@ -981,12 +986,18 @@ impl Node {
                             let index = index
                                 .into_iter()
                                 .map(|item| {
-                                    // check if file is downloaded
-                                    let downloaded = db
-                                        .exists_file_by_node_root_path(
-                                            node_id, &item.root, &item.path,
-                                        )
-                                        .unwrap_or(false);
+                                    // check if file is downloaded to the current download directory
+                                    let downloaded = download_directory.as_ref().is_some_and(
+                                        |download_directory| {
+                                            db.exists_file_by_node_root_path_localtree(
+                                                node_id,
+                                                &item.root,
+                                                &item.path,
+                                                &download_directory,
+                                            )
+                                            .unwrap_or(false)
+                                        },
+                                    );
 
                                     IndexItemModel {
                                         node_id: node_id.to_string(),
@@ -1143,12 +1154,16 @@ impl Node {
         for remote_file in remote_files {
             let path = TreePath::new(
                 remote_file.local_tree.clone(),
-                remote_file.local_path.into(),
-            )
-            .context("failed to construct TreePath")?;
+                remote_file.local_path.clone().into(),
+            );
 
-            if !path.exists() {
-                missing_files.push((remote_file.node_id, remote_file.root, remote_file.path));
+            // check for error without failing
+            if let Err(e) = &path {
+                log::warn!("check_remote_files: failed to create TreePath: {e:#}");
+            }
+
+            if !path.is_ok_and(|p| p.exists()) {
+                missing_files.push((remote_file.local_tree, remote_file.local_path));
             }
         }
 
@@ -1160,7 +1175,7 @@ impl Node {
             );
             {
                 let db = self.db.lock().unwrap();
-                db.remove_files_by_node_root_path(missing_files.into_iter())?;
+                db.remove_files_by_local_treepath(missing_files.into_iter())?;
             }
         }
 
@@ -2071,6 +2086,7 @@ struct ClientHandle {
 
 struct Client {
     db: Arc<Mutex<Database>>,
+    download_directory: Arc<Mutex<Option<String>>>,
 
     event_tx: mpsc::UnboundedSender<NodeEvent>,
     connection: Connection,
@@ -2101,6 +2117,7 @@ impl Client {
             let jobs = jobs.clone();
             let event_tx = event_tx.clone();
             let connection = connection.clone();
+            let download_directory = download_directory.clone();
             async move {
                 // convert channel receiver of ready job IDs into a stream for use with buffer_unordered
                 let ready_stream = async_stream::stream! {
@@ -2290,6 +2307,7 @@ impl Client {
 
         Self {
             db,
+            download_directory,
 
             event_tx,
             connection,
@@ -2482,16 +2500,23 @@ impl Client {
                                 continue;
                             };
 
+                            // get download directory
+                            let download_directory = {
+                                let download_directory = self.download_directory.lock().unwrap();
+                                download_directory.clone()
+                            };
+
                             // create jobs and download request items
                             let download_requests = {
                                 let db = self.db.lock().unwrap();
                                 index.into_iter().flat_map(|file| {
-                                    // check if file is downloaded
-                                    let downloaded = db
-                                        .exists_file_by_node_root_path(
-                                            file.node_id, &file.root, &file.path,
+                                    // check if file is downloaded to the current download directory
+                                    let downloaded = download_directory.as_ref().is_some_and(|download_directory| {
+                                        db.exists_file_by_node_root_path_localtree(
+                                            file.node_id, &file.root, &file.path, download_directory,
                                         )
-                                        .unwrap_or(false);
+                                        .unwrap_or(false)
+                                    });
                                     if downloaded {
                                         return None;
                                     }

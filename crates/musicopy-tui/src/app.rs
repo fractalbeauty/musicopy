@@ -351,7 +351,12 @@ impl<'a> App<'a> {
 
                 let core = self.core.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = core.download_all(&node_id, "/tmp/musicopy-dl") {
+                    if let Err(e) = core.set_download_directory("/tmp/musicopy-dl") {
+                        app_log!("error setting download directory: {e:#}");
+                        return;
+                    }
+
+                    if let Err(e) = core.download_all(&node_id) {
                         app_log!("error downloading from client {}: {e:#}", client_num);
                     }
                 });
@@ -407,7 +412,12 @@ impl<'a> App<'a> {
 
                 let core = self.core.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = core.download_partial(&node_id, items, "/tmp/musicopy-dl") {
+                    if let Err(e) = core.set_download_directory("/tmp/musicopy-dl") {
+                        app_log!("error setting download directory: {e:#}");
+                        return;
+                    }
+
+                    if let Err(e) = core.download_partial(&node_id, items) {
                         app_log!("error downloading from client {}: {e:#}", client_num);
                     }
                 });

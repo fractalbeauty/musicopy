@@ -48,7 +48,7 @@ impl Database {
         Self::new_from_connection(conn)
     }
 
-    /// Open the databease in memory.
+    /// Open the database in memory.
     pub fn open_in_memory() -> anyhow::Result<Self> {
         log::warn!("using in-memory database");
         let conn = rusqlite::Connection::open_in_memory()?;
@@ -84,7 +84,7 @@ impl Database {
                 path TEXT NOT NULL,
                 local_tree TEXT NOT NULL,
                 local_path TEXT NOT NULL,
-                UNIQUE (node_id, root, path)
+                UNIQUE (node_id, root, path, local_tree)
             )",
             [],
         )?;
@@ -109,6 +109,10 @@ impl Database {
     pub fn reset(&self) -> anyhow::Result<()> {
         self.conn.execute("DROP TABLE IF EXISTS roots", [])?;
         self.conn.execute("DROP TABLE IF EXISTS files", [])?;
+        self.conn
+            .execute("DROP TABLE IF EXISTS trusted_nodes", [])?;
+        self.conn
+            .execute("DROP TABLE IF EXISTS recent_servers", [])?;
         self.create_tables()?;
         Ok(())
     }
@@ -213,7 +217,7 @@ impl Database {
     ) -> anyhow::Result<()> {
         let mut stmt = self.conn.prepare(
             "INSERT INTO files (hash_kind, hash, node_id, root, path, local_tree, local_path) VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(node_id, root, path) DO UPDATE SET hash_kind = excluded.hash_kind, hash = excluded.hash, local_tree = excluded.local_tree, local_path = excluded.local_path"
+            ON CONFLICT(node_id, root, path, local_tree) DO UPDATE SET hash_kind = excluded.hash_kind, hash = excluded.hash, local_path = excluded.local_path"
         )?;
 
         stmt.execute((
@@ -314,20 +318,23 @@ impl Database {
         .collect()
     }
 
-    pub fn exists_file_by_node_root_path(
+    // check if a file exists by node_id, root, path, and local_tree
+    // used to determine if a file has already been downloaded to the *current* download directory
+    pub fn exists_file_by_node_root_path_localtree(
         &self,
         node_id: NodeId,
         root: &str,
         path: &str,
+        local_tree: &str,
     ) -> anyhow::Result<bool> {
         let mut stmt = self
             .conn
-            .prepare("SELECT 1 FROM files WHERE node_id = ? AND root = ? AND path = ? LIMIT 1")
+            .prepare("SELECT 1 FROM files WHERE node_id = ? AND root = ? AND path = ? AND local_tree = ? LIMIT 1")
             .expect("should prepare statement");
 
         let node_id = node_id_to_string(&node_id);
         let exists: Option<u8> = stmt
-            .query_row([&node_id, root, path], |row| row.get(0))
+            .query_row([&node_id, root, path, local_tree], |row| row.get(0))
             .optional()
             .context("failed to query row")?;
 
@@ -409,23 +416,22 @@ impl Database {
         .collect()
     }
 
-    pub fn remove_files_by_node_root_path(
+    pub fn remove_files_by_local_treepath(
         &self,
-        keys: impl ExactSizeIterator<Item = (NodeId, String, String)>,
+        keys: impl ExactSizeIterator<Item = (String, String)>,
     ) -> anyhow::Result<()> {
         if keys.len() == 0 {
             return Ok(());
         }
 
-        let placeholders = std::iter::repeat_n("(?, ?, ?)", keys.len()).join(", ");
-        let sql = format!("DELETE FROM files WHERE (node_id, root, path) IN ({placeholders})");
+        let placeholders = std::iter::repeat_n("(?, ?)", keys.len()).join(", ");
+        let sql = format!("DELETE FROM files WHERE (local_tree, local_path) IN ({placeholders})");
 
         let mut stmt = self.conn.prepare(&sql).expect("should prepare statement");
 
-        let params_flat = rusqlite::params_from_iter(keys.flat_map(|(node_id, root, path)| {
-            let node_id_string = node_id_to_string(&node_id);
-            [node_id_string, root, path]
-        }));
+        let params_flat = rusqlite::params_from_iter(
+            keys.flat_map(|(local_tree, local_path)| [local_tree, local_path]),
+        );
 
         stmt.execute(params_flat)?;
 
