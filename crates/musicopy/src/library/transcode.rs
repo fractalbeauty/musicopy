@@ -143,7 +143,7 @@ impl TranscodeStatusCache {
     }
 
     /// Gets a reference to an entry in the cache.
-    pub fn get(&self, hash_kind: &str, hash: &[u8]) -> Option<TranscodeStatusCacheEntry> {
+    pub fn get(&self, hash_kind: &str, hash: &[u8]) -> Option<TranscodeStatusCacheEntry<'_>> {
         self.cache
             .get(&(hash_kind, hash) as &dyn HashKey)
             .map(TranscodeStatusCacheEntry)
@@ -864,7 +864,7 @@ impl RegionCounter {
 
     /// Enters the region and increments the count, returning a guard that
     /// decrements the count when dropped at the end of the region.
-    pub fn entered(&self) -> RegionCounterGuard {
+    pub fn entered(&self) -> RegionCounterGuard<'_> {
         RegionCounterGuard::new(self)
     }
 }

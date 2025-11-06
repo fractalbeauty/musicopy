@@ -16,7 +16,6 @@ mod android;
 #[cfg(target_os = "ios")]
 mod ios;
 
-use anyhow::Context;
 use std::{borrow::Cow, path::PathBuf, pin::Pin};
 use tokio::{
     fs::{File as TokioFile, OpenOptions},
@@ -70,8 +69,10 @@ impl TreePath {
     pub fn new(root: String, path: PathBuf) -> anyhow::Result<Self> {
         // resolve bookmark
         #[cfg(target_os = "ios")]
-        let (resolved_bookmark, url_access_guard) =
-            ios::resolve_bookmark(root.clone()).context("failed to resolve ios bookmark")?;
+        let (resolved_bookmark, url_access_guard) = {
+            use anyhow::Context;
+            ios::resolve_bookmark(root.clone()).context("failed to resolve ios bookmark")?
+        };
 
         Ok(Self {
             #[cfg(target_os = "ios")]
