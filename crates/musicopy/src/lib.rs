@@ -159,8 +159,8 @@ impl Core {
                 }
             };
 
-            let db = Database::open_file(&data_dir.join("musicopy_v1.db"))
-                .context("failed to open database")?;
+            let db_path = data_dir.join("musicopy_v1.db");
+            let db = Database::open_file(&db_path).context("failed to open database")?;
 
             let key_path = data_dir.join("secret_key");
             let secret_key = if key_path.exists() {
@@ -337,13 +337,16 @@ impl Core {
             .map_err(CoreError::from)
     }
 
-    pub fn download_all(&self, node_id: &str, download_directory: &str) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
-
-        // TODO: this shouldn't happen here
+    pub fn set_download_directory(&self, download_directory: &str) -> Result<(), CoreError> {
         self.node
             .send(NodeCommand::SetDownloadDirectory(download_directory.into()))
             .context("failed to send to node thread")?;
+
+        Ok(())
+    }
+
+    pub fn download_all(&self, node_id: &str) -> Result<(), CoreError> {
+        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
 
         self.node
             .send(NodeCommand::DownloadAll { client: node_id })
@@ -356,14 +359,8 @@ impl Core {
         &self,
         node_id: &str,
         items: Vec<DownloadPartialItemModel>,
-        download_directory: &str,
     ) -> Result<(), CoreError> {
         let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
-
-        // TODO: this shouldn't happen here
-        self.node
-            .send(NodeCommand::SetDownloadDirectory(download_directory.into()))
-            .context("failed to send to node thread")?;
 
         self.node
             .send(NodeCommand::DownloadPartial {

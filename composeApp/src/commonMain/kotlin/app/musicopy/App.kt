@@ -6,6 +6,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,12 +48,21 @@ fun App(
     coreInstance: CoreInstance,
     navController: NavHostController = rememberNavController(),
 ) {
+    val scope = rememberCoroutineScope()
+
+    // collect core state flows as compose state
     val libraryModel by coreInstance.libraryState.collectAsState()
     val nodeModel by coreInstance.nodeState.collectAsState()
 
     val directoryPicker = rememberDirectoryPicker(platformActivityContext)
 
-    val scope = rememberCoroutineScope()
+    // set download directory when changed
+    val downloadDirectory by AppSettings.downloadDirectoryFlow.collectAsState(initial = null)
+    LaunchedEffect(downloadDirectory) {
+        downloadDirectory?.let {
+            coreInstance.instance.setDownloadDirectory(it)
+        }
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarHost = @Composable { SnackbarHost(snackbarHostState) }
@@ -268,7 +278,7 @@ fun App(
                         clientModel = clientModel,
                         onDownloadAll = {
                             downloadDirectory?.let { downloadDirectory ->
-                                coreInstance.instance.downloadAll(nodeId, downloadDirectory)
+                                coreInstance.instance.downloadAll(nodeId)
                                 navController.navigate(Transfer(nodeId = nodeId))
                             } ?: run {
                                 // TODO toast?
@@ -280,7 +290,6 @@ fun App(
                                 coreInstance.instance.downloadPartial(
                                     nodeId,
                                     items,
-                                    downloadDirectory
                                 )
                                 navController.navigate(Transfer(nodeId = nodeId))
                             } ?: run {
