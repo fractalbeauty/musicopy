@@ -49,8 +49,10 @@ fun MobileTransferScreenshot() {
     )
 
     TransferScreen(
+        snackbarHost = {},
+        onShowNodeStatus = {},
+
         clientModel = clientModel,
-        onCancel = {},
-        onShowNodeStatus = {}
+        onCancel = {}
     )
 }

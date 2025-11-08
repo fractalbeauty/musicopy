@@ -281,9 +281,6 @@ fun mockIndexItemModel(
         root = root,
         path = "${basePath}/file${itemCount}.flac",
 
-        hashKind = "test",
-        hash = byteArrayOf(12, 34),
-
         fileSize = fileSize,
 
         downloaded = downloaded,
@@ -336,7 +333,6 @@ fun mockLibraryModel(
         localRoots = localRoots,
         transcodesDir = "~/.cache/musicopy/transcodes",
         transcodesDirSize = FileSizeModel.Actual(534_000_000uL),
-        transcodeCountWaiting = if (transcoding) CounterModel(27uL + 8uL) else CounterModel(0uL),
         transcodeCountQueued = if (transcoding) CounterModel(27uL) else CounterModel(0uL),
         transcodeCountInprogress = if (transcoding) CounterModel(8uL) else CounterModel(0uL),
         transcodeCountReady = if (transcoding) CounterModel(143uL) else CounterModel(0uL),
