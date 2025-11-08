@@ -239,7 +239,7 @@ impl TranscodeQueue {
     }
 
     /// Adds items to the queue.
-    pub fn extend(&self, items: HashSet<PathBuf>) {
+    pub fn extend(&self, items: impl IntoIterator<Item = PathBuf>) {
         // read policy before locking queue
         let policy = {
             let policy = self.policy.lock().unwrap();
@@ -1548,7 +1548,7 @@ mod tests {
         // add to queue
         let item_1 = PathBuf::from("item_1");
         let item_2 = PathBuf::from("item_2");
-        queue.extend(HashSet::from([item_1, item_2]));
+        queue.extend(vec![item_1, item_2]);
 
         std::thread::sleep(std::time::Duration::from_millis(100));
 
@@ -1583,7 +1583,7 @@ mod tests {
         // add to queue
         let item_1 = PathBuf::from("item_1");
         let item_2 = PathBuf::from("item_2");
-        queue.extend(HashSet::from([item_1, item_2]));
+        queue.extend(vec![item_1, item_2]);
 
         join_timeout(std::time::Duration::from_secs(1), thread);
     }
@@ -1611,7 +1611,7 @@ mod tests {
         // add to queue
         let item_1 = PathBuf::from("item_1");
         let item_2 = PathBuf::from("item_2");
-        queue.extend(HashSet::from([item_1, item_2]));
+        queue.extend(vec![item_1, item_2]);
 
         join_timeout(std::time::Duration::from_secs(1), thread_1);
         join_timeout(std::time::Duration::from_secs(1), thread_2);
@@ -1625,11 +1625,7 @@ mod tests {
         let item_1 = PathBuf::from("item_1");
         let item_2 = PathBuf::from("item_2");
         let item_3 = PathBuf::from("item_3");
-        queue.extend(HashSet::from([
-            item_1.clone(),
-            item_2.clone(),
-            item_3.clone(),
-        ]));
+        queue.extend(vec![item_1.clone(), item_2.clone(), item_3.clone()]);
 
         // wait for next
         let item = queue.wait();
@@ -1651,11 +1647,7 @@ mod tests {
         let item_1 = PathBuf::from("item_1");
         let item_2 = PathBuf::from("item_2");
         let item_3 = PathBuf::from("item_3");
-        queue.extend(HashSet::from([
-            item_1.clone(),
-            item_2.clone(),
-            item_3.clone(),
-        ]));
+        queue.extend(vec![item_1.clone(), item_2.clone(), item_3.clone()]);
 
         // spawn consumer thread
         let thread_1 = std::thread::spawn({
@@ -1698,11 +1690,7 @@ mod tests {
         let item_1 = PathBuf::from("item_1");
         let item_2 = PathBuf::from("item_2");
         let item_3 = PathBuf::from("item_3");
-        queue.extend(HashSet::from([
-            item_1.clone(),
-            item_2.clone(),
-            item_3.clone(),
-        ]));
+        queue.extend(vec![item_1.clone(), item_2.clone(), item_3.clone()]);
 
         // spawn consumer thread to wait for 3 items
         let thread_1 = std::thread::spawn({
@@ -1732,11 +1720,7 @@ mod tests {
         let item_1 = PathBuf::from("item_1");
         let item_2 = PathBuf::from("item_2");
         let item_3 = PathBuf::from("item_3");
-        queue.extend(HashSet::from([
-            item_1.clone(),
-            item_2.clone(),
-            item_3.clone(),
-        ]));
+        queue.extend(vec![item_1.clone(), item_2.clone(), item_3.clone()]);
 
         // should receive some item
         queue.wait();
@@ -1774,11 +1758,7 @@ mod tests {
         let item_1 = PathBuf::from("item_1");
         let item_2 = PathBuf::from("item_2");
         let item_3 = PathBuf::from("item_3");
-        queue.extend(HashSet::from([
-            item_1.clone(),
-            item_2.clone(),
-            item_3.clone(),
-        ]));
+        queue.extend(vec![item_1.clone(), item_2.clone(), item_3.clone()]);
 
         // should have 3 ready
         assert_eq!(queue.ready_counter.load(Ordering::SeqCst), 3);
