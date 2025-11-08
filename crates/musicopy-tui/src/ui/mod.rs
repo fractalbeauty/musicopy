@@ -43,10 +43,10 @@ impl<'a> App<'a> {
             let header_area = areas[0];
             let inner_area = areas[1];
 
-            let mut next_area = 2;
+            let mut next_area = 1;
             if show_command {
-                let command_area = areas[next_area];
                 next_area += 1;
+                let command_area = areas[next_area];
 
                 self.render_command(frame, command_area);
             }
@@ -259,12 +259,6 @@ impl<'a> App<'a> {
                 Line::from(""),
                 Line::from(vec![
                     "Transcodes: ".into(),
-                    self.library_model
-                        .transcode_count_waiting
-                        .get()
-                        .to_string()
-                        .green(),
-                    " waiting / ".into(),
                     self.library_model
                         .transcode_count_queued
                         .get()

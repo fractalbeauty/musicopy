@@ -14,6 +14,7 @@ use crate::{
     fs::{OpenMode, TreeFile, TreePath},
     library::{
         Library, LibraryCommand,
+        hash::HashCache,
         transcode::{TranscodeStatus, TranscodeStatusCache},
     },
     model::CounterModel,
@@ -30,7 +31,7 @@ use log::error;
 use n0_future::future::Boxed;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::PathBuf,
     pin::Pin,
     sync::{
@@ -115,9 +116,6 @@ pub struct IndexItemModel {
     pub node_id: String,
     pub root: String,
     pub path: String,
-
-    pub hash_kind: String,
-    pub hash: Vec<u8>,
 
     pub file_size: FileSizeModel,
 
@@ -223,7 +221,7 @@ pub enum NodeCommand {
 
 /// An event sent from a server or client to the node.
 enum NodeEvent {
-    FilesRequested(Vec<(String, Vec<u8>)>),
+    FilesRequested(HashSet<PathBuf>),
 
     RecentServersChanged,
 
@@ -310,10 +308,8 @@ enum NodeModelUpdate {
 pub struct Node {
     event_handler: Arc<dyn EventHandler>,
     db: Arc<Mutex<Database>>,
-    transcode_status_cache: TranscodeStatusCache,
 
     router: Router,
-    protocol: Protocol,
 
     command_tx: mpsc::UnboundedSender<NodeCommand>,
     event_tx: mpsc::UnboundedSender<NodeEvent>,
@@ -350,6 +346,7 @@ impl Node {
         secret_key: SecretKey,
         db: Arc<Mutex<Database>>,
         transcode_status_cache: TranscodeStatusCache,
+        hash_cache: HashCache,
     ) -> anyhow::Result<(Arc<Self>, NodeRun)> {
         let (command_tx, command_rx) = mpsc::unbounded_channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
@@ -359,7 +356,12 @@ impl Node {
             .discovery_n0()
             .bind()
             .await?;
-        let protocol = Protocol::new(db.clone(), transcode_status_cache.clone(), event_tx.clone());
+        let protocol = Protocol::new(
+            db.clone(),
+            transcode_status_cache.clone(),
+            hash_cache.clone(),
+            event_tx.clone(),
+        );
 
         let router = Router::builder(endpoint)
             .accept(Protocol::ALPN, protocol.clone())
@@ -389,10 +391,8 @@ impl Node {
         let node = Arc::new(Self {
             event_handler,
             db,
-            transcode_status_cache,
 
             router,
-            protocol,
 
             command_tx,
             event_tx,
@@ -636,7 +636,7 @@ impl Node {
                 Some(event) = event_rx.recv() => {
                     match event {
                         NodeEvent::FilesRequested(files) => {
-                            if let Err(e) = library.send(LibraryCommand::PrioritizeTranscodes(files.clone())) {
+                            if let Err(e) = library.send(LibraryCommand::PrioritizeTranscodes(files)) {
                                 error!("NodeEvent::FilesRequested: failed to send to library: {e:#}");
                             }
                         }
@@ -1004,9 +1004,6 @@ impl Node {
                                         root: item.root,
                                         path: item.path,
 
-                                        hash_kind: item.hash_kind,
-                                        hash: item.hash,
-
                                         file_size: match item.file_size {
                                             FileSize::Unknown => FileSizeModel::Unknown,
                                             FileSize::Estimated(n) => FileSizeModel::Estimated(n),
@@ -1187,6 +1184,7 @@ impl Node {
 struct Protocol {
     db: Arc<Mutex<Database>>,
     transcode_status_cache: TranscodeStatusCache,
+    hash_cache: HashCache,
 
     event_tx: mpsc::UnboundedSender<NodeEvent>,
 }
@@ -1197,12 +1195,14 @@ impl Protocol {
     fn new(
         db: Arc<Mutex<Database>>,
         transcode_status_cache: TranscodeStatusCache,
+        hash_cache: HashCache,
 
         event_tx: mpsc::UnboundedSender<NodeEvent>,
     ) -> Self {
         Self {
             db,
             transcode_status_cache,
+            hash_cache,
 
             event_tx,
         }
@@ -1213,12 +1213,19 @@ impl ProtocolHandler for Protocol {
     fn accept(&self, connection: iroh::endpoint::Connection) -> Boxed<anyhow::Result<()>> {
         let db = self.db.clone();
         let transcode_status_cache = self.transcode_status_cache.clone();
+        let hash_cache = self.hash_cache.clone();
         let event_tx = self.event_tx.clone();
         Box::pin(async move {
             let node_id = connection.remote_node_id()?;
             log::info!("accepted connection from {node_id}");
 
-            let server = Server::new(db, transcode_status_cache, connection, event_tx.clone());
+            let server = Server::new(
+                db,
+                transcode_status_cache,
+                hash_cache,
+                connection,
+                event_tx.clone(),
+            );
 
             let res = server.run().await;
             if let Err(e) = &res {
@@ -1272,9 +1279,6 @@ struct IndexItem {
     root: String,
     path: String,
 
-    hash_kind: String,
-    hash: Vec<u8>,
-
     file_size: FileSize,
 }
 
@@ -1282,8 +1286,9 @@ struct IndexItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum IndexUpdateItem {
     FileSize {
-        hash_kind: String,
-        hash: Vec<u8>,
+        node_id: NodeId,
+        root: String,
+        path: String,
 
         file_size: FileSize,
     },
@@ -1340,9 +1345,12 @@ struct ServerTransferJob {
 #[derive(Debug)]
 enum ServerTransferJobProgress {
     /// The server is waiting for the file to be transcoded.
-    Transcoding { hash_kind: String, hash: Vec<u8> },
+    Transcoding { local_path: PathBuf },
     /// The server is ready to send the file.
-    Ready { local_path: PathBuf, file_size: u64 },
+    Ready {
+        transcode_path: PathBuf,
+        file_size: u64,
+    },
     /// The server has started sending the file.
     InProgress {
         started_at: u64,
@@ -1378,6 +1386,7 @@ struct ServerHandle {
 struct Server {
     db: Arc<Mutex<Database>>,
     transcode_status_cache: TranscodeStatusCache,
+    hash_cache: HashCache,
 
     connection: Connection,
     event_tx: mpsc::UnboundedSender<NodeEvent>,
@@ -1391,6 +1400,7 @@ impl Server {
     fn new(
         db: Arc<Mutex<Database>>,
         transcode_status_cache: TranscodeStatusCache,
+        hash_cache: HashCache,
 
         connection: Connection,
         event_tx: mpsc::UnboundedSender<NodeEvent>,
@@ -1398,6 +1408,7 @@ impl Server {
         Self {
             db,
             transcode_status_cache,
+            hash_cache,
 
             connection,
             event_tx,
@@ -1577,6 +1588,7 @@ impl Server {
         tokio::spawn({
             let jobs = self.jobs.clone();
             let transcode_status_cache = self.transcode_status_cache.clone();
+            let hash_cache = self.hash_cache.clone();
             let event_tx = self.event_tx.clone();
             async move {
                 loop {
@@ -1585,25 +1597,34 @@ impl Server {
 
                     // check for jobs with Transcoding status
                     for job in jobs.iter() {
-                        if let ServerTransferJobProgress::Transcoding { hash_kind, hash } =
+                        if let ServerTransferJobProgress::Transcoding { local_path } =
                             &job.value().progress
                         {
+                            // check for cached hash
+                            let Ok(Some((hash_kind, hash))) =
+                                hash_cache.get_cached_hash(local_path)
+                            else {
+                                // error or not hashed yet, still transcoding
+                                continue;
+                            };
+
                             // get transcode status
-                            let Some(status) = transcode_status_cache.get(hash_kind, hash) else {
+                            let Some(status) = transcode_status_cache.get(&hash_kind, hash) else {
+                                // no status yet, still transcoding
                                 continue;
                             };
 
                             match &*status {
-                                TranscodeStatus::Waiting { .. } => {
-                                    // job is still queued
-                                }
-
                                 // if transcode status is Ready, set job status to Ready
                                 TranscodeStatus::Ready {
-                                    local_path,
+                                    transcode_path,
                                     file_size,
                                 } => {
-                                    ready_jobs.push((*job.key(), local_path.clone(), *file_size));
+                                    ready_jobs.push((
+                                        *job.key(),
+                                        transcode_path.clone(),
+                                        *file_size,
+                                    ));
                                 }
 
                                 // if transcode status is Failed, set job status to Failed
@@ -1627,12 +1648,12 @@ impl Server {
                     let ready_jobs =
                         ready_jobs
                             .into_iter()
-                            .map(|(job_id, local_path, file_size)| {
+                            .map(|(job_id, transcode_path, file_size)| {
                                 // set job status to Ready
                                 // needs to happen outside the loop, since jobs.iter() already holds the entry's lock
                                 jobs.alter(&job_id, |_, mut job| {
                                     job.progress = ServerTransferJobProgress::Ready {
-                                        local_path,
+                                        transcode_path,
                                         file_size,
                                     };
                                     job
@@ -1715,7 +1736,7 @@ impl Server {
                                 }
 
                                 ClientMessage::Download(items) => {
-                                    // get file hashes
+                                    // get file local paths
                                     // TODO: this could be better
                                     let files = {
                                         let db = self.db.lock().expect("failed to lock database");
@@ -1728,6 +1749,7 @@ impl Server {
                                         // TODO: wasteful clones
                                         let file = files.get(&(item.node_id, item.root.clone(), item.path.clone()));
 
+                                        // get file for requested item
                                         let Some(file) = file else {
                                             self.jobs.insert(item.job_id, ServerTransferJob {
                                                 progress: ServerTransferJobProgress::Failed { error: anyhow::anyhow!("file not found") },
@@ -1741,17 +1763,17 @@ impl Server {
                                             });
                                         };
 
-                                        // get transcode status
-                                        let transcode_status = self.transcode_status_cache.get(&file.hash_kind, &file.hash);
+                                        let local_path = PathBuf::from(&file.local_path);
 
-                                        let Some(transcode_status) = transcode_status else {
-                                            // file exists, but transcode status is missing
-                                            log::warn!("file {}/{}/{} exists but transcode status is missing, defaulting to Queued",
-                                                item.node_id, item.root, item.path);
+                                        // check for cached hash
+                                        let Ok(Some((hash_kind, hash))) =
+                                            self.hash_cache.get_cached_hash(&local_path)
+                                        else {
+                                            // error or not hashed yet, still transcoding
 
                                             // create job
                                             self.jobs.insert(item.job_id, ServerTransferJob {
-                                                progress: ServerTransferJobProgress::Transcoding { hash_kind: file.hash_kind.clone(), hash: file.hash.clone() },
+                                                progress: ServerTransferJobProgress::Transcoding { local_path },
                                                 file_node_id: item.node_id,
                                                 file_root: item.root,
                                                 file_path: item.path,
@@ -1760,28 +1782,17 @@ impl Server {
                                             return (item.job_id, JobStatusItem::Transcoding);
                                         };
 
-                                        match &*transcode_status {
-                                            TranscodeStatus::Waiting { .. } => {
-                                                // file is queued for transcoding
+                                        // get transcode status
+                                        let transcode_status = self.transcode_status_cache.get(&hash_kind, hash);
 
-                                                // create job
-                                                self.jobs.insert(item.job_id, ServerTransferJob {
-                                                    progress: ServerTransferJobProgress::Transcoding { hash_kind: file.hash_kind.clone(), hash: file.hash.clone() },
-                                                    file_node_id: item.node_id,
-                                                    file_root: item.root,
-                                                    file_path: item.path,
-                                                });
-
-                                                (item.job_id, JobStatusItem::Transcoding)
-                                            }
-
-                                            TranscodeStatus::Ready { local_path, file_size } => {
+                                        match transcode_status.as_deref() {
+                                            Some(TranscodeStatus::Ready { transcode_path, file_size }) => {
                                                 // file is already transcoded
 
                                                 // create job
                                                 self.jobs.insert(item.job_id, ServerTransferJob {
                                                     progress: ServerTransferJobProgress::Ready {
-                                                        local_path: local_path.clone(),
+                                                        transcode_path: transcode_path.clone(),
                                                         file_size: *file_size,
                                                     },
                                                     file_node_id: item.node_id,
@@ -1794,7 +1805,7 @@ impl Server {
                                                 })
                                             }
 
-                                            TranscodeStatus::Failed { error } => {
+                                            Some(TranscodeStatus::Failed { error }) => {
                                                 // transcoding failed
 
                                                 // create job
@@ -1811,7 +1822,22 @@ impl Server {
                                                     error: format!("{error:#}"),
                                                 })
                                             }
+
+                                            None => {
+                                                // still transcoding
+
+                                                // create job
+                                                self.jobs.insert(item.job_id, ServerTransferJob {
+                                                    progress: ServerTransferJobProgress::Transcoding { local_path },
+                                                    file_node_id: item.node_id,
+                                                    file_root: item.root,
+                                                    file_path: item.path,
+                                                });
+
+                                                (item.job_id, JobStatusItem::Transcoding)
+                                            }
                                         }
+
                                     }).collect::<HashMap<_, _>>();
 
                                     // send job status to client
@@ -1826,8 +1852,8 @@ impl Server {
                                     }).expect("failed to send ServerModelUpdate::UpdateTransferJobs");
 
                                     // prioritize transcodes
-                                    let hashes = files.values().map(|f| (f.hash_kind.clone(), f.hash.clone())).collect::<Vec<_>>();
-                                    self.event_tx.send(NodeEvent::FilesRequested(hashes)).expect("failed to send NodeEvent::FilesRequested");
+                                    let requested_paths = files.into_values().map(|f| PathBuf::from(f.local_path)).collect::<HashSet<_>>();
+                                    self.event_tx.send(NodeEvent::FilesRequested(requested_paths)).expect("failed to send NodeEvent::FilesRequested");
                                 }
                             }
                         },
@@ -1865,8 +1891,8 @@ impl Server {
                                     };
 
                                     match &job.progress {
-                                        ServerTransferJobProgress::Ready { local_path, file_size } => {
-                                            (TransferResponse::Ok { file_size: *file_size }, Some((local_path.clone(), *file_size)))
+                                        ServerTransferJobProgress::Ready { transcode_path, file_size } => {
+                                            (TransferResponse::Ok { file_size: *file_size }, Some((transcode_path.clone(), *file_size)))
                                         }
                                         _ => {
                                             (TransferResponse::Error { error: "job not ready".to_string() }, None)
@@ -1885,14 +1911,14 @@ impl Server {
                                     .context("failed to write transfer response")?;
 
                                 // TODO: could maybe be nicer
-                                let Some((local_path, file_size)) = ready else {
+                                let Some((transcode_path, file_size)) = ready else {
                                     return Ok(());
                                 };
 
                                 // check local file exists
-                                if !local_path.exists() {
+                                if !transcode_path.exists() {
                                     // TODO: set job to failed and respond with error
-                                    anyhow::bail!("file at local_path does not exist: {}", local_path.display());
+                                    anyhow::bail!("file at transcode_path does not exist: {}", transcode_path.display());
                                 }
 
                                 let sent_counter = Arc::new(AtomicU64::new(0));
@@ -1915,7 +1941,7 @@ impl Server {
 
                                 // read file to buffer
                                 // TODO: stream instead of reading into memory?
-                                let file_content = tokio::fs::read(local_path).await?;
+                                let file_content = tokio::fs::read(transcode_path).await?;
 
                                 // TODO: handle errors during send
                                 let mut send_progress = WriteProgress::new(sent_counter.clone(), send);
@@ -1950,12 +1976,21 @@ impl Server {
                     for item in index.iter_mut() {
                         // if the client doesn't have the actual file size
                         if !matches!(item.file_size, FileSize::Actual(_)) {
+                            // try to get cached hash
+                            let Ok(Some((hash_kind, hash))) =
+                                self.hash_cache.get_cached_hash(&PathBuf::from(&item.path))
+                            else {
+                                // error or not hashed yet, skip
+                                continue;
+                            };
+
                             // try to get file size from transcode status cache
                             let file_size = self
                                 .transcode_status_cache
-                                .get(&item.hash_kind, &item.hash)
+                                .get(&hash_kind, hash)
                                 .and_then(|entry| match &*entry {
-                                    TranscodeStatus::Waiting { estimated_size } => estimated_size.map(FileSize::Estimated),
+                                    // TODO: deal with estimated file sizes
+                                    // TranscodeStatus::Waiting { estimated_size } => estimated_size.map(FileSize::Estimated),
                                     TranscodeStatus::Ready { file_size, .. } => Some(FileSize::Actual(*file_size)),
                                     _ => None,
                                 });
@@ -1966,8 +2001,9 @@ impl Server {
                                 item.file_size = file_size;
 
                                 updates.push(IndexUpdateItem::FileSize {
-                                    hash_kind: item.hash_kind.clone(),
-                                    hash: item.hash.clone(),
+                                    node_id: item.node_id,
+                                    root: item.root.clone(),
+                                    path: item.path.clone(),
 
                                     file_size,
                                 });
@@ -2004,27 +2040,36 @@ impl Server {
             .into_iter()
             .map(|file| {
                 // try to get file size from transcode status cache
-                let file_size = self
-                    .transcode_status_cache
-                    .get(&file.hash_kind, &file.hash)
-                    .and_then(|entry| match &*entry {
-                        TranscodeStatus::Waiting { estimated_size } => {
-                            estimated_size.map(FileSize::Estimated)
-                        }
-                        TranscodeStatus::Ready { file_size, .. } => {
-                            Some(FileSize::Actual(*file_size))
-                        }
-                        _ => None,
-                    })
-                    .unwrap_or(FileSize::Unknown);
+                let file_size = {
+                    // try to get cached hash
+                    if let Some((hash_kind, hash)) = self
+                        .hash_cache
+                        .get_cached_hash(&PathBuf::from(file.local_path))
+                        .ok()
+                        .flatten()
+                    {
+                        self.transcode_status_cache
+                            .get(&hash_kind, hash)
+                            .and_then(|entry| match &*entry {
+                                // TODO: deal with estimated file sizes
+                                // TranscodeStatus::Waiting { estimated_size } => {
+                                //     estimated_size.map(FileSize::Estimated)
+                                // }
+                                TranscodeStatus::Ready { file_size, .. } => {
+                                    Some(FileSize::Actual(*file_size))
+                                }
+                                _ => None,
+                            })
+                            .unwrap_or(FileSize::Unknown)
+                    } else {
+                        FileSize::Unknown
+                    }
+                };
 
                 IndexItem {
                     node_id: file.node_id,
                     root: file.root,
                     path: file.path,
-
-                    hash_kind: file.hash_kind,
-                    hash: file.hash,
 
                     file_size,
                 }
@@ -2039,8 +2084,6 @@ impl Server {
 struct ClientTransferJob {
     progress: ClientTransferJobProgress,
 
-    file_hash_kind: String,
-    file_hash: Vec<u8>,
     file_node_id: NodeId,
     file_root: String,
     file_path: String,
@@ -2149,14 +2192,12 @@ impl Client {
                             };
 
                             // check job exists and get details
-                            let (file_hash_kind, file_hash, file_node_id, file_root, file_path) = {
+                            let (file_node_id, file_root, file_path) = {
                                 let Some(job) = jobs.get(&job_id) else {
                                     anyhow::bail!("received ready for unknown job ID {job_id}");
                                 };
 
                                 (
-                                    job.file_hash_kind.clone(),
-                                    job.file_hash.clone(),
                                     job.file_node_id,
                                     job.file_root.clone(),
                                     job.file_path.clone(),
@@ -2259,8 +2300,6 @@ impl Client {
                                 db.insert_remote_file(
                                     remote_node_id,
                                     InsertFile {
-                                        hash_kind: &file_hash_kind,
-                                        hash: &file_hash,
                                         root: &file_root,
                                         path: &file_path,
                                         local_tree: local_path.root(),
@@ -2525,8 +2564,6 @@ impl Client {
 
                                     self.jobs.insert(job_id, ClientTransferJob {
                                         progress: ClientTransferJobProgress::Requested,
-                                        file_hash_kind: file.hash_kind.clone(),
-                                        file_hash: file.hash.clone(),
                                         file_node_id: file.node_id,
                                         file_root: file.root.clone(),
                                         file_path: file.path.clone(),
@@ -2581,8 +2618,6 @@ impl Client {
 
                                 self.jobs.insert(job_id, ClientTransferJob {
                                     progress: ClientTransferJobProgress::Requested,
-                                    file_hash_kind: index_item.hash_kind.clone(),
-                                    file_hash: index_item.hash.clone(),
                                     file_node_id,
                                     file_root: item.root.clone(),
                                     file_path: item.path.clone(),
@@ -2636,10 +2671,10 @@ impl Client {
                                         if let Some(index) = index.as_mut() {
                                             for update in updates {
                                                 match update {
-                                                    IndexUpdateItem::FileSize { hash_kind, hash, file_size } => {
+                                                    IndexUpdateItem::FileSize { node_id, root, path, file_size } => {
                                                         // TODO: don't be exponential
                                                         for item in index.iter_mut() {
-                                                            if item.hash_kind == hash_kind && item.hash == hash {
+                                                            if item.node_id == node_id && item.root == root && item.path == path {
                                                                 item.file_size = file_size;
                                                             }
                                                         }

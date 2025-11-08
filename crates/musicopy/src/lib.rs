@@ -11,6 +11,7 @@ use crate::{
     error::{CoreError, core_error},
     library::{
         Library, LibraryCommand, LibraryModel,
+        hash::HashCache,
         transcode::{TranscodePolicy, TranscodeStatusCache},
     },
     node::{DownloadPartialItemModel, Node, NodeCommand, NodeModel},
@@ -185,6 +186,7 @@ impl Core {
         let db = Arc::new(Mutex::new(db));
 
         let transcode_status_cache = TranscodeStatusCache::new();
+        let hash_cache = HashCache::new(db.clone());
 
         let node_id = NodeId::from(secret_key.public());
 
@@ -213,8 +215,15 @@ impl Core {
                                 transcodes_dir.clone(),
                                 options.transcode_policy,
                                 transcode_status_cache.clone(),
+                                hash_cache.clone(),
                             ),
-                            Node::new(event_handler, secret_key, db, transcode_status_cache),
+                            Node::new(
+                                event_handler,
+                                secret_key,
+                                db,
+                                transcode_status_cache,
+                                hash_cache
+                            ),
                         );
 
                         let (library, library_run) = match library_res {

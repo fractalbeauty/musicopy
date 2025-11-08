@@ -1,10 +1,12 @@
+pub mod hash;
 pub mod transcode;
 
 use crate::{
     EventHandler,
     database::{Database, InsertFile},
-    library::transcode::{
-        TranscodeCommand, TranscodeItem, TranscodePolicy, TranscodePool, TranscodeStatusCache,
+    library::{
+        hash::HashCache,
+        transcode::{TranscodeCommand, TranscodePolicy, TranscodePool, TranscodeStatusCache},
     },
     model::CounterModel,
     node::FileSizeModel,
@@ -13,20 +15,13 @@ use anyhow::Context;
 use iroh::NodeId;
 use itertools::Itertools;
 use log::warn;
-use rayon::{iter::Either, prelude::*};
 use std::{
-    hash::Hasher,
+    collections::HashSet,
     path::PathBuf,
     sync::{Arc, Mutex},
     time::Duration,
 };
-use symphonia::core::{
-    codecs::audio::VerificationCheck,
-    formats::{TrackType, probe::Hint},
-    io::MediaSourceStream,
-};
 use tokio::sync::mpsc;
-use twox_hash::XxHash3_64;
 
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct LibraryRootModel {
@@ -45,7 +40,6 @@ pub struct LibraryModel {
     pub transcodes_dir: String,
     pub transcodes_dir_size: FileSizeModel,
 
-    pub transcode_count_waiting: Arc<CounterModel>,
     pub transcode_count_queued: Arc<CounterModel>,
     pub transcode_count_inprogress: Arc<CounterModel>,
     pub transcode_count_ready: Arc<CounterModel>,
@@ -60,7 +54,7 @@ pub enum LibraryCommand {
     RemoveRoot { name: String },
     Rescan,
 
-    PrioritizeTranscodes(Vec<(String, Vec<u8>)>),
+    PrioritizeTranscodes(HashSet<PathBuf>),
     SetTranscodePolicy(TranscodePolicy),
 
     Stop,
@@ -110,12 +104,14 @@ impl Library {
         transcodes_dir: PathBuf,
         transcode_policy: TranscodePolicy,
         transcode_status_cache: TranscodeStatusCache,
+        hash_cache: HashCache,
     ) -> anyhow::Result<(Arc<Self>, LibraryRun)> {
         // spawn transcode pool task
         let transcode_pool = TranscodePool::spawn(
             transcodes_dir.clone(),
             transcode_policy,
             transcode_status_cache,
+            hash_cache,
         );
 
         let (command_tx, command_rx) = mpsc::unbounded_channel();
@@ -126,7 +122,6 @@ impl Library {
             transcodes_dir: transcode_pool.transcodes_dir(),
             transcodes_dir_size: transcode_pool.transcodes_dir_size(),
 
-            transcode_count_waiting: Arc::new(transcode_pool.waiting_count_model()),
             transcode_count_queued: Arc::new(transcode_pool.queued_count_model()),
             transcode_count_inprogress: Arc::new(transcode_pool.inprogress_count_model()),
             transcode_count_ready: Arc::new(transcode_pool.ready_count_model()),
@@ -213,8 +208,8 @@ impl Library {
                             self.spawn_scan();
                         }
 
-                        LibraryCommand::PrioritizeTranscodes(hashes) => {
-                            if let Err(e) = self.transcode_pool.send(TranscodeCommand::Prioritize(hashes.clone())) {
+                        LibraryCommand::PrioritizeTranscodes(paths) => {
+                            if let Err(e) = self.transcode_pool.send(TranscodeCommand::Prioritize(paths)) {
                                 warn!("LibraryCommand::PrioritizeTranscodes: failed to send to transcode pool: {e:#}");
                             }
                         }
@@ -324,7 +319,7 @@ impl Library {
             local_path: String,
         }
 
-        let (local_files, scan_errors): (Vec<_>, Vec<_>) = entries
+        let (items, scan_errors): (Vec<_>, Vec<_>) = entries
             .into_iter()
             .map(|(root, entry)| {
                 let local_path = entry.into_path();
@@ -353,42 +348,6 @@ impl Library {
                 .map(|e: anyhow::Error| e.context("failed to scan file")),
         );
 
-        struct HashItem {
-            hash_kind: &'static str,
-            hash: Vec<u8>,
-            root: String,
-            path: String,
-            local_path: String,
-        }
-
-        // hash items in parallel using rayon
-        let (items, hash_errors): (Vec<_>, Vec<_>) = tokio::task::spawn_blocking(move || {
-            local_files
-                .into_par_iter()
-                .map(|item| {
-                    let local_path = PathBuf::from(&item.local_path);
-
-                    let (hash_kind, hash) = get_file_hash(&local_path)?;
-
-                    anyhow::Result::Ok(HashItem {
-                        hash_kind,
-                        hash,
-                        root: item.root,
-                        path: item.path,
-                        local_path: item.local_path,
-                    })
-                })
-                .map(|res| match res {
-                    Ok(item) => Either::Left(item),
-                    Err(e) => Either::Right(e),
-                })
-                .collect::<(Vec<_>, Vec<_>)>()
-        })
-        .await?;
-
-        // extend errors
-        errors.extend(hash_errors);
-
         for error in errors {
             log::error!("error scanning library: {error:#}");
         }
@@ -398,8 +357,6 @@ impl Library {
             db.replace_local_files(
                 self.local_node_id,
                 items.iter().map(|item| InsertFile {
-                    hash_kind: item.hash_kind,
-                    hash: &item.hash,
                     root: &item.root,
                     path: &item.path,
                     local_tree: "", // local_tree is only used for remote files
@@ -417,12 +374,8 @@ impl Library {
         {
             let transcode_add_items = items
                 .into_iter()
-                .map(|item| TranscodeItem {
-                    hash_kind: item.hash_kind.to_string(),
-                    hash: item.hash,
-                    local_path: PathBuf::from(item.local_path),
-                })
-                .collect::<Vec<_>>();
+                .map(|item| PathBuf::from(item.local_path))
+                .collect::<HashSet<_>>();
 
             self.transcode_pool
                 .send(TranscodeCommand::Add(transcode_add_items))?;
@@ -444,12 +397,8 @@ impl Library {
 
         let transcode_add_items = local_files
             .into_iter()
-            .map(|file| TranscodeItem {
-                hash_kind: file.hash_kind,
-                hash: file.hash,
-                local_path: PathBuf::from(file.local_path),
-            })
-            .collect::<Vec<_>>();
+            .map(|file| PathBuf::from(file.local_path))
+            .collect::<HashSet<_>>();
 
         self.transcode_pool
             .send(TranscodeCommand::Add(transcode_add_items))?;
@@ -515,73 +464,5 @@ impl Library {
                 self.event_handler.on_library_model_snapshot(model.clone());
             }
         }
-    }
-}
-
-/// Get the hash of a file.
-///
-/// If the file contains an MD5 checksum (many flacs do), then it will be used.
-/// Otherwise, the file will be decoded and the audio data will be hashed using
-/// xxhash3 with 64-bit hashes.
-fn get_file_hash(path: &PathBuf) -> anyhow::Result<(&'static str, Vec<u8>)> {
-    let src = std::fs::File::open(path).context("failed to open file")?;
-
-    let mss = MediaSourceStream::new(Box::new(src), Default::default());
-
-    let mut hint = Hint::new();
-    if let Some(extension) = path.extension() {
-        hint.with_extension(extension.to_str().context("invalid file extension")?);
-    }
-
-    let mut format = symphonia::default::get_probe()
-        .probe(&hint, mss, Default::default(), Default::default())
-        .context("failed to probe file")?;
-
-    // get the default audio track
-    let audio_track = format
-        .default_track(TrackType::Audio)
-        .context("failed to get default audio track")?;
-    let audio_track_id = audio_track.id;
-
-    // check if MD5 verification check is available (common for flacs)
-    if let Some(VerificationCheck::Md5(verification_md5)) = &audio_track
-        .codec_params
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("failed to get codec params"))?
-        .audio()
-        .ok_or_else(|| anyhow::anyhow!("failed to get audio codec params"))?
-        .verification_check
-    {
-        Ok(("md5", Vec::from(verification_md5)))
-    } else {
-        let mut hasher = XxHash3_64::with_seed(8888);
-
-        loop {
-            // read next packet
-            let packet = match format.next_packet() {
-                Ok(Some(packet)) => packet,
-
-                // end of track
-                Ok(None) => break,
-
-                Err(e) => anyhow::bail!("failed to read packet: {e}"),
-            };
-
-            // skip packets from other tracks
-            if packet.track_id() != audio_track_id {
-                continue;
-            }
-
-            // hash the packet bytes, without decoding them.
-            // this is maybe more stable than hashing the decoded samples, and
-            // should still stay the same when metadata is modified.
-            hasher.write(packet.buf());
-        }
-
-        // the convention for xxhash is to use big-endian byte order
-        // https://github.com/Cyan4973/xxHash/blob/55d9c43608e39b2acd7d9a9cc3df424f812b6642/xxhash.h#L192
-        let hash = hasher.finish().to_be_bytes();
-
-        Ok(("xxh3", Vec::from(hash)))
     }
 }

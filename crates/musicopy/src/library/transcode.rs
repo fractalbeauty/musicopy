@@ -1,10 +1,9 @@
-use crate::{model::CounterModel, node::FileSizeModel};
+use crate::{library::hash::HashCache, model::CounterModel, node::FileSizeModel};
 use anyhow::Context;
 use base64::{Engine, prelude::BASE64_STANDARD};
 use dashmap::DashMap;
 use image::{ImageReader, codecs::jpeg::JpegEncoder, imageops::FilterType};
 use priority_queue::PriorityQueue;
-use rayon::prelude::*;
 use rubato::{FftFixedIn, Resampler};
 use std::{
     borrow::Borrow,
@@ -27,16 +26,16 @@ use symphonia::core::{
 use tokio::sync::mpsc;
 
 /// The transcode status of a file.
+///
+/// If a file is not Ready or Failed (it's status is not in the cache), it
+/// might be queued for transcoding, in progress, or waiting to be requested.
 #[derive(Debug)]
 pub enum TranscodeStatus {
-    /// The file is waiting to be transcoded.
-    ///
-    /// The file might be queued for transcoding, in progress, or waiting to be
-    /// requested if the transcode policy is `IfRequested`.
-    Waiting { estimated_size: Option<u64> },
-
-    /// The file is transcoded and available at `local_path`.
-    Ready { local_path: PathBuf, file_size: u64 },
+    /// The file is transcoded and available at `transcode_path`.
+    Ready {
+        transcode_path: PathBuf,
+        file_size: u64,
+    },
 
     /// Transcoding the file failed.
     Failed { error: anyhow::Error },
@@ -51,10 +50,10 @@ pub enum TranscodeStatus {
 /// See https://stackoverflow.com/a/45795699
 trait HashKey {
     fn hash_kind(&self) -> &str;
-    fn hash(&self) -> &[u8];
+    fn hash(&self) -> [u8; 16];
 }
 
-impl<'a> Borrow<dyn HashKey + 'a> for (String, Vec<u8>) {
+impl<'a> Borrow<dyn HashKey + 'a> for (String, [u8; 16]) {
     fn borrow(&self) -> &(dyn HashKey + 'a) {
         self
     }
@@ -75,22 +74,22 @@ impl PartialEq for dyn HashKey + '_ {
 
 impl Eq for dyn HashKey + '_ {}
 
-impl HashKey for (String, Vec<u8>) {
+impl HashKey for (String, [u8; 16]) {
     fn hash_kind(&self) -> &str {
         &self.0
     }
 
-    fn hash(&self) -> &[u8] {
-        &self.1
+    fn hash(&self) -> [u8; 16] {
+        self.1
     }
 }
 
-impl HashKey for (&str, &[u8]) {
+impl HashKey for (&str, [u8; 16]) {
     fn hash_kind(&self) -> &str {
         self.0
     }
 
-    fn hash(&self) -> &[u8] {
+    fn hash(&self) -> [u8; 16] {
         self.1
     }
 }
@@ -99,7 +98,7 @@ impl HashKey for (&str, &[u8]) {
 ///
 /// This wraps a RwLockReadGuard for the DashMap entry.
 pub struct TranscodeStatusCacheEntry<'a>(
-    dashmap::mapref::one::Ref<'a, (String, Vec<u8>), TranscodeStatus>,
+    dashmap::mapref::one::Ref<'a, (String, [u8; 16]), TranscodeStatus>,
 );
 
 impl Deref for TranscodeStatusCacheEntry<'_> {
@@ -116,16 +115,15 @@ impl Deref for TranscodeStatusCacheEntry<'_> {
 /// updated as files are transcoded. It's initialized in Core and passed down
 /// to TranscodePool because it needs to be shared with Node as well.
 ///
-/// We need to key by hash because rescanning causes file IDs to change and
-/// can happen at any time. This also accounts for multiple copies of the same
-/// file existing in the library.
+/// We key by hash because rescanning causes file IDs to change and can happen
+/// at any time, and source files can be renamed or moved. This also accounts
+/// for multiple copies of the same file existing in the library.
 ///
 /// Also keeps counts of the number of items with each status.
 #[derive(Debug, Clone)]
 pub struct TranscodeStatusCache {
-    cache: Arc<DashMap<(String, Vec<u8>), TranscodeStatus>>,
+    cache: Arc<DashMap<(String, [u8; 16]), TranscodeStatus>>,
 
-    waiting_counter: Arc<AtomicU64>,
     ready_counter: Arc<AtomicU64>,
     failed_counter: Arc<AtomicU64>,
 }
@@ -136,25 +134,21 @@ impl TranscodeStatusCache {
         TranscodeStatusCache {
             cache: Arc::new(DashMap::new()),
 
-            waiting_counter: Arc::new(AtomicU64::new(0)),
             ready_counter: Arc::new(AtomicU64::new(0)),
             failed_counter: Arc::new(AtomicU64::new(0)),
         }
     }
 
     /// Gets a reference to an entry in the cache.
-    pub fn get(&self, hash_kind: &str, hash: &[u8]) -> Option<TranscodeStatusCacheEntry<'_>> {
+    pub fn get(&self, hash_kind: &str, hash: [u8; 16]) -> Option<TranscodeStatusCacheEntry<'_>> {
         self.cache
             .get(&(hash_kind, hash) as &dyn HashKey)
             .map(TranscodeStatusCacheEntry)
     }
 
     /// Inserts a key and a value into the cache, replacing the old value.
-    pub fn insert(&self, hash_kind: String, hash: Vec<u8>, status: TranscodeStatus) {
+    pub fn insert(&self, hash_kind: String, hash: [u8; 16], status: TranscodeStatus) {
         match status {
-            TranscodeStatus::Waiting { .. } => {
-                self.waiting_counter.fetch_add(1, Ordering::Relaxed);
-            }
             TranscodeStatus::Ready { .. } => {
                 self.ready_counter.fetch_add(1, Ordering::Relaxed);
             }
@@ -166,9 +160,6 @@ impl TranscodeStatusCache {
         let prev = self.cache.insert((hash_kind, hash), status);
 
         match prev {
-            Some(TranscodeStatus::Waiting { .. }) => {
-                self.waiting_counter.fetch_sub(1, Ordering::Relaxed);
-            }
             Some(TranscodeStatus::Ready { .. }) => {
                 self.ready_counter.fetch_sub(1, Ordering::Relaxed);
             }
@@ -177,23 +168,6 @@ impl TranscodeStatusCache {
             }
             None => {}
         }
-    }
-
-    /// Removes an entry from the cache if the status is Waiting.
-    pub fn remove_waiting(&self, hash_kind: &str, hash: &[u8]) {
-        let prev = self
-            .cache
-            .remove_if(&(hash_kind, hash) as &dyn HashKey, |_, status| {
-                matches!(status, TranscodeStatus::Waiting { .. })
-            });
-
-        if prev.is_some() {
-            self.waiting_counter.fetch_sub(1, Ordering::Relaxed);
-        }
-    }
-
-    pub fn waiting_counter(&self) -> &Arc<AtomicU64> {
-        &self.waiting_counter
     }
 
     pub fn ready_counter(&self) -> &Arc<AtomicU64> {
@@ -211,14 +185,6 @@ impl Default for TranscodeStatusCache {
     }
 }
 
-/// An item in the transcoding queue.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TranscodeItem {
-    pub hash_kind: String,
-    pub hash: Vec<u8>,
-    pub local_path: PathBuf,
-}
-
 /// When to transcode files.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum TranscodePolicy {
@@ -232,7 +198,7 @@ pub enum TranscodePolicy {
 #[derive(Debug)]
 struct TranscodeQueue {
     policy: Mutex<TranscodePolicy>,
-    queue: Mutex<PriorityQueue<TranscodeItem, u64>>,
+    queue: Mutex<PriorityQueue<PathBuf, u64>>,
     ready: Condvar,
     ready_counter: Arc<AtomicU64>,
 }
@@ -273,7 +239,7 @@ impl TranscodeQueue {
     }
 
     /// Adds items to the queue.
-    pub fn extend(&self, items: Vec<TranscodeItem>) {
+    pub fn extend(&self, items: HashSet<PathBuf>) {
         // read policy before locking queue
         let policy = {
             let policy = self.policy.lock().unwrap();
@@ -281,9 +247,11 @@ impl TranscodeQueue {
         };
 
         {
-            // extend queue
+            // add items to the queue if they aren't already present
             let mut queue = self.queue.lock().unwrap();
-            queue.extend(items.into_iter().map(|item| (item, 0)));
+            for item in items {
+                queue.push_increase(item, 0);
+            }
 
             // update ready counter by re-counting queue
             let ready_count = match policy {
@@ -299,21 +267,19 @@ impl TranscodeQueue {
     }
 
     /// Increases the priority of items in the queue.
-    pub fn prioritize<'a>(&self, hashes: impl Iterator<Item = (&'a str, &'a [u8])>) {
+    pub fn prioritize<'a>(&self, items: HashSet<PathBuf>) {
         // read policy before locking queue
         let policy = {
             let policy = self.policy.lock().unwrap();
             *policy
         };
 
-        let hashes: HashSet<(&str, &[u8])> = HashSet::from_iter(hashes);
-
         {
             let mut queue = self.queue.lock().unwrap();
 
             // increase priority
             for (item, priority) in queue.iter_mut() {
-                if hashes.contains(&(item.hash_kind.as_str(), item.hash.as_slice())) {
+                if items.contains(item) {
                     *priority += 1;
                 }
             }
@@ -332,25 +298,17 @@ impl TranscodeQueue {
     }
 
     /// Removes items from the queue.
-    pub fn remove(&self, items: Vec<TranscodeItem>) {
+    pub fn remove(&self, items: HashSet<PathBuf>) {
         // read policy before locking queue
         let policy = {
             let policy = self.policy.lock().unwrap();
             *policy
         };
 
-        let hashes: HashSet<(&str, &[u8])> = HashSet::from_iter(
-            items
-                .iter()
-                .map(|item| (item.hash_kind.as_str(), item.hash.as_slice())),
-        );
-
         {
             // remove items from queue
             let mut queue = self.queue.lock().unwrap();
-            queue.retain(|item, _priority| {
-                !hashes.contains(&(item.hash_kind.as_str(), item.hash.as_slice()))
-            });
+            queue.retain(|item, _priority| !items.contains(item));
 
             // update ready counter by re-counting queue
             let ready_count = match policy {
@@ -363,7 +321,7 @@ impl TranscodeQueue {
     }
 
     /// Waits for a job and takes it from the queue.
-    pub fn wait(&self) -> TranscodeItem {
+    pub fn wait(&self) -> PathBuf {
         let mut queue = self.queue.lock().unwrap();
         loop {
             // check for a job
@@ -398,18 +356,22 @@ pub enum TranscodeCommand {
     ///
     /// It's inefficient to send files that are already transcoded, but it is
     /// safe to do so, and they will not be transcoded again.
-    Add(Vec<TranscodeItem>),
+    Add(HashSet<PathBuf>),
 
     /// Increase the priority of some files. Sent when files are requested.
     /// This is useful for partial downloads when the library isn't fully
     /// transcoded yet.
-    Prioritize(Vec<(String, Vec<u8>)>),
+    Prioritize(HashSet<PathBuf>),
 
     /// Sent when files are removed from the library. Files are dequeued if
     /// they are currently queued for transcoding.
-    Remove(Vec<TranscodeItem>),
+    ///
+    /// TODO: unused
+    Remove(HashSet<PathBuf>),
 
     /// Delete transcodes of files that aren't in the library anymore.
+    ///
+    /// TODO: unused
     CollectGarbage(Vec<u64>),
 
     /// Set the transcode policy.
@@ -436,6 +398,7 @@ impl TranscodePool {
         transcodes_dir: PathBuf,
         initial_policy: TranscodePolicy,
         status_cache: TranscodeStatusCache,
+        hash_cache: HashCache,
     ) -> Self {
         // initialize status cache
         Self::read_transcodes_dir(&transcodes_dir, &status_cache);
@@ -454,6 +417,7 @@ impl TranscodePool {
                 if let Err(e) = Self::run(
                     transcodes_dir,
                     status_cache,
+                    hash_cache,
                     queue,
                     inprogress_counter,
                     command_rx,
@@ -468,8 +432,8 @@ impl TranscodePool {
         TranscodePool {
             transcodes_dir,
             status_cache,
-            queue,
 
+            queue,
             inprogress_counter,
 
             command_tx,
@@ -523,12 +487,12 @@ impl TranscodePool {
             .collect::<Vec<_>>();
 
         // update status cache
-        for (local_path, hash_kind, hash, file_size) in items {
+        for (transcode_path, hash_kind, hash, file_size) in items {
             status_cache.insert(
                 hash_kind,
                 hash,
                 TranscodeStatus::Ready {
-                    local_path,
+                    transcode_path,
                     file_size,
                 },
             );
@@ -537,7 +501,7 @@ impl TranscodePool {
 
     fn parse_transcodes_dir_entry(
         entry: &std::fs::DirEntry,
-    ) -> anyhow::Result<Option<(PathBuf, String, Vec<u8>, u64)>> {
+    ) -> anyhow::Result<Option<(PathBuf, String, [u8; 16], u64)>> {
         // get entry file type
         let file_type = entry.file_type().context("failed to get file type")?;
 
@@ -575,7 +539,10 @@ impl TranscodePool {
             .split_once("-")
             .context("failed to parse file name")?;
         let hash_kind = hash_kind.to_string();
-        let hash = hex::decode(hash).context("failed to decode hash bytes")?;
+        let hash = hex::decode(hash)
+            .context("failed to decode hash bytes")?
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("invalid hash length"))?;
 
         // get file size
         let file_size = path
@@ -589,6 +556,7 @@ impl TranscodePool {
     async fn run(
         transcodes_dir: PathBuf,
         status_cache: TranscodeStatusCache,
+        hash_cache: HashCache,
         queue: Arc<TranscodeQueue>,
         inprogress_counter: RegionCounter,
         mut rx: mpsc::UnboundedReceiver<TranscodeCommand>,
@@ -599,6 +567,7 @@ impl TranscodePool {
             TranscodeWorker::new(
                 transcodes_dir.clone(),
                 status_cache.clone(),
+                hash_cache.clone(),
                 queue.clone(),
                 inprogress_counter.clone(),
             );
@@ -609,22 +578,37 @@ impl TranscodePool {
                 Some(command) = rx.recv() => {
                     match command {
                         TranscodeCommand::Add(mut items) => {
-                            let mut seen: HashSet<(String, Vec<u8>)> = HashSet::new();
                             items.retain(|item| {
-                                // remove duplicates from the same batch
-                                if !seen.insert((item.hash_kind.clone(), item.hash.clone())) {
-                                    log::trace!("TranscodePool: skipping duplicate file {}", item.local_path.display());
-                                    return false;
-                                }
+                                // get the cached hash without computing it. we need to be conservative here
+                                // since every scan could send all files again. if the hash is not cached, it's
+                                // definitely not transcoded, so it's safe to queue it
+                                let (hash_kind, hash) = match hash_cache.get_cached_hash(&item) {
+                                    Ok(Some((hash_kind, hash))) => (hash_kind, hash),
 
-                                // remove items that are already waiting/transcoded/failed
-                                let status = status_cache.get(&item.hash_kind, &item.hash);
+                                    Ok(None) => {
+                                        // add to queue
+                                        return true;
+                                    }
+
+                                    Err(e) => {
+                                        log::warn!("TranscodePool: failed to get cached hash for {}: {e:#}", item.display());
+
+                                        // add to queue
+                                        return true;
+                                    }
+                                };
+
+                                // if we have a cached hash, check if it's already waiting/transcoded/failed
+                                let status = status_cache.get(&hash_kind, hash);
                                 match status {
                                     Some(status) => {
-                                        log::trace!("TranscodePool: skipping file {} (status: {:?})", item.local_path.display(), *status);
+                                        log::trace!("TranscodePool: skipping file {} (status: {:?})", item.display(), *status);
+
+                                        // don't add to queue
                                         false
                                     },
                                     None => {
+                                        // add to queue
                                         true
                                     },
                                 }
@@ -632,30 +616,20 @@ impl TranscodePool {
 
                             if !items.is_empty() {
                                 // estimate file sizes in parallel using rayon
-                                let (items, estimated_sizes) = tokio::task::spawn_blocking(move || {
-                                    let estimated_sizes = items.par_iter().map(|item| {
-                                        match estimate_file_size(&item.local_path) {
-                                            Ok(size) => Some(size),
-                                            Err(e) => {
-                                                log::warn!("TranscodePool: failed to estimate file size for {}: {e:#}", item.local_path.display());
-                                                None
-                                            }
-                                        }
-                                    }).collect::<Vec<_>>();
+                                // TODO: we probably don't want to do this here cause it's expensive to open all files
+                                // let (items, estimated_sizes) = tokio::task::spawn_blocking(move || {
+                                //     let estimated_sizes = items.par_iter().map(|item| {
+                                //         match estimate_file_size(&item.local_path) {
+                                //             Ok(size) => Some(size),
+                                //             Err(e) => {
+                                //                 log::warn!("TranscodePool: failed to estimate file size for {}: {e:#}", item.local_path.display());
+                                //                 None
+                                //             }
+                                //         }
+                                //     }).collect::<Vec<_>>();
 
-                                    (items, estimated_sizes)
-                                }).await.context("failed to join file size task")?;
-
-                                // set statuses to Waiting
-                                for (i, item) in items.iter().enumerate() {
-                                    let estimated_size = estimated_sizes[i];
-
-                                    status_cache.insert(
-                                        item.hash_kind.clone(),
-                                        item.hash.clone(),
-                                        TranscodeStatus::Waiting { estimated_size },
-                                    );
-                                }
+                                //     (items, estimated_sizes)
+                                // }).await.context("failed to join file size task")?;
 
                                 // add items to queue
                                 queue.extend(items);
@@ -663,16 +637,10 @@ impl TranscodePool {
                         },
 
                         TranscodeCommand::Prioritize(items) => {
-                            queue.prioritize(items.iter().map(|(kind, hash)| (kind.as_str(), hash.as_slice())));
+                            queue.prioritize(items);
                         },
 
                         TranscodeCommand::Remove(items) => {
-                            // clear statuses for items that are Waiting
-                            // if Ready or Failed they are left in the cache
-                            for item in &items {
-                                status_cache.remove_waiting(&item.hash_kind, &item.hash);
-                            }
-
                             // remove items from queue
                             queue.remove(items);
                         },
@@ -699,26 +667,33 @@ impl TranscodePool {
     }
 
     pub fn transcodes_dir_size(&self) -> FileSizeModel {
-        let (size, estimated) = self.status_cache.cache.iter().fold(
-            (0, false),
-            |(acc_size, acc_estimated), e| match &*e {
-                TranscodeStatus::Waiting { estimated_size } => {
-                    (acc_size + estimated_size.unwrap_or(0), true)
-                }
-                TranscodeStatus::Ready { file_size, .. } => (acc_size + file_size, acc_estimated),
-                TranscodeStatus::Failed { .. } => (acc_size, acc_estimated),
-            },
-        );
+        let size = self
+            .status_cache
+            .cache
+            .iter()
+            .fold(0, |acc_size, e| match &*e.value() {
+                TranscodeStatus::Ready { file_size, .. } => acc_size + file_size,
+                TranscodeStatus::Failed { .. } => acc_size,
+            });
+        FileSizeModel::Actual(size)
 
-        if estimated {
-            FileSizeModel::Estimated(size)
-        } else {
-            FileSizeModel::Actual(size)
-        }
-    }
+        // TODO: old code that dealt with estimated sizes
+        // let (size, estimated) = self.status_cache.cache.iter().fold(
+        //     (0, false),
+        //     |(acc_size, acc_estimated), e| match &*e {
+        //         TranscodeStatus::Waiting { estimated_size } => {
+        //             (acc_size + estimated_size.unwrap_or(0), true)
+        //         }
+        //         TranscodeStatus::Ready { file_size, .. } => (acc_size + file_size, acc_estimated),
+        //         TranscodeStatus::Failed { .. } => (acc_size, acc_estimated),
+        //     },
+        // );
 
-    pub fn waiting_count_model(&self) -> CounterModel {
-        CounterModel::from(&self.status_cache.waiting_counter)
+        // if estimated {
+        //     FileSizeModel::Estimated(size)
+        // } else {
+        //     FileSizeModel::Actual(size)
+        // }
     }
 
     pub fn queued_count_model(&self) -> CounterModel {
@@ -745,11 +720,18 @@ impl TranscodeWorker {
     pub fn new(
         transcodes_dir: PathBuf,
         status_cache: TranscodeStatusCache,
+        hash_cache: HashCache,
         queue: Arc<TranscodeQueue>,
         inprogress_counter: RegionCounter,
     ) -> Self {
         std::thread::spawn(move || {
-            if let Err(e) = Self::run(transcodes_dir, status_cache, queue, inprogress_counter) {
+            if let Err(e) = Self::run(
+                transcodes_dir,
+                status_cache,
+                hash_cache,
+                queue,
+                inprogress_counter,
+            ) {
                 log::error!("transcode worker failed: {e:#}");
             }
         });
@@ -761,6 +743,7 @@ impl TranscodeWorker {
     fn run(
         transcodes_dir: PathBuf,
         status_cache: TranscodeStatusCache,
+        hash_cache: HashCache,
         queue: Arc<TranscodeQueue>,
         inprogress_counter: RegionCounter,
     ) -> anyhow::Result<()> {
@@ -771,18 +754,46 @@ impl TranscodeWorker {
             // mark thread as in-progress
             let _counter_guard = inprogress_counter.entered();
 
+            // get file hash
+            let (hash_kind, hash) = match hash_cache.get_hash(&job) {
+                Ok((hash_kind, hash)) => (hash_kind, hash),
+
+                Err(e) => {
+                    log::error!(
+                        "failed to compute file hash for transcoding: {}: {e:#}",
+                        job.display()
+                    );
+
+                    // TODO: can't set status to Failed because we don't have the hash
+                    // maybe store failed paths somewhere?
+
+                    // next job
+                    continue;
+                }
+            };
+
+            // check if already transcoded
+            if let Some(TranscodeStatus::Ready { .. }) =
+                status_cache.get(&hash_kind, hash).as_deref()
+            {
+                log::info!("skipping already transcoded file: {}", job.display());
+
+                // next job
+                continue;
+            }
+
             // write to temp filename
             let temp_path =
-                transcodes_dir.join(format!("{}-{}.tmp", job.hash_kind, hex::encode(&job.hash)));
+                transcodes_dir.join(format!("{}-{}.tmp", hash_kind, hex::encode(&hash)));
 
-            log::info!("transcoding file: {}", job.local_path.display());
-            let file_size = match transcode(&job.local_path, &temp_path) {
+            log::info!("transcoding file: {}", job.display());
+            let file_size = match transcode(&job, &temp_path) {
                 Ok(file_size) => file_size,
 
                 Err(e) => {
                     log::error!(
                         "failed to transcode file: {} -> {}: {e:#}",
-                        job.local_path.display(),
+                        job.display(),
                         temp_path.display()
                     );
 
@@ -791,8 +802,8 @@ impl TranscodeWorker {
 
                     // set status to Failed
                     status_cache.insert(
-                        job.hash_kind.clone(),
-                        job.hash.clone(),
+                        hash_kind.to_string(),
+                        hash,
                         TranscodeStatus::Failed { error: e },
                     );
 
@@ -812,8 +823,8 @@ impl TranscodeWorker {
 
                 // set status to Failed
                 status_cache.insert(
-                    job.hash_kind.clone(),
-                    job.hash.clone(),
+                    hash_kind.to_string(),
+                    hash,
                     TranscodeStatus::Failed {
                         error: anyhow::anyhow!("failed to rename temp file: {e:#}"),
                     },
@@ -825,16 +836,16 @@ impl TranscodeWorker {
 
             log::info!(
                 "finished transcoding file: {} -> {}",
-                job.local_path.display(),
+                job.display(),
                 final_path.display()
             );
 
             // set status to Ready
             status_cache.insert(
-                job.hash_kind.clone(),
-                job.hash.clone(),
+                hash_kind.to_string(),
+                hash,
                 TranscodeStatus::Ready {
-                    local_path: final_path,
+                    transcode_path: final_path,
                     file_size,
                 },
             );
@@ -1373,6 +1384,7 @@ fn estimate_file_size(path: &PathBuf) -> anyhow::Result<u64> {
             duration.seconds as f64 + duration.frac
         }
 
+        // TODO: check if this actually happens in practice. it is probably slow to decode the whole file
         _ => {
             log::info!(
                 "file missing time_base or num_frames, decoding to find duration: {}",
@@ -1446,14 +1458,6 @@ mod tests {
     use std::{sync::atomic::AtomicBool, time::Duration};
 
     use super::*;
-
-    fn test_item(hash: u8) -> TranscodeItem {
-        TranscodeItem {
-            hash_kind: "test".to_string(),
-            hash: vec![hash],
-            local_path: PathBuf::from("test.ogg"),
-        }
-    }
 
     fn join_timeout<T>(timeout: std::time::Duration, thread: std::thread::JoinHandle<T>) -> T {
         let now = std::time::Instant::now();
@@ -1542,18 +1546,18 @@ mod tests {
         let queue = Arc::new(TranscodeQueue::new(TranscodePolicy::Always));
 
         // add to queue
-        let item_1 = test_item(0x01);
-        let item_2 = test_item(0x02);
-        queue.extend(vec![item_1, item_2]);
+        let item_1 = PathBuf::from("item_1");
+        let item_2 = PathBuf::from("item_2");
+        queue.extend(HashSet::from([item_1, item_2]));
 
         std::thread::sleep(std::time::Duration::from_millis(100));
 
         // wait after adding item
         let thread = std::thread::spawn(move || {
             let item = queue.wait();
-            assert_eq!(item.hash, [0x01]);
+            assert_eq!(item, PathBuf::from("item_1"));
             let item = queue.wait();
-            assert_eq!(item.hash, [0x02]);
+            assert_eq!(item, PathBuf::from("item_2"));
         });
 
         join_timeout(std::time::Duration::from_secs(1), thread);
@@ -1568,18 +1572,18 @@ mod tests {
             let queue = queue.clone();
             move || {
                 let item = queue.wait();
-                assert_eq!(item.hash, vec![0x01]);
+                assert_eq!(item, PathBuf::from("item_1"));
                 let item = queue.wait();
-                assert_eq!(item.hash, vec![0x02]);
+                assert_eq!(item, PathBuf::from("item_2"));
             }
         });
 
         std::thread::sleep(std::time::Duration::from_millis(100));
 
         // add to queue
-        let item_1 = test_item(0x01);
-        let item_2 = test_item(0x02);
-        queue.extend(vec![item_1, item_2]);
+        let item_1 = PathBuf::from("item_1");
+        let item_2 = PathBuf::from("item_2");
+        queue.extend(HashSet::from([item_1, item_2]));
 
         join_timeout(std::time::Duration::from_secs(1), thread);
     }
@@ -1605,9 +1609,9 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(100));
 
         // add to queue
-        let item_1 = test_item(0x01);
-        let item_2 = test_item(0x02);
-        queue.extend(vec![item_1, item_2]);
+        let item_1 = PathBuf::from("item_1");
+        let item_2 = PathBuf::from("item_2");
+        queue.extend(HashSet::from([item_1, item_2]));
 
         join_timeout(std::time::Duration::from_secs(1), thread_1);
         join_timeout(std::time::Duration::from_secs(1), thread_2);
@@ -1618,21 +1622,25 @@ mod tests {
         let queue = Arc::new(TranscodeQueue::new(TranscodePolicy::Always));
 
         // add to queue
-        let item_1 = test_item(0x01);
-        let item_2 = test_item(0x02);
-        let item_3 = test_item(0x03);
-        queue.extend(vec![item_1.clone(), item_2.clone(), item_3.clone()]);
+        let item_1 = PathBuf::from("item_1");
+        let item_2 = PathBuf::from("item_2");
+        let item_3 = PathBuf::from("item_3");
+        queue.extend(HashSet::from([
+            item_1.clone(),
+            item_2.clone(),
+            item_3.clone(),
+        ]));
 
         // wait for next
         let item = queue.wait();
-        assert_eq!(item.hash, vec![0x01]);
+        assert_eq!(item, PathBuf::from("item_1"));
 
         // remove #2 from queue
-        queue.remove(vec![item_2]);
+        queue.remove(HashSet::from([item_2]));
 
         // wait for next
         let item = queue.wait();
-        assert_eq!(item.hash, vec![0x03]);
+        assert_eq!(item, PathBuf::from("item_3"));
     }
 
     #[test]
@@ -1640,10 +1648,14 @@ mod tests {
         let queue = Arc::new(TranscodeQueue::new(TranscodePolicy::IfRequested));
 
         // add to queue
-        let item_1 = test_item(0x01);
-        let item_2 = test_item(0x02);
-        let item_3 = test_item(0x03);
-        queue.extend(vec![item_1.clone(), item_2.clone(), item_3.clone()]);
+        let item_1 = PathBuf::from("item_1");
+        let item_2 = PathBuf::from("item_2");
+        let item_3 = PathBuf::from("item_3");
+        queue.extend(HashSet::from([
+            item_1.clone(),
+            item_2.clone(),
+            item_3.clone(),
+        ]));
 
         // spawn consumer thread
         let thread_1 = std::thread::spawn({
@@ -1655,15 +1667,11 @@ mod tests {
         assert_duration(Duration::from_millis(100), || !thread_1.is_finished());
 
         // request #2
-        queue.prioritize(
-            [item_2]
-                .iter()
-                .map(|i| (i.hash_kind.as_ref(), i.hash.as_slice())),
-        );
+        queue.prioritize(HashSet::from([item_2]));
 
         // should receive #2
         let item = thread_1.join().unwrap();
-        assert_eq!(item.hash, vec![0x02]);
+        assert_eq!(item, PathBuf::from("item_2"));
 
         // spawn another consumer thread
         let thread_2 = std::thread::spawn({
@@ -1675,15 +1683,11 @@ mod tests {
         assert_duration(Duration::from_millis(100), || !thread_2.is_finished());
 
         // request #3
-        queue.prioritize(
-            [item_3]
-                .iter()
-                .map(|i| (i.hash_kind.as_ref(), i.hash.as_slice())),
-        );
+        queue.prioritize(HashSet::from([item_3]));
 
         // should receive #3
         let item = thread_2.join().unwrap();
-        assert_eq!(item.hash, vec![0x03]);
+        assert_eq!(item, PathBuf::from("item_3"));
     }
 
     #[test]
@@ -1691,10 +1695,14 @@ mod tests {
         let queue = Arc::new(TranscodeQueue::new(TranscodePolicy::IfRequested));
 
         // add to queue
-        let item_1 = test_item(0x01);
-        let item_2 = test_item(0x02);
-        let item_3 = test_item(0x03);
-        queue.extend(vec![item_1.clone(), item_2.clone(), item_3.clone()]);
+        let item_1 = PathBuf::from("item_1");
+        let item_2 = PathBuf::from("item_2");
+        let item_3 = PathBuf::from("item_3");
+        queue.extend(HashSet::from([
+            item_1.clone(),
+            item_2.clone(),
+            item_3.clone(),
+        ]));
 
         // spawn consumer thread to wait for 3 items
         let thread_1 = std::thread::spawn({
@@ -1721,10 +1729,14 @@ mod tests {
         let queue = Arc::new(TranscodeQueue::new(TranscodePolicy::Always));
 
         // add to queue
-        let item_1 = test_item(0x01);
-        let item_2 = test_item(0x02);
-        let item_3 = test_item(0x03);
-        queue.extend(vec![item_1.clone(), item_2.clone(), item_3.clone()]);
+        let item_1 = PathBuf::from("item_1");
+        let item_2 = PathBuf::from("item_2");
+        let item_3 = PathBuf::from("item_3");
+        queue.extend(HashSet::from([
+            item_1.clone(),
+            item_2.clone(),
+            item_3.clone(),
+        ]));
 
         // should receive some item
         queue.wait();
@@ -1745,11 +1757,7 @@ mod tests {
         assert_duration(Duration::from_millis(100), || !thread_1.is_finished());
 
         // request all
-        queue.prioritize(
-            [item_1, item_2, item_3]
-                .iter()
-                .map(|i| (i.hash_kind.as_ref(), i.hash.as_slice())),
-        );
+        queue.prioritize(HashSet::from([item_1, item_2, item_3]));
 
         // should receive items and exit
         join_timeout(Duration::from_millis(100), thread_1);
@@ -1763,10 +1771,14 @@ mod tests {
         assert_eq!(queue.ready_counter.load(Ordering::SeqCst), 0);
 
         // add to queue
-        let item_1 = test_item(0x01);
-        let item_2 = test_item(0x02);
-        let item_3 = test_item(0x03);
-        queue.extend(vec![item_1.clone(), item_2.clone(), item_3.clone()]);
+        let item_1 = PathBuf::from("item_1");
+        let item_2 = PathBuf::from("item_2");
+        let item_3 = PathBuf::from("item_3");
+        queue.extend(HashSet::from([
+            item_1.clone(),
+            item_2.clone(),
+            item_3.clone(),
+        ]));
 
         // should have 3 ready
         assert_eq!(queue.ready_counter.load(Ordering::SeqCst), 3);
@@ -1784,11 +1796,7 @@ mod tests {
         assert_eq!(queue.ready_counter.load(Ordering::SeqCst), 0);
 
         // request #2
-        queue.prioritize(
-            [item_2]
-                .iter()
-                .map(|i| (i.hash_kind.as_ref(), i.hash.as_slice())),
-        );
+        queue.prioritize(HashSet::from([item_2]));
 
         // should have 1 ready
         assert_eq!(queue.ready_counter.load(Ordering::SeqCst), 1);

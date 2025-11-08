@@ -13,8 +13,6 @@ pub struct Root {
 
 pub struct File {
     pub id: u64,
-    pub hash_kind: String,
-    pub hash: Vec<u8>,
     pub node_id: NodeId,
     pub root: String,
     pub path: String,
@@ -23,12 +21,27 @@ pub struct File {
 }
 
 pub struct InsertFile<'a> {
-    pub hash_kind: &'a str,
-    pub hash: &'a [u8],
     pub root: &'a str,
     pub path: &'a str,
     pub local_tree: &'a str,
     pub local_path: &'a str,
+}
+
+pub struct FileHash {
+    pub id: u64,
+    pub path: String,
+    pub last_file_size: u64,
+    pub last_modified_at: u64,
+    pub hash_kind: String,
+    pub hash: [u8; 16],
+}
+
+pub struct InsertFileHash<'a> {
+    pub path: &'a str,
+    pub last_file_size: u64,
+    pub last_modified_at: u64,
+    pub hash_kind: &'a str,
+    pub hash: [u8; 16],
 }
 
 pub struct RecentServer {
@@ -77,14 +90,24 @@ impl Database {
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS files (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                hash_kind TEXT NOT NULL,
-                hash BLOB NOT NULL,
                 node_id TEXT NOT NULL,
                 root TEXT NOT NULL,
                 path TEXT NOT NULL,
                 local_tree TEXT NOT NULL,
                 local_path TEXT NOT NULL,
                 UNIQUE (node_id, root, path, local_tree)
+            )",
+            [],
+        )?;
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS file_hashes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path TEXT NOT NULL,
+                last_file_size INTEGER NOT NULL,
+                last_modified_at INTEGER NOT NULL,
+                hash_kind TEXT NOT NULL,
+                hash BLOB NOT NULL,
+                UNIQUE (path)
             )",
             [],
         )?;
@@ -109,6 +132,7 @@ impl Database {
     pub fn reset(&self) -> anyhow::Result<()> {
         self.conn.execute("DROP TABLE IF EXISTS roots", [])?;
         self.conn.execute("DROP TABLE IF EXISTS files", [])?;
+        self.conn.execute("DROP TABLE IF EXISTS file_hashes", [])?;
         self.conn
             .execute("DROP TABLE IF EXISTS trusted_nodes", [])?;
         self.conn
@@ -190,11 +214,9 @@ impl Database {
         )?;
 
         {
-            let mut stmt = tx.prepare("INSERT INTO files (hash_kind, hash, node_id, root, path, local_tree, local_path) VALUES (?, ?, ?, ?, ?, ?, ?)")?;
+            let mut stmt = tx.prepare("INSERT INTO files (node_id, root, path, local_tree, local_path) VALUES (?, ?, ?, ?, ?)")?;
             for file in iter {
                 stmt.execute((
-                    file.hash_kind,
-                    file.hash,
                     node_id_to_string(&local_node_id),
                     file.root,
                     file.path,
@@ -216,13 +238,11 @@ impl Database {
         file: InsertFile<'a>,
     ) -> anyhow::Result<()> {
         let mut stmt = self.conn.prepare(
-            "INSERT INTO files (hash_kind, hash, node_id, root, path, local_tree, local_path) VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(node_id, root, path, local_tree) DO UPDATE SET hash_kind = excluded.hash_kind, hash = excluded.hash, local_path = excluded.local_path"
+            "INSERT INTO files (node_id, root, path, local_tree, local_path) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(node_id, root, path, local_tree) DO UPDATE SET local_path = excluded.local_path"
         )?;
 
         stmt.execute((
-            file.hash_kind,
-            file.hash,
             node_id_to_string(&remote_node_id),
             file.root,
             file.path,
@@ -236,24 +256,22 @@ impl Database {
     pub fn get_files(&self) -> anyhow::Result<Vec<File>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, hash_kind, hash, node_id, root, path, local_tree, local_path FROM files")
+            .prepare("SELECT id, node_id, root, path, local_tree, local_path FROM files")
             .expect("should prepare statement");
 
         stmt.query_and_then([], |row| {
             let node_id =
-                hex::decode(row.get::<_, String>(3)?).context("failed to parse node id")?;
+                hex::decode(row.get::<_, String>(1)?).context("failed to parse node id")?;
             let node_id =
                 NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(File {
                 id: row.get(0)?,
-                hash_kind: row.get(1)?,
-                hash: row.get(2)?,
                 node_id,
-                root: row.get(4)?,
-                path: row.get(5)?,
-                local_tree: row.get(6)?,
-                local_path: row.get(7)?,
+                root: row.get(2)?,
+                path: row.get(3)?,
+                local_tree: row.get(4)?,
+                local_path: row.get(5)?,
             })
         })
         .expect("should bind parameters")
@@ -264,25 +282,23 @@ impl Database {
     pub fn get_files_by_node_id(&self, node_id: NodeId) -> anyhow::Result<Vec<File>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, hash_kind, hash, node_id, root, path, local_tree, local_path FROM files WHERE node_id = ?")
+            .prepare("SELECT id, node_id, root, path, local_tree, local_path FROM files WHERE node_id = ?")
             .expect("should prepare statement");
 
         let node_id = node_id_to_string(&node_id);
         stmt.query_and_then([&node_id], |row| {
             let node_id =
-                hex::decode(row.get::<_, String>(3)?).context("failed to parse node id")?;
+                hex::decode(row.get::<_, String>(1)?).context("failed to parse node id")?;
             let node_id =
                 NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(File {
                 id: row.get(0)?,
-                hash_kind: row.get(1)?,
-                hash: row.get(2)?,
                 node_id,
-                root: row.get(4)?,
-                path: row.get(5)?,
-                local_tree: row.get(6)?,
-                local_path: row.get(7)?,
+                root: row.get(2)?,
+                path: row.get(3)?,
+                local_tree: row.get(4)?,
+                local_path: row.get(5)?,
             })
         })
         .expect("should bind parameters")
@@ -293,25 +309,23 @@ impl Database {
     pub fn get_files_by_ne_node_id(&self, node_id: NodeId) -> anyhow::Result<Vec<File>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, hash_kind, hash, node_id, root, path, local_tree, local_path FROM files WHERE node_id != ?")
+            .prepare("SELECT id, node_id, root, path, local_tree, local_path FROM files WHERE node_id != ?")
             .expect("should prepare statement");
 
         let node_id = node_id_to_string(&node_id);
         stmt.query_and_then([&node_id], |row| {
             let node_id =
-                hex::decode(row.get::<_, String>(3)?).context("failed to parse node id")?;
+                hex::decode(row.get::<_, String>(1)?).context("failed to parse node id")?;
             let node_id =
                 NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(File {
                 id: row.get(0)?,
-                hash_kind: row.get(1)?,
-                hash: row.get(2)?,
                 node_id,
-                root: row.get(4)?,
-                path: row.get(5)?,
-                local_tree: row.get(6)?,
-                local_path: row.get(7)?,
+                root: row.get(2)?,
+                path: row.get(3)?,
+                local_tree: row.get(4)?,
+                local_path: row.get(5)?,
             })
         })
         .expect("should bind parameters")
@@ -349,25 +363,23 @@ impl Database {
     ) -> anyhow::Result<Option<File>> {
         let mut stmt = self
         .conn
-        .prepare("SELECT id, hash_kind, hash, node_id, root, path, local_tree, local_path FROM files WHERE node_id = ? AND root = ? AND path = ?")
+        .prepare("SELECT id, node_id, root, path, local_tree, local_path FROM files WHERE node_id = ? AND root = ? AND path = ?")
         .expect("should prepare statement");
 
         let node_id = node_id_to_string(&node_id);
         stmt.query_and_then([&node_id, root, path], |row| {
             let node_id =
-                hex::decode(row.get::<_, String>(3)?).context("failed to parse node id")?;
+                hex::decode(row.get::<_, String>(1)?).context("failed to parse node id")?;
             let node_id =
                 NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(File {
                 id: row.get(0)?,
-                hash_kind: row.get(1)?,
-                hash: row.get(2)?,
                 node_id,
-                root: row.get(4)?,
-                path: row.get(5)?,
-                local_tree: row.get(6)?,
-                local_path: row.get(7)?,
+                root: row.get(2)?,
+                path: row.get(3)?,
+                local_tree: row.get(4)?,
+                local_path: row.get(5)?,
             })
         })
         .expect("should bind parameters")
@@ -385,7 +397,7 @@ impl Database {
 
         let placeholders = std::iter::repeat_n("(?, ?, ?)", keys.len()).join(", ");
         let sql = format!(
-            "SELECT id, hash_kind, hash, node_id, root, path, local_tree, local_path FROM files WHERE (node_id, root, path) IN ({placeholders})"
+            "SELECT id, node_id, root, path, local_tree, local_path FROM files WHERE (node_id, root, path) IN ({placeholders})"
         );
 
         let mut stmt = self.conn.prepare(&sql).expect("should prepare statement");
@@ -397,19 +409,17 @@ impl Database {
 
         stmt.query_and_then(params_flat, |row| {
             let node_id =
-                hex::decode(row.get::<_, String>(3)?).context("failed to parse node id")?;
+                hex::decode(row.get::<_, String>(1)?).context("failed to parse node id")?;
             let node_id =
                 NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(File {
                 id: row.get(0)?,
-                hash_kind: row.get(1)?,
-                hash: row.get(2)?,
                 node_id,
-                root: row.get(4)?,
-                path: row.get(5)?,
-                local_tree: row.get(6)?,
-                local_path: row.get(7)?,
+                root: row.get(2)?,
+                path: row.get(3)?,
+                local_tree: row.get(4)?,
+                local_path: row.get(5)?,
             })
         })
         .expect("should bind parameters")
@@ -436,6 +446,46 @@ impl Database {
         stmt.execute(params_flat)?;
 
         Ok(())
+    }
+
+    /// Insert a file hash, updating the existing entry if it exists.
+    pub fn insert_file_hash(&self, file_hash: InsertFileHash) -> anyhow::Result<()> {
+        let mut stmt = self.conn.prepare(
+            "INSERT INTO file_hashes (path, last_file_size, last_modified_at, hash_kind, hash) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(path) DO UPDATE SET last_file_size = excluded.last_file_size, last_modified_at = excluded.last_modified_at, hash_kind = excluded.hash_kind, hash = excluded.hash",
+        )?;
+
+        stmt.execute((
+            file_hash.path,
+            file_hash.last_file_size,
+            file_hash.last_modified_at,
+            file_hash.hash_kind,
+            file_hash.hash,
+        ))?;
+
+        Ok(())
+    }
+
+    /// Get a cached file hash by path.
+    pub fn get_file_hash_by_path(&self, path: &Path) -> anyhow::Result<Option<FileHash>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, path, last_file_size, last_modified_at, hash_kind, hash FROM file_hashes WHERE path = ?")
+            .expect("should prepare statement");
+
+        stmt.query_and_then([path.to_string_lossy().as_ref()], |row| {
+            Ok(FileHash {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                last_file_size: row.get(2)?,
+                last_modified_at: row.get(3)?,
+                hash_kind: row.get(4)?,
+                hash: row.get(5)?,
+            })
+        })
+        .expect("should bind parameters")
+        .next()
+        .transpose()
     }
 
     pub fn get_trusted_nodes(&self) -> anyhow::Result<Vec<NodeId>> {
