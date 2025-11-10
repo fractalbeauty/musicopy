@@ -74,7 +74,7 @@ pub(crate) use app_log;
 
 impl<'a> App<'a> {
     /// Constructs a new instance of [`App`].
-    pub async fn new(in_memory: bool) -> anyhow::Result<Self> {
+    pub async fn new(in_memory: bool, auto_accept: bool) -> anyhow::Result<Self> {
         // initialize as early as possible
         let events = EventHandler::new();
 
@@ -88,6 +88,34 @@ impl<'a> App<'a> {
             },
         )
         .await?;
+
+        // spawn auto accept task
+        if auto_accept {
+            app_log!("ran with --auto-accept, will automatically accept incoming connections");
+            let core = core.clone();
+            tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+                    let node_model = match core.get_node_model() {
+                        Ok(model) => model,
+                        Err(e) => {
+                            app_log!("auto accept: error getting node model: {e:#}");
+                            continue;
+                        }
+                    };
+
+                    for server in node_model.servers.values() {
+                        if matches!(server.state, ServerStateModel::Pending) {
+                            app_log!("auto accepting server: {}", server.node_id);
+                            if let Err(e) = core.accept_connection(&server.node_id) {
+                                app_log!("error auto accepting server {}: {e:#}", server.node_id);
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
         let library_model = core.get_library_model()?;
         let node_model = core.get_node_model()?;

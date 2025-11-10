@@ -13,6 +13,10 @@ struct Args {
     /// Whether to store state in memory only, without persisting to disk.
     #[arg(long, short = 'm', default_value_t = false)]
     in_memory: bool,
+
+    /// Whether to automatically accept incoming connections.
+    #[arg(long, default_value_t = false)]
+    auto_accept: bool,
 }
 
 #[tokio::main]
@@ -20,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     // initialize app
-    let app = App::new(args.in_memory).await?;
+    let app = App::new(args.in_memory, args.auto_accept).await?;
 
     // set up global logger
     let logger = AppLogger::new_with_default("warn,musicopy_tui=debug,musicopy=debug");
