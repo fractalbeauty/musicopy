@@ -43,9 +43,9 @@ import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
 import musicopy_root.musicopy.BuildConfig
-import musicopy_root.musicopy.generated.resources.icon
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.info_24px
+import musicopy_root.musicopy.generated.resources.icon
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.LibraryModel
 import uniffi.musicopy.NodeModel
@@ -75,99 +75,97 @@ fun DesktopHome(
     )
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().padding(8.dp)
     ) {
-        Column(
-            modifier = Modifier.widthIn(0.dp, 800.dp).padding(32.dp)
+        Row(
+            modifier = Modifier.padding(bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.padding(bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Box(
+                modifier = Modifier.padding(end = 8.dp)
             ) {
-                Box(
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    Image(
-                        painter = painterResource(Res.drawable.icon),
-                        contentDescription = "Musicopy logo",
-                        modifier = Modifier
-                            .size(44.dp)
-                            .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                    )
-                }
-
-                Text("MUSICOPY", style = MaterialTheme.typography.logotype)
-
-                Box(modifier = Modifier.weight(1f))
-
-                FilledIconButton(
-                    onClick = {
-                        aboutState.visible = true
-                    },
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.info_24px),
-                        contentDescription = "About button icon",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            val left = @Composable {
-                LibraryWidget(
-                    libraryModel = libraryModel,
-                    onAddRoot = onAddLibraryRoot,
-                    onRemoveRoot = onRemoveLibraryRoot,
-                    onRescan = onRescanLibrary,
-                )
-                ConnectWidget(
-                    nodeModel = nodeModel,
-                    showHints = showHints,
-                    onAcceptAndTrust = onAcceptAndTrust,
-                    onAcceptOnce = onAcceptOnce,
-                    onDeny = onDeny,
-                )
-            }
-            val right = @Composable {
-                SettingsWidget(
-                    libraryModel = libraryModel,
-                    onSetTranscodePolicy = onSetTranscodePolicy,
-                )
-                JobsWidget(
-                    libraryModel = libraryModel,
-                    nodeModel = nodeModel,
+                Image(
+                    painter = painterResource(Res.drawable.icon),
+                    contentDescription = "Musicopy logo",
+                    modifier = Modifier
+                        .size(44.dp)
+                        .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 )
             }
 
-            if (oneCol) {
+            Text("MUSICOPY", style = MaterialTheme.typography.logotype)
+
+            Box(modifier = Modifier.weight(1f))
+
+            FilledIconButton(
+                onClick = {
+                    aboutState.visible = true
+                },
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.info_24px),
+                    contentDescription = "About button icon",
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        val left = @Composable {
+            LibraryWidget(
+                libraryModel = libraryModel,
+                onAddRoot = onAddLibraryRoot,
+                onRemoveRoot = onRemoveLibraryRoot,
+                onRescan = onRescanLibrary,
+
+                modifier = Modifier.weight(1f)
+            )
+            ConnectWidget(
+                nodeModel = nodeModel,
+                showHints = showHints,
+                onAcceptAndTrust = onAcceptAndTrust,
+                onAcceptOnce = onAcceptOnce,
+                onDeny = onDeny,
+
+                modifier = Modifier.weight(1f)
+            )
+        }
+        val right = @Composable {
+            SettingsWidget(
+                libraryModel = libraryModel,
+                onSetTranscodePolicy = onSetTranscodePolicy,
+            )
+            JobsWidget(
+                libraryModel = libraryModel,
+                nodeModel = nodeModel,
+            )
+        }
+
+        if (oneCol) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                left()
+                right()
+            }
+        } else {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Column(
+                    modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     left()
-                    right()
                 }
-            } else {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        left()
-                    }
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        right()
-                    }
+                    right()
                 }
             }
         }

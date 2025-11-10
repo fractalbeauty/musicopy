@@ -64,6 +64,8 @@ fun ConnectWidget(
     onAcceptAndTrust: (remoteNodeId: String) -> Unit,
     onAcceptOnce: (remoteNodeId: String) -> Unit,
     onDeny: (remoteNodeId: String) -> Unit,
+
+    modifier: Modifier = Modifier,
 ) {
     val nextPending = nodeModel.servers.values.find { it.state is ServerStateModel.Pending }
 
@@ -76,6 +78,7 @@ fun ConnectWidget(
 
     WidgetContainer(
         title = title,
+        modifier = modifier,
     ) {
         AnimatedContent(
             targetState = nextPending,

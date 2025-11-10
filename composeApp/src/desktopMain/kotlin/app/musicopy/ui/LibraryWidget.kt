@@ -31,6 +31,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import app.musicopy.openDirectoryInExplorer
 import app.musicopy.ui.components.Info
+import app.musicopy.ui.components.ScrollableContainer
 import app.musicopy.ui.components.WidgetContainer
 import com.composables.core.Dialog
 import com.composables.core.DialogPanel
@@ -57,6 +58,8 @@ fun LibraryWidget(
     onAddRoot: (name: String, path: String) -> Unit,
     onRemoveRoot: (name: String) -> Unit,
     onRescan: () -> Unit,
+
+    modifier: Modifier = Modifier,
 ) {
     val localRoots = libraryModel.localRoots
 
@@ -137,6 +140,7 @@ fun LibraryWidget(
 
     WidgetContainer(
         title = "LIBRARY",
+        modifier = modifier,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (localRoots.isNotEmpty()) {
@@ -169,16 +173,20 @@ fun LibraryWidget(
                 }
             }
 
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                if (localRoots.isNotEmpty()) {
-                    for (root in localRoots) {
-                        LibraryRoot(root, onStartRemoveRoot = onStartRemoveRoot)
+            ScrollableContainer { scrollModifier ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(scrollModifier),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    if (localRoots.isNotEmpty()) {
+                        for (root in localRoots) {
+                            LibraryRoot(root, onStartRemoveRoot = onStartRemoveRoot)
+                        }
+                    } else {
+                        Empty(onStartAddRoot = onStartAddRoot)
                     }
-                } else {
-                    Empty(onStartAddRoot = onStartAddRoot)
                 }
             }
         }
@@ -196,7 +204,7 @@ private fun LibraryRoot(root: LibraryRootModel, onStartRemoveRoot: (String) -> U
         ) {
             Column(modifier = Modifier.padding(start = 8.dp).weight(1f)) {
                 Text(
-                    "${root.name} (${root.numFiles})",
+                    "${root.name} (${root.numFiles} files)",
                     style = MaterialTheme.typography.labelLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

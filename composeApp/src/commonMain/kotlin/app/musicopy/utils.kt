@@ -22,6 +22,9 @@ import uniffi.musicopy.TranscodePolicy
 import uniffi.musicopy.TransferJobModel
 import uniffi.musicopy.TransferJobProgressModel
 
+inline fun <T> T.letIf(condition: Boolean, block: (T) -> T): T =
+    if (condition) this.let(block) else this
+
 @Composable
 fun <T> rememberPoll(
     intervalMs: Long = 100,

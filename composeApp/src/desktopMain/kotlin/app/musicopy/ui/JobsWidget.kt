@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import app.musicopy.formatFloat
 import app.musicopy.shortenNodeId
 import app.musicopy.ui.components.AnimatedList
+import app.musicopy.ui.components.ScrollableContainer
 import app.musicopy.ui.components.WidgetContainer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -64,30 +65,33 @@ fun JobsWidget(
 
     AnimatedVisibility(visible = visible) {
         WidgetContainer(
-            title = "JOBS"
+            title = "STATUS"
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AnimatedVisibility(transcodesVisible) {
-                    TranscodeJob(libraryModel)
-                }
+            ScrollableContainer { scrollModifier ->
 
-                AnimatedList(
-                    activeServers,
-                    itemKey = { it.nodeId },
-                ) { connection ->
-                    ActiveConnectionJob(
-                        connection
-                    )
-                }
+                Column(
+                    modifier = Modifier.fillMaxWidth().then(scrollModifier),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AnimatedVisibility(transcodesVisible) {
+                        TranscodeJob(libraryModel)
+                    }
 
-                AnimatedList(
-                    activeServers.filter { it.transferJobs.any { job -> job.progress !is TransferJobProgressModel.Finished } },
-                    itemKey = { it.nodeId },
-                ) { connection ->
-                    ActiveTransferJob(connection)
+                    AnimatedList(
+                        activeServers,
+                        itemKey = { it.nodeId },
+                    ) { connection ->
+                        ActiveConnectionJob(
+                            connection
+                        )
+                    }
+
+                    AnimatedList(
+                        activeServers.filter { it.transferJobs.any { job -> job.progress !is TransferJobProgressModel.Finished } },
+                        itemKey = { it.nodeId },
+                    ) { connection ->
+                        ActiveTransferJob(connection)
+                    }
                 }
             }
         }

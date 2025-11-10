@@ -20,9 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,14 +62,14 @@ fun SettingsWidget(
 
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         TranscodePolicyButton(
-                            text = "when needed",
+                            text = "when requested",
                             onClick = { onSetTranscodePolicy(TranscodePolicy.IF_REQUESTED) },
                             isSelected = libraryModel.transcodePolicy == TranscodePolicy.IF_REQUESTED,
                             startOuter = true,
                             endOuter = false,
                         )
                         TranscodePolicyButton(
-                            text = "now",
+                            text = "ahead of time",
                             onClick = { onSetTranscodePolicy(TranscodePolicy.ALWAYS) },
                             isSelected = libraryModel.transcodePolicy == TranscodePolicy.ALWAYS,
                             startOuter = false,

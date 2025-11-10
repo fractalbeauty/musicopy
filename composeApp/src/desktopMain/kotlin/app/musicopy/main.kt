@@ -15,8 +15,8 @@ import kotlinx.coroutines.runBlocking
 import uniffi.musicopy.CoreException
 
 
-const val WINDOW_WIDTH = 800
-const val WINDOW_HEIGHT = 600
+const val WINDOW_WIDTH = 1024
+const val WINDOW_HEIGHT = 768
 
 fun main() = runBlocking {
     val platformAppContext = PlatformAppContext()
@@ -52,7 +52,7 @@ fun main() = runBlocking {
             )
 
             // TODO
-            Box(modifier = Modifier.offset(x = 8.dp, y = 8.dp)) {
+            Box(modifier = Modifier.offset(x = 208.dp, y = 8.dp)) {
                 Text("window: ${LocalWindowInfo.current.containerSize}")
             }
         }
