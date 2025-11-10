@@ -10,7 +10,9 @@ const { logotypeElement } = Astro.props;
 
 <nav>
   <div class="nav-desktop">
-    <img class="logo" src="/static/icon.svg" width="32" height="32" />
+    <a class="logo-link" href="/">
+      <img class="logo" src="/static/icon.svg" width="32" height="32" />
+    </a>
 
     {
       logotypeElement === "h1" ? (
@@ -41,7 +43,7 @@ const { logotypeElement } = Astro.props;
 
     <div class="nav-mobile-row">
       <img class="logo" src="/static/icon.svg" width="32" height="32" />
-      
+
       {
         logotypeElement === "h1" ? (
           <h1 class="logotype">
@@ -79,6 +81,10 @@ const { logotypeElement } = Astro.props;
     flex-direction: row;
     justify-content: center;
     margin: 0 20px;
+  }
+
+  .logo-link {
+    display: contents;
   }
 
   .logo {
