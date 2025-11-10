@@ -1,5 +1,7 @@
 package app.musicopy.ui
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,7 @@ import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
 import musicopy_root.musicopy.BuildConfig
+import musicopy_root.musicopy.generated.resources.icon
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.info_24px
 import org.jetbrains.compose.resources.painterResource
@@ -81,8 +84,20 @@ fun DesktopHome(
         ) {
             Row(
                 modifier = Modifier.padding(bottom = 4.dp),
-                verticalAlignment = Alignment.Bottom,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                Box(
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Image(
+                        painter = painterResource(Res.drawable.icon),
+                        contentDescription = "Musicopy logo",
+                        modifier = Modifier
+                            .size(44.dp)
+                            .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                    )
+                }
+
                 Text("MUSICOPY", style = MaterialTheme.typography.logotype)
 
                 Box(modifier = Modifier.weight(1f))
