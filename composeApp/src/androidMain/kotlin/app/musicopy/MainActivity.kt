@@ -1,5 +1,6 @@
 package app.musicopy
 
+import android.app.NotificationManager
 import android.content.ContentResolver
 import android.content.Intent
 import android.net.Uri
@@ -56,9 +57,13 @@ class MainActivity : ComponentActivity() {
         observer = AppLifecycleObserver(activityResultRegistry, contentResolver)
         lifecycle.addObserver(observer)
 
-        // wait for core instance to be initialized
+        // show splash screen until core is ready
         val app = application as AppApplication
         splashScreen.setKeepOnScreenCondition { !app.coreInstanceReady.value }
+
+        // cancel transfer notification
+        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(NOTIFICATION_ID_TRANSFER)
 
         val platformActivityContext = PlatformActivityContext(this)
 

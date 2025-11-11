@@ -1,10 +1,14 @@
 package app.musicopy
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.ClipEntry
-import platform.UIKit.UIDevice
 import platform.Foundation.NSNumber
 import platform.Foundation.NSNumberFormatter
+import platform.UIKit.UIDevice
+
+actual val isAndroid = false
 
 actual class PlatformAppContext actual constructor() {
     actual val name: String =
@@ -24,4 +28,9 @@ actual fun formatFloat(f: Float, decimals: Int): String {
     formatter.maximumFractionDigits = decimals.toULong()
     formatter.numberStyle = 1u // Decimal
     return formatter.stringFromNumber(NSNumber(f))!!
+}
+
+@Composable
+actual fun rememberNotificationsPermission(): MutableState<PermissionState> {
+    return stubRememberNotificationsPermission()
 }

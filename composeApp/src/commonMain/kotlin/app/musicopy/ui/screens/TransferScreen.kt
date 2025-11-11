@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -40,7 +42,10 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.musicopy.formatFloat
+import app.musicopy.isAndroid
 import app.musicopy.mockClientModel
+import app.musicopy.rememberNotificationsPermission
+import app.musicopy.ui.components.Info
 import app.musicopy.ui.components.TopBar
 import app.musicopy.ui.widgetHeadline
 import kotlinx.coroutines.delay
@@ -121,8 +126,9 @@ fun TransferScreen(
                     progress = { animatedProgress },
                     modifier = Modifier.fillMaxWidth()
                 )
-
             }
+
+            NotificationPermissionPrompt()
 
             if (failedJobs.isNotEmpty()) {
                 HorizontalDivider(thickness = 1.dp)
@@ -344,6 +350,46 @@ internal fun formatJobSubtitle(job: TransferJobModel): String {
         }
 
         is TransferJobProgressModel.Failed -> "Error: ${progress.error}"
+    }
+}
+
+@Composable
+internal fun NotificationPermissionPrompt() {
+    val notificationPermission by rememberNotificationsPermission()
+
+    if (isAndroid && !notificationPermission.isGranted) {
+        HorizontalDivider(thickness = 1.dp)
+
+        Box(modifier = Modifier.padding(8.dp)) {
+            Info {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Transfers will continue in the background. Enable notifications to see progress and be notified when transfers finish.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    Button(
+                        onClick = { notificationPermission.requestPermission() },
+                        modifier = Modifier.fillMaxWidth().height(64.dp),
+                        shape = MaterialTheme.shapes.large,
+                        contentPadding = PaddingValues(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Enable notifications")
+
+                            Icon(
+                                painter = painterResource(Res.drawable.chevron_forward_24px),
+                                contentDescription = null,
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
