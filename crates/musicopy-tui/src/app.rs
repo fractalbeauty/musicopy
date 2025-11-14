@@ -471,6 +471,13 @@ impl<'a> App<'a> {
                 }
             }
 
+            "delete-unused-transcodes" => {
+                self.core.delete_unused_transcodes()?;
+            }
+            "delete-all-transcodes" => {
+                self.core.delete_all_transcodes()?;
+            }
+
             "help" | "h" | "?" => {
                 app_send!(AppEvent::Screen(AppScreen::Help));
             }

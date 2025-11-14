@@ -37,7 +37,7 @@ pub struct FileHash {
 }
 
 pub struct InsertFileHash<'a> {
-    pub path: &'a str,
+    pub path: Cow<'a, str>,
     pub last_file_size: u64,
     pub last_modified_at: u64,
     pub hash_kind: &'a str,
@@ -485,24 +485,6 @@ impl Database {
         Ok(())
     }
 
-    /// Insert a file hash, updating the existing entry if it exists.
-    pub fn insert_file_hash(&self, file_hash: InsertFileHash) -> anyhow::Result<()> {
-        let mut stmt = self.conn.prepare(
-            "INSERT INTO file_hashes (path, last_file_size, last_modified_at, hash_kind, hash) VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(path) DO UPDATE SET last_file_size = excluded.last_file_size, last_modified_at = excluded.last_modified_at, hash_kind = excluded.hash_kind, hash = excluded.hash",
-        )?;
-
-        stmt.execute((
-            file_hash.path,
-            file_hash.last_file_size,
-            file_hash.last_modified_at,
-            file_hash.hash_kind,
-            file_hash.hash,
-        ))?;
-
-        Ok(())
-    }
-
     /// Get a cached file hash by path.
     pub fn get_file_hash_by_path(&self, path: &Path) -> anyhow::Result<Option<FileHash>> {
         let mut stmt = self
@@ -525,6 +507,91 @@ impl Database {
         .transpose()
     }
 
+    /// Get multiple cached file hashes by paths.
+    pub fn get_file_hashes_by_paths<'a>(
+        &self,
+        paths: impl ExactSizeIterator<Item = Cow<'a, str>>,
+    ) -> anyhow::Result<HashMap<String, FileHash>> {
+        if paths.len() == 0 {
+            return Ok(HashMap::new());
+        }
+
+        let placeholders = std::iter::repeat_n("?", paths.len()).join(", ");
+        let sql = format!(
+            "SELECT id, path, last_file_size, last_modified_at, hash_kind, hash FROM file_hashes WHERE path IN ({placeholders})"
+        );
+
+        let mut stmt = self.conn.prepare(&sql).expect("should prepare statement");
+
+        let params_flat = rusqlite::params_from_iter(paths);
+
+        stmt.query_and_then(params_flat, |row| {
+            Ok((
+                row.get(1)?,
+                FileHash {
+                    id: row.get(0)?,
+                    path: row.get(1)?,
+                    last_file_size: row.get(2)?,
+                    last_modified_at: row.get(3)?,
+                    hash_kind: row.get(4)?,
+                    hash: row.get(5)?,
+                },
+            ))
+        })
+        .expect("should bind parameters")
+        .collect()
+    }
+
+    /// Insert a file hash, updating the existing entry if it exists.
+    pub fn insert_file_hash(&self, file_hash: InsertFileHash) -> anyhow::Result<()> {
+        let mut stmt = self.conn.prepare(
+            "INSERT INTO file_hashes (path, last_file_size, last_modified_at, hash_kind, hash) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(path) DO UPDATE SET last_file_size = excluded.last_file_size, last_modified_at = excluded.last_modified_at, hash_kind = excluded.hash_kind, hash = excluded.hash",
+        )?;
+
+        stmt.execute((
+            file_hash.path,
+            file_hash.last_file_size,
+            file_hash.last_modified_at,
+            file_hash.hash_kind,
+            file_hash.hash,
+        ))?;
+
+        Ok(())
+    }
+
+    /// Insert multiple file hashes, updating existing entries if they exist.
+    pub fn insert_file_hashes<'a>(
+        &mut self,
+        file_hashes: impl Iterator<Item = InsertFileHash<'a>>,
+    ) -> anyhow::Result<()> {
+        let tx = self
+            .conn
+            .transaction()
+            .context("failed to begin transaction")?;
+
+        {
+            let mut stmt = tx.prepare(
+                "INSERT INTO file_hashes (path, last_file_size, last_modified_at, hash_kind, hash) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(path) DO UPDATE SET last_file_size = excluded.last_file_size, last_modified_at = excluded.last_modified_at, hash_kind = excluded.hash_kind, hash = excluded.hash",
+            )?;
+
+            for file_hash in file_hashes {
+                stmt.execute((
+                    file_hash.path,
+                    file_hash.last_file_size,
+                    file_hash.last_modified_at,
+                    file_hash.hash_kind,
+                    file_hash.hash,
+                ))?;
+            }
+        }
+
+        tx.commit().context("failed to commit transaction")?;
+
+        Ok(())
+    }
+
     /// Get a cached file size by path.
     pub fn get_file_size_by_path(&self, path: &Path) -> anyhow::Result<Option<FileSize>> {
         let mut stmt = self
@@ -545,38 +612,6 @@ impl Database {
         .expect("should bind parameters")
         .next()
         .transpose()
-    }
-
-    /// Insert multiple file sizes, updating existing entries if they exist.
-    pub fn insert_file_sizes<'a>(
-        &mut self,
-        file_sizes: impl Iterator<Item = InsertFileSize<'a>>,
-    ) -> anyhow::Result<()> {
-        let tx = self
-            .conn
-            .transaction()
-            .context("failed to begin transaction")?;
-
-        {
-            let mut stmt = tx.prepare(
-                "INSERT INTO file_sizes (path, last_file_size, last_modified_at, duration, estimated_size) VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(path) DO UPDATE SET last_file_size = excluded.last_file_size, last_modified_at = excluded.last_modified_at, duration = excluded.duration, estimated_size = excluded.estimated_size",
-            )?;
-
-            for file_size in file_sizes {
-                stmt.execute((
-                    file_size.path,
-                    file_size.last_file_size,
-                    file_size.last_modified_at,
-                    file_size.duration,
-                    file_size.estimated_size,
-                ))?;
-            }
-        }
-
-        tx.commit().context("failed to commit transaction")?;
-
-        Ok(())
     }
 
     /// Get multiple cached file sizes by paths.
@@ -609,7 +644,39 @@ impl Database {
             Ok((file_size.path.clone(), file_size))
         })
         .expect("should bind parameters")
-        .collect::<Result<HashMap<String, FileSize>, _>>()
+        .collect()
+    }
+
+    /// Insert multiple file sizes, updating existing entries if they exist.
+    pub fn insert_file_sizes<'a>(
+        &mut self,
+        file_sizes: impl Iterator<Item = InsertFileSize<'a>>,
+    ) -> anyhow::Result<()> {
+        let tx = self
+            .conn
+            .transaction()
+            .context("failed to begin transaction")?;
+
+        {
+            let mut stmt = tx.prepare(
+                "INSERT INTO file_sizes (path, last_file_size, last_modified_at, duration, estimated_size) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(path) DO UPDATE SET last_file_size = excluded.last_file_size, last_modified_at = excluded.last_modified_at, duration = excluded.duration, estimated_size = excluded.estimated_size",
+            )?;
+
+            for file_size in file_sizes {
+                stmt.execute((
+                    file_size.path,
+                    file_size.last_file_size,
+                    file_size.last_modified_at,
+                    file_size.duration,
+                    file_size.estimated_size,
+                ))?;
+            }
+        }
+
+        tx.commit().context("failed to commit transaction")?;
+
+        Ok(())
     }
 
     pub fn get_trusted_nodes(&self) -> anyhow::Result<Vec<NodeId>> {

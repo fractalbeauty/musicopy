@@ -170,6 +170,24 @@ impl TranscodeStatusCache {
         }
     }
 
+    /// Retain elements according to the predicate, updating counters as needed.
+    fn retain(&self, mut f: impl FnMut(&(String, [u8; 16]), &TranscodeStatus) -> bool) {
+        self.cache.retain(|key, status| {
+            let keep = f(key, status);
+            if !keep {
+                match status {
+                    TranscodeStatus::Ready { .. } => {
+                        self.ready_counter.fetch_sub(1, Ordering::Relaxed);
+                    }
+                    TranscodeStatus::Failed { .. } => {
+                        self.failed_counter.fetch_sub(1, Ordering::Relaxed);
+                    }
+                }
+            }
+            keep
+        });
+    }
+
     pub fn ready_counter(&self) -> &Arc<AtomicU64> {
         &self.ready_counter
     }
@@ -362,9 +380,10 @@ pub enum TranscodeCommand {
     Prioritize(HashSet<PathBuf>),
 
     /// Delete transcodes of files that aren't in the library anymore.
-    ///
-    /// TODO: unused
-    CollectGarbage(Vec<u64>),
+    DeleteMissing(Vec<PathBuf>),
+
+    /// Delete all transcodes.
+    DeleteAll,
 
     /// Set the transcode policy.
     SetPolicy(TranscodePolicy),
@@ -650,7 +669,13 @@ impl TranscodePool {
                             queue.prioritize(items);
                         },
 
-                        TranscodeCommand::CollectGarbage(items) => todo!(),
+                        TranscodeCommand::DeleteMissing(items) => {
+                            Self::delete_missing(&status_cache, &hash_cache, items);
+                        },
+
+                        TranscodeCommand::DeleteAll => {
+                            Self::delete_all(&status_cache);
+                        },
 
                         TranscodeCommand::SetPolicy(policy) => {
                             queue.set_policy(policy);
@@ -716,6 +741,97 @@ impl TranscodePool {
 
     pub fn failed_count_model(&self) -> CounterModel {
         CounterModel::from(&self.status_cache.failed_counter)
+    }
+
+    fn delete_missing(
+        status_cache: &TranscodeStatusCache,
+        hash_cache: &HashCache,
+        items: Vec<PathBuf>,
+    ) {
+        let start = std::time::Instant::now();
+        log::debug!(
+            "TranscodePool::delete_missing: hashing library of {} items",
+            items.len()
+        );
+
+        let hashes = match hash_cache.batch_get_hash(items) {
+            Ok(hashes) => hashes,
+            Err(e) => {
+                log::error!("TranscodePool::delete_missing: failed to get file hashes: {e:#}");
+                return;
+            }
+        };
+
+        let elapsed = start.elapsed().as_secs_f64();
+        log::debug!("TranscodePool::delete_missing: hashed library in {elapsed:.2}s",);
+
+        let mut count_deleted = 0;
+        let mut bytes_deleted = 0;
+
+        status_cache.retain(|(hash_kind, hash), status| {
+            // ignore if not Ready
+            let TranscodeStatus::Ready { transcode_path, file_size } = status else {
+                return true;
+            };
+
+            // check if missing from set
+            if !hashes.contains(&(hash_kind.into(), *hash)) {
+                // try to delete transcode file
+                if let Err(e) = std::fs::remove_file(transcode_path) {
+                    log::error!(
+                        "TranscodePool::delete_missing: failed to delete transcode file at {}: {e:#}",
+                        transcode_path.display()
+                    );
+                }
+
+                count_deleted += 1;
+                bytes_deleted += *file_size;
+
+                // remove from cache
+                false
+            } else {
+                // ignore
+                true
+            }
+        });
+
+        log::info!(
+            "TranscodePool::delete_missing: deleted {count_deleted} transcode files, {bytes_deleted} bytes total"
+        );
+    }
+
+    fn delete_all(status_cache: &TranscodeStatusCache) {
+        let mut count_deleted = 0;
+        let mut bytes_deleted = 0;
+
+        status_cache.retain(|_key, status| {
+            // ignore if not Ready
+            let TranscodeStatus::Ready {
+                transcode_path,
+                file_size,
+            } = status
+            else {
+                return true;
+            };
+
+            // try to delete transcode file
+            if let Err(e) = std::fs::remove_file(transcode_path) {
+                log::error!(
+                    "TranscodePool::delete_all: failed to delete transcode file at {}: {e:#}",
+                    transcode_path.display()
+                );
+            }
+
+            count_deleted += 1;
+            bytes_deleted += *file_size;
+
+            // remove from cache
+            false
+        });
+
+        log::info!(
+            "TranscodePool::delete_all: deleted {count_deleted} transcode files, {bytes_deleted} bytes total"
+        );
     }
 }
 

@@ -57,6 +57,9 @@ pub enum LibraryCommand {
     PrioritizeTranscodes(HashSet<PathBuf>),
     SetTranscodePolicy(TranscodePolicy),
 
+    DeleteUnusedTranscodes,
+    DeleteAllTranscodes,
+
     Stop,
 }
 
@@ -248,6 +251,28 @@ impl Library {
 
                             // update model
                             self.update_model(LibraryModelUpdate::SetTranscodePolicy(transcode_policy));
+                        }
+
+                        LibraryCommand::DeleteUnusedTranscodes => {
+                            // get local file paths
+                            let local_files = {
+                                let db = self.db.lock().expect("failed to lock database");
+                                db.get_files_by_node_id(self.local_node_id)
+                                    .context("failed to get local files")?
+                                    .into_iter()
+                                    .map(|f| PathBuf::from(f.local_path))
+                                    .collect()
+                            };
+
+                            if let Err(e) = self.transcode_pool.send(TranscodeCommand::DeleteMissing(local_files)) {
+                                warn!("LibraryCommand::DeleteUnusedTranscodes: failed to send to transcode pool: {e:#}");
+                            }
+                        }
+
+                        LibraryCommand::DeleteAllTranscodes => {
+                            if let Err(e) = self.transcode_pool.send(TranscodeCommand::DeleteAll) {
+                                warn!("LibraryCommand::DeleteAllTranscodes: failed to send to transcode pool: {e:#}");
+                            }
                         }
 
                         LibraryCommand::Stop => {

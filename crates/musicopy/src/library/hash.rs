@@ -3,6 +3,7 @@ use anyhow::Context;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{
     borrow::Cow,
+    collections::HashSet,
     hash::Hasher,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
@@ -106,7 +107,7 @@ impl HashCache {
         {
             let db = self.db.lock().unwrap();
             db.insert_file_hash(InsertFileHash {
-                path: &path.to_string_lossy(),
+                path: path.to_string_lossy(),
                 last_file_size: key.file_size,
                 last_modified_at: key.modified_at,
                 hash_kind,
@@ -115,6 +116,80 @@ impl HashCache {
         }
 
         Ok((hash_kind.into(), hash))
+    }
+
+    /// Gets a set of hashes for multiple files, computing them if necessary.
+    ///
+    /// The return value is unordered and doesn't correspond with the input.
+    pub fn batch_get_hash(
+        &self,
+        paths: Vec<PathBuf>,
+    ) -> anyhow::Result<HashSet<(Cow<'static, str>, [u8; 16])>> {
+        // get cached hashes
+        let cached = {
+            let db = self.db.lock().unwrap();
+            db.get_file_hashes_by_paths(paths.iter().map(|p| p.to_string_lossy()))?
+        };
+
+        let mut results: Vec<Option<((Cow<'static, str>, [u8; 16]), Option<InsertFileHash>)>> =
+            Vec::new();
+        paths
+            .par_iter()
+            .map(|path| {
+                // get file metadata
+                let key = match CacheKey::read_metadata(path) {
+                    Ok(key) => key,
+                    Err(e) => {
+                        log::warn!(
+                            "failed to read metadata for file: {}: {:#}",
+                            path.display(),
+                            e
+                        );
+                        return None;
+                    }
+                };
+
+                // check if cached hash matches current metadata
+                if let Some(cached) = cached.get(path.to_string_lossy().as_ref()) {
+                    if key.matches_file_hash(cached) {
+                        let hash = (cached.hash_kind.clone().into(), cached.hash);
+                        return Some((hash, None));
+                    }
+                }
+
+                // get new hash
+                let (hash_kind, hash) = match get_file_hash(path) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log::warn!("failed to get hash for file: {}: {:#}", path.display(), e);
+                        return None;
+                    }
+                };
+
+                let insert = InsertFileHash {
+                    path: path.to_string_lossy(),
+                    last_file_size: key.file_size,
+                    last_modified_at: key.modified_at,
+                    hash_kind,
+                    hash,
+                };
+
+                let hash = (hash_kind.into(), hash);
+                Some((hash, Some(insert)))
+            })
+            .collect_into_vec(&mut results);
+
+        let (all_hashes, insert_hashes): (_, Vec<Option<InsertFileHash>>) =
+            results.into_iter().flatten().unzip();
+
+        // store new hashes
+        {
+            let mut db = self.db.lock().unwrap();
+            db.insert_file_hashes(insert_hashes.into_iter().flatten())
+                .context("failed to insert file hashes")?;
+        }
+
+        Ok(all_hashes)
     }
 
     /// Cheaply gets the estimated size of a file if it exists and is valid.
@@ -164,7 +239,7 @@ impl HashCache {
                 };
 
                 // check if cached size matches current metadata
-                if let Some(cached) = cached.get(&path.to_string_lossy().to_string()) {
+                if let Some(cached) = cached.get(path.to_string_lossy().as_ref()) {
                     if key.matches_file_size(cached) {
                         return None;
                     }

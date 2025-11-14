@@ -466,6 +466,20 @@ impl Core {
         Ok(())
     }
 
+    pub fn delete_unused_transcodes(&self) -> Result<(), CoreError> {
+        self.library
+            .send(LibraryCommand::DeleteUnusedTranscodes)
+            .context("failed to send to library thread")?;
+        Ok(())
+    }
+
+    pub fn delete_all_transcodes(&self) -> Result<(), CoreError> {
+        self.library
+            .send(LibraryCommand::DeleteAllTranscodes)
+            .context("failed to send to library thread")?;
+        Ok(())
+    }
+
     pub fn reset_database(&self) -> Result<(), CoreError> {
         let db = self
             .db
