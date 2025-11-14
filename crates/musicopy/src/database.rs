@@ -141,6 +141,12 @@ impl Database {
         Ok(())
     }
 
+    pub fn reset_hashes(&self) -> anyhow::Result<()> {
+        self.conn.execute("DROP TABLE IF EXISTS file_hashes", [])?;
+        self.create_tables()?;
+        Ok(())
+    }
+
     pub fn add_root(&self, node_id: NodeId, name: &str, path: &str) -> anyhow::Result<()> {
         let node_id = node_id_to_string(&node_id);
         self.conn.execute(

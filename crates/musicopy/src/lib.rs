@@ -477,6 +477,17 @@ impl Core {
         Ok(())
     }
 
+    pub fn reset_hashes(&self) -> Result<(), CoreError> {
+        let db = self
+            .db
+            .lock()
+            .map_err(|_elapsed| core_error!("failed to lock database"))?;
+
+        db.reset_hashes()?;
+
+        Ok(())
+    }
+
     pub fn write_test_file(&self, root: String) -> Result<(), CoreError> {
         self.node
             .send(NodeCommand::WriteTestFile(root))
