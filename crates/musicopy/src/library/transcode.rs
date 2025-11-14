@@ -297,8 +297,8 @@ impl TranscodeQueue {
         self.ready.notify_all();
     }
 
-    /// Removes items from the queue.
-    pub fn remove(&self, items: HashSet<PathBuf>) {
+    /// Removes items from the queue if they aren't in the given HashSet.
+    pub fn remove_missing(&self, items: &HashSet<PathBuf>) {
         // read policy before locking queue
         let policy = {
             let policy = self.policy.lock().unwrap();
@@ -308,7 +308,7 @@ impl TranscodeQueue {
         {
             // remove items from queue
             let mut queue = self.queue.lock().unwrap();
-            queue.retain(|item, _priority| !items.contains(item));
+            queue.retain(|item, _priority| items.contains(item));
 
             // update ready counter by re-counting queue
             let ready_count = match policy {
@@ -351,23 +351,15 @@ impl TranscodeQueue {
 
 /// A command sent to the transcoding pool.
 pub enum TranscodeCommand {
-    /// Sent when files are added to the library. Files are enqueued if they
-    /// aren't already transcoded or in the queue.
-    ///
-    /// It's inefficient to send files that are already transcoded, but it is
-    /// safe to do so, and they will not be transcoded again.
-    Add(HashSet<PathBuf>),
+    /// Sent on startup and when the library is scanned. Files are enqueued if
+    /// they aren't already transcoded or in the queue. Files are dequeued if
+    /// they aren't in the library anymore.
+    Load(HashSet<PathBuf>),
 
     /// Increase the priority of some files. Sent when files are requested.
     /// This is useful for partial downloads when the library isn't fully
     /// transcoded yet.
     Prioritize(HashSet<PathBuf>),
-
-    /// Sent when files are removed from the library. Files are dequeued if
-    /// they are currently queued for transcoding.
-    ///
-    /// TODO: unused
-    Remove(HashSet<PathBuf>),
 
     /// Delete transcodes of files that aren't in the library anymore.
     ///
@@ -577,7 +569,11 @@ impl TranscodePool {
             tokio::select! {
                 Some(command) = rx.recv() => {
                     match command {
-                        TranscodeCommand::Add(mut items) => {
+                        TranscodeCommand::Load(mut items) => {
+                            // remove items that are no longer in the library
+                            queue.remove_missing(&items);
+
+                            // filter out items that are already transcoded
                             items.retain(|item| {
                                 // get the cached hash without computing it. we need to be conservative here
                                 // since every scan could send all files again. if the hash is not cached, it's
@@ -652,11 +648,6 @@ impl TranscodePool {
 
                         TranscodeCommand::Prioritize(items) => {
                             queue.prioritize(items);
-                        },
-
-                        TranscodeCommand::Remove(items) => {
-                            // remove items from queue
-                            queue.remove(items);
                         },
 
                         TranscodeCommand::CollectGarbage(items) => todo!(),
@@ -798,8 +789,7 @@ impl TranscodeWorker {
             }
 
             // write to temp filename
-            let temp_path =
-                transcodes_dir.join(format!("{}-{}.tmp", hash_kind, hex::encode(&hash)));
+            let temp_path = transcodes_dir.join(format!("{}-{}.tmp", hash_kind, hex::encode(hash)));
 
             log::info!("transcoding file: {}", job.display());
             let file_size = match transcode(&job, &temp_path) {
@@ -1536,7 +1526,7 @@ mod tests {
     }
 
     #[test]
-    fn test_queue_remove() {
+    fn test_queue_remove_missing() {
         let queue = Arc::new(TranscodeQueue::new(TranscodePolicy::Always));
 
         // add to queue
@@ -1550,7 +1540,7 @@ mod tests {
         assert_eq!(item, PathBuf::from("item_1"));
 
         // remove #2 from queue
-        queue.remove(HashSet::from([item_2]));
+        queue.remove_missing(&HashSet::from([item_3]));
 
         // wait for next
         let item = queue.wait();

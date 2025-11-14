@@ -21,7 +21,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use tokio::sync::mpsc;
+use tokio::sync::{Notify, mpsc};
 
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct LibraryRootModel {
@@ -75,6 +75,8 @@ pub struct Library {
     transcode_pool: TranscodePool,
 
     command_tx: mpsc::UnboundedSender<LibraryCommand>,
+
+    scan_notify: Arc<Notify>,
 
     model: Mutex<LibraryModel>,
 }
@@ -139,6 +141,8 @@ impl Library {
 
             command_tx,
 
+            scan_notify: Arc::new(Notify::new()),
+
             model: Mutex::new(model),
         });
 
@@ -150,6 +154,29 @@ impl Library {
         library
             .check_transcodes()
             .context("failed to check transcodes")?;
+
+        // spawn scan task
+        tokio::spawn({
+            let library = library.clone();
+            async move {
+                loop {
+                    library.scan_notify.notified().await;
+
+                    let start = std::time::Instant::now();
+                    log::debug!("Library: starting scan");
+
+                    if let Err(e) = library.scan().await {
+                        log::error!("Library: error during scan: {e:#}");
+                    }
+
+                    let elapsed = start.elapsed().as_secs_f64();
+                    log::debug!("Library: finished library scan in {elapsed:.2}s");
+
+                    // update root file counts in model
+                    library.update_model(LibraryModelUpdate::UpdateLocalRoots);
+                }
+            }
+        });
 
         // spawn transcodes dir size polling task
         tokio::spawn({
@@ -186,7 +213,7 @@ impl Library {
                             self.update_model(LibraryModelUpdate::UpdateLocalRoots);
 
                             // rescan the library
-                            self.spawn_scan();
+                            self.scan_notify.notify_one();
                         }
 
                         LibraryCommand::RemoveRoot { name } => {
@@ -201,11 +228,11 @@ impl Library {
                             self.update_model(LibraryModelUpdate::UpdateLocalRoots);
 
                             // rescan the library
-                            self.spawn_scan();
+                            self.scan_notify.notify_one();
                         }
 
                         LibraryCommand::Rescan => {
-                            self.spawn_scan();
+                            self.scan_notify.notify_one();
                         }
 
                         LibraryCommand::PrioritizeTranscodes(paths) => {
@@ -239,34 +266,13 @@ impl Library {
         Ok(())
     }
 
-    fn spawn_scan(self: &Arc<Self>) {
-        let library = self.clone();
-        tokio::spawn(async move {
-            log::debug!("spawning library scan");
-            if let Err(e) = library.scan().await {
-                log::error!("error scanning library: {e:#}");
-            }
-            log::debug!("finished library scan");
-
-            // update root file counts in model
-            library.update_model(LibraryModelUpdate::UpdateLocalRoots);
-        });
-    }
-
-    // TODO: lock so only one scan is running at a time
-    // TODO: check perf when scanning large libraries
-    // TODO: incremental scans? using existing files to skip work, instead of redoing everything? maybe only when new roots added?
     async fn scan(self: &Arc<Self>) -> anyhow::Result<()> {
         let mut errors = Vec::new();
 
-        let (roots, prev_local_files) = {
+        let roots = {
             let db = self.db.lock().unwrap();
-            let roots = db
-                .get_roots_by_node_id(self.local_node_id)
-                .context("failed to get local roots")?;
-            // let local_files = db.get_local_files().context("failed to get local files")?;
-            let local_files = (); // TODO
-            (roots, local_files)
+            db.get_roots_by_node_id(self.local_node_id)
+                .context("failed to get local roots")?
         };
 
         log::info!("scan: scanning {} roots", roots.len());
@@ -369,20 +375,12 @@ impl Library {
         log::info!("scan: inserted {} files into database", items.len());
 
         // send local files to transcode pool
-        // will be skipped if already transcoded. might be able to make more efficient by only sending new files
-        // TODO: cancel transcodes for files that were removed
-        {
-            let transcode_add_items = items
-                .into_iter()
-                .map(|item| PathBuf::from(item.local_path))
-                .collect::<HashSet<_>>();
+        let items = items
+            .into_iter()
+            .map(|item| PathBuf::from(item.local_path))
+            .collect::<HashSet<_>>();
 
-            self.transcode_pool
-                .send(TranscodeCommand::Add(transcode_add_items))?;
-        }
-
-        // TODO
-        // self.notify_state();
+        self.transcode_pool.send(TranscodeCommand::Load(items))?;
 
         Ok(())
     }
@@ -395,13 +393,12 @@ impl Library {
                 .context("failed to get local files")?
         };
 
-        let transcode_add_items = local_files
+        let items = local_files
             .into_iter()
             .map(|file| PathBuf::from(file.local_path))
             .collect::<HashSet<_>>();
 
-        self.transcode_pool
-            .send(TranscodeCommand::Add(transcode_add_items))?;
+        self.transcode_pool.send(TranscodeCommand::Load(items))?;
 
         Ok(())
     }
