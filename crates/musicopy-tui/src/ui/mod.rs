@@ -284,6 +284,8 @@ impl<'a> App<'a> {
                         .green(),
                     " failed (policy: ".into(),
                     transcode_policy.green(),
+                    ", size: ".into(),
+                    format!("{:?}", self.library_model.transcodes_dir_size).green(),
                     ")".into(),
                 ]),
             ])

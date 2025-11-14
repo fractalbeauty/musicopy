@@ -297,8 +297,8 @@ impl<'a> App<'a> {
                 self.core.rescan_library()?;
             }
 
-            "resethashes" => {
-                self.core.reset_hashes()?;
+            "resetcaches" => {
+                self.core.reset_caches()?;
             }
 
             "rescan" => {

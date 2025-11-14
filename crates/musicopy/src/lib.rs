@@ -477,13 +477,13 @@ impl Core {
         Ok(())
     }
 
-    pub fn reset_hashes(&self) -> Result<(), CoreError> {
+    pub fn reset_caches(&self) -> Result<(), CoreError> {
         let db = self
             .db
             .lock()
             .map_err(|_elapsed| core_error!("failed to lock database"))?;
 
-        db.reset_hashes()?;
+        db.reset_caches()?;
 
         Ok(())
     }

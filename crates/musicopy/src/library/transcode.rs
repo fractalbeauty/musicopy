@@ -267,7 +267,7 @@ impl TranscodeQueue {
     }
 
     /// Increases the priority of items in the queue.
-    pub fn prioritize<'a>(&self, items: HashSet<PathBuf>) {
+    pub fn prioritize(&self, items: HashSet<PathBuf>) {
         // read policy before locking queue
         let policy = {
             let policy = self.policy.lock().unwrap();
@@ -582,7 +582,7 @@ impl TranscodePool {
                                 // get the cached hash without computing it. we need to be conservative here
                                 // since every scan could send all files again. if the hash is not cached, it's
                                 // definitely not transcoded, so it's safe to queue it
-                                let (hash_kind, hash) = match hash_cache.get_cached_hash(&item) {
+                                let (hash_kind, hash) = match hash_cache.get_cached_hash(item) {
                                     Ok(Some((hash_kind, hash))) => (hash_kind, hash),
 
                                     Ok(None) => {
@@ -615,21 +615,35 @@ impl TranscodePool {
                             });
 
                             if !items.is_empty() {
-                                // estimate file sizes in parallel using rayon
-                                // TODO: we probably don't want to do this here cause it's expensive to open all files
-                                // let (items, estimated_sizes) = tokio::task::spawn_blocking(move || {
-                                //     let estimated_sizes = items.par_iter().map(|item| {
-                                //         match estimate_file_size(&item.local_path) {
-                                //             Ok(size) => Some(size),
-                                //             Err(e) => {
-                                //                 log::warn!("TranscodePool: failed to estimate file size for {}: {e:#}", item.local_path.display());
-                                //                 None
-                                //             }
-                                //         }
-                                //     }).collect::<Vec<_>>();
+                                // spawn task to estimate file sizes in parallel using rayon
+                                // this seems fast enough to do without indicating progress.
+                                // it requires opening each file and reading metadata, but doesn't need to
+                                // decode the file, so it's fast ish. spawn it as a background task though
+                                tokio::spawn({
+                                    let hash_cache = hash_cache.clone();
+                                    let items = items.iter().cloned().collect::<Vec<_>>();
+                                    async move {
+                                        let start = std::time::Instant::now();
+                                        log::info!("TranscodePool: estimating sizes for {} files", items.len());
 
-                                //     (items, estimated_sizes)
-                                // }).await.context("failed to join file size task")?;
+                                        let Ok(res) = tokio::task::spawn_blocking(move || {
+                                            hash_cache.batch_get_estimated_size(items)
+                                        }).await else {
+                                            log::error!("TranscodePool: failed to join file size estimation task");
+                                            return;
+                                        };
+
+                                        match res {
+                                            Ok(_) => {
+                                                let elapsed = (start.elapsed().as_millis() as f64) / 1000.0;
+                                                log::info!("TranscodePool: finished estimating file sizes in {elapsed:?}s");
+                                            },
+                                            Err(e) => {
+                                                log::error!("TranscodePool: failed to estimate file sizes: {e:#}");
+                                            }
+                                        }
+                                    }
+                                });
 
                                 // add items to queue
                                 queue.extend(items);
@@ -671,12 +685,13 @@ impl TranscodePool {
             .status_cache
             .cache
             .iter()
-            .fold(0, |acc_size, e| match &*e.value() {
+            .fold(0, |acc_size, e| match e.value() {
                 TranscodeStatus::Ready { file_size, .. } => acc_size + file_size,
                 TranscodeStatus::Failed { .. } => acc_size,
             });
         FileSizeModel::Actual(size)
 
+        // TODO: expose separately current used size and total size if everything was transcoded?
         // TODO: old code that dealt with estimated sizes
         // let (size, estimated) = self.status_cache.cache.iter().fold(
         //     (0, false),
@@ -1354,103 +1369,6 @@ fn transcode(input_path: &Path, output_path: &Path) -> anyhow::Result<u64> {
 
     // we did it
     Ok(file_size)
-}
-
-/// Estimates the size of a file after transcoding based on its duration.
-fn estimate_file_size(path: &PathBuf) -> anyhow::Result<u64> {
-    let src = std::fs::File::open(path).context("failed to open file")?;
-
-    let mss = MediaSourceStream::new(Box::new(src), Default::default());
-
-    let mut hint = Hint::new();
-    if let Some(extension) = path.extension() {
-        hint.with_extension(extension.to_str().context("invalid file extension")?);
-    }
-
-    let mut format = symphonia::default::get_probe()
-        .probe(&hint, mss, Default::default(), Default::default())
-        .context("failed to probe file")?;
-
-    // get the default audio track
-    let audio_track = format
-        .default_track(TrackType::Audio)
-        .context("failed to get default audio track")?;
-    let audio_track_id = audio_track.id;
-
-    // get time base and number of frames from the audio track
-    let duration_secs = match (audio_track.time_base, audio_track.num_frames) {
-        (Some(time_base), Some(num_frames)) => {
-            let duration = time_base.calc_time(num_frames);
-            duration.seconds as f64 + duration.frac
-        }
-
-        // TODO: check if this actually happens in practice. it is probably slow to decode the whole file
-        _ => {
-            log::info!(
-                "file missing time_base or num_frames, decoding to find duration: {}",
-                path.display()
-            );
-
-            // get codec parameters for the audio track
-            let codec_params = audio_track
-                .codec_params
-                .as_ref()
-                .context("failed to get codec parameters")?;
-            let audio_codec_params = codec_params
-                .audio()
-                .context("codec parameters are not audio")?;
-
-            // get sample rate
-            let sample_rate = audio_codec_params
-                .sample_rate
-                .context("failed to get sample rate from codec params")?;
-
-            let mut decoder = symphonia::default::get_codecs()
-                .make_audio_decoder(audio_codec_params, &Default::default())
-                .context("failed to create decoder")?;
-
-            // decode the audio track and count frames
-            let mut num_frames = 0;
-            loop {
-                // read next packet
-                let packet = match format.next_packet() {
-                    Ok(Some(packet)) => packet,
-
-                    // end of track
-                    Ok(None) => break,
-
-                    Err(e) => {
-                        return Err(e).context("failed to read packet");
-                    }
-                };
-
-                // skip packets from other tracks
-                if packet.track_id() != audio_track_id {
-                    continue;
-                }
-
-                // decode packet
-                let audio_buf = decoder.decode(&packet).context("failed to decode packet")?;
-
-                // count frames
-                num_frames += audio_buf.frames();
-            }
-
-            // convert frames to seconds
-            num_frames as f64 / sample_rate as f64
-        }
-    };
-
-    // estimated size = duration * bitrate (128k), converted to bytes
-    let estimated_size = duration_secs * 128_000.0 / 8.0;
-
-    // add 150 KB for embedded cover art
-    let estimated_size = estimated_size + 150_000.0;
-
-    // add 1% for container overhead
-    let estimated_size = estimated_size * 1.01;
-
-    Ok(estimated_size as u64)
 }
 
 #[cfg(test)]

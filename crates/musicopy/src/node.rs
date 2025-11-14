@@ -1976,24 +1976,27 @@ impl Server {
                     for item in index.iter_mut() {
                         // if the client doesn't have the actual file size
                         if !matches!(item.file_size, FileSize::Actual(_)) {
-                            // try to get cached hash
-                            let Ok(Some((hash_kind, hash))) =
-                                self.hash_cache.get_cached_hash(&PathBuf::from(&item.path))
-                            else {
-                                // error or not hashed yet, skip
-                                continue;
-                            };
-
-                            // try to get file size from transcode status cache
-                            let file_size = self
-                                .transcode_status_cache
-                                .get(&hash_kind, hash)
+                            // check for actual size from transcode cache, then estimated size from database
+                            let path = PathBuf::from(&item.path);
+                            let file_size = if let Some(actual_size) = self
+                                .hash_cache
+                                .get_cached_hash(&path)
+                                .ok()
+                                .flatten()
+                                .and_then(|(hash_kind, hash)| self.transcode_status_cache.get(&hash_kind, hash))
                                 .and_then(|entry| match &*entry {
-                                    // TODO: deal with estimated file sizes
-                                    // TranscodeStatus::Waiting { estimated_size } => estimated_size.map(FileSize::Estimated),
-                                    TranscodeStatus::Ready { file_size, .. } => Some(FileSize::Actual(*file_size)),
+                                    TranscodeStatus::Ready { file_size, .. } => Some(*file_size),
                                     _ => None,
-                                });
+                                }) {
+                                Some(FileSize::Actual(actual_size))
+                            } else {
+                                self
+                                    .hash_cache
+                                    .get_cached_estimated_size(&path)
+                                    .ok()
+                                    .flatten()
+                                    .map(FileSize::Estimated)
+                            };
 
                             // if we now have an updated file size, update the client
                             if let Some(file_size) = file_size && file_size != item.file_size {
@@ -2039,31 +2042,28 @@ impl Server {
         let index = files
             .into_iter()
             .map(|file| {
-                // try to get file size from transcode status cache
-                let file_size = {
-                    // try to get cached hash
-                    if let Some((hash_kind, hash)) = self
-                        .hash_cache
-                        .get_cached_hash(&PathBuf::from(file.local_path))
-                        .ok()
-                        .flatten()
-                    {
-                        self.transcode_status_cache
-                            .get(&hash_kind, hash)
-                            .and_then(|entry| match &*entry {
-                                // TODO: deal with estimated file sizes
-                                // TranscodeStatus::Waiting { estimated_size } => {
-                                //     estimated_size.map(FileSize::Estimated)
-                                // }
-                                TranscodeStatus::Ready { file_size, .. } => {
-                                    Some(FileSize::Actual(*file_size))
-                                }
-                                _ => None,
-                            })
-                            .unwrap_or(FileSize::Unknown)
-                    } else {
-                        FileSize::Unknown
-                    }
+                // check for actual size from transcode cache, then estimated size from database
+                let path = PathBuf::from(file.local_path);
+                let file_size = if let Some(actual_size) = self
+                    .hash_cache
+                    .get_cached_hash(&path)
+                    .ok()
+                    .flatten()
+                    .and_then(|(hash_kind, hash)| self.transcode_status_cache.get(&hash_kind, hash))
+                    .and_then(|entry| match &*entry {
+                        TranscodeStatus::Ready { file_size, .. } => Some(*file_size),
+                        _ => None,
+                    }) {
+                    FileSize::Actual(actual_size)
+                } else if let Some(estimated_size) = self
+                    .hash_cache
+                    .get_cached_estimated_size(&path)
+                    .ok()
+                    .flatten()
+                {
+                    FileSize::Estimated(estimated_size)
+                } else {
+                    FileSize::Unknown
                 };
 
                 IndexItem {

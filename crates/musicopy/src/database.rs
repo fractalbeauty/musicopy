@@ -2,7 +2,7 @@ use anyhow::Context;
 use iroh::NodeId;
 use itertools::Itertools;
 use rusqlite::OptionalExtension;
-use std::path::Path;
+use std::{borrow::Cow, collections::HashMap, path::Path};
 
 pub struct Root {
     pub id: u64,
@@ -42,6 +42,23 @@ pub struct InsertFileHash<'a> {
     pub last_modified_at: u64,
     pub hash_kind: &'a str,
     pub hash: [u8; 16],
+}
+
+pub struct FileSize {
+    pub id: u64,
+    pub path: String,
+    pub last_file_size: u64,
+    pub last_modified_at: u64,
+    pub duration: f64,
+    pub estimated_size: u64,
+}
+
+pub struct InsertFileSize<'a> {
+    pub path: Cow<'a, str>,
+    pub last_file_size: u64,
+    pub last_modified_at: u64,
+    pub duration: f64,
+    pub estimated_size: u64,
 }
 
 pub struct RecentServer {
@@ -112,6 +129,18 @@ impl Database {
             [],
         )?;
         self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS file_sizes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path TEXT NOT NULL,
+                last_file_size INTEGER NOT NULL,
+                last_modified_at INTEGER NOT NULL,
+                duration FLOAT NOT NULL,
+                estimated_size INTEGER NOT NULL,
+                UNIQUE (path)
+            )",
+            [],
+        )?;
+        self.conn.execute(
             "CREATE TABLE IF NOT EXISTS trusted_nodes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 node_id TEXT NOT NULL UNIQUE
@@ -133,6 +162,7 @@ impl Database {
         self.conn.execute("DROP TABLE IF EXISTS roots", [])?;
         self.conn.execute("DROP TABLE IF EXISTS files", [])?;
         self.conn.execute("DROP TABLE IF EXISTS file_hashes", [])?;
+        self.conn.execute("DROP TABLE IF EXISTS file_sizes", [])?;
         self.conn
             .execute("DROP TABLE IF EXISTS trusted_nodes", [])?;
         self.conn
@@ -141,8 +171,9 @@ impl Database {
         Ok(())
     }
 
-    pub fn reset_hashes(&self) -> anyhow::Result<()> {
+    pub fn reset_caches(&self) -> anyhow::Result<()> {
         self.conn.execute("DROP TABLE IF EXISTS file_hashes", [])?;
+        self.conn.execute("DROP TABLE IF EXISTS file_sizes", [])?;
         self.create_tables()?;
         Ok(())
     }
@@ -492,6 +523,93 @@ impl Database {
         .expect("should bind parameters")
         .next()
         .transpose()
+    }
+
+    /// Get a cached file size by path.
+    pub fn get_file_size_by_path(&self, path: &Path) -> anyhow::Result<Option<FileSize>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, path, last_file_size, last_modified_at, duration, estimated_size FROM file_sizes WHERE path = ?")
+            .expect("should prepare statement");
+
+        stmt.query_and_then([path.to_string_lossy().as_ref()], |row| {
+            Ok(FileSize {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                last_file_size: row.get(2)?,
+                last_modified_at: row.get(3)?,
+                duration: row.get(4)?,
+                estimated_size: row.get(5)?,
+            })
+        })
+        .expect("should bind parameters")
+        .next()
+        .transpose()
+    }
+
+    /// Insert multiple file sizes, updating existing entries if they exist.
+    pub fn insert_file_sizes<'a>(
+        &mut self,
+        file_sizes: impl Iterator<Item = InsertFileSize<'a>>,
+    ) -> anyhow::Result<()> {
+        let tx = self
+            .conn
+            .transaction()
+            .context("failed to begin transaction")?;
+
+        {
+            let mut stmt = tx.prepare(
+                "INSERT INTO file_sizes (path, last_file_size, last_modified_at, duration, estimated_size) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(path) DO UPDATE SET last_file_size = excluded.last_file_size, last_modified_at = excluded.last_modified_at, duration = excluded.duration, estimated_size = excluded.estimated_size",
+            )?;
+
+            for file_size in file_sizes {
+                stmt.execute((
+                    file_size.path,
+                    file_size.last_file_size,
+                    file_size.last_modified_at,
+                    file_size.duration,
+                    file_size.estimated_size,
+                ))?;
+            }
+        }
+
+        tx.commit().context("failed to commit transaction")?;
+
+        Ok(())
+    }
+
+    /// Get multiple cached file sizes by paths.
+    pub fn get_file_sizes_by_paths<'a>(
+        &self,
+        paths: impl ExactSizeIterator<Item = Cow<'a, str>>,
+    ) -> anyhow::Result<HashMap<String, FileSize>> {
+        if paths.len() == 0 {
+            return Ok(HashMap::new());
+        }
+
+        let placeholders = std::iter::repeat_n("?", paths.len()).join(", ");
+        let sql = format!(
+            "SELECT id, path, last_file_size, last_modified_at, duration, estimated_size FROM file_sizes WHERE path IN ({placeholders})"
+        );
+
+        let mut stmt = self.conn.prepare(&sql).expect("should prepare statement");
+
+        let params_flat = rusqlite::params_from_iter(paths);
+
+        stmt.query_and_then(params_flat, |row| {
+            let file_size = FileSize {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                last_file_size: row.get(2)?,
+                last_modified_at: row.get(3)?,
+                duration: row.get(4)?,
+                estimated_size: row.get(5)?,
+            };
+            Ok((file_size.path.clone(), file_size))
+        })
+        .expect("should bind parameters")
+        .collect::<Result<HashMap<String, FileSize>, _>>()
     }
 
     pub fn get_trusted_nodes(&self) -> anyhow::Result<Vec<NodeId>> {
