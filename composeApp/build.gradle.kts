@@ -26,14 +26,14 @@ plugins {
 
 val appVersionCode = System.getenv("APP_VERSION_CODE")?.toInt() ?: 1
 
-val appVersion = "0.1.2"
+val appVersion = "0.1.3"
 
 version = appVersion
 val androidVersionName = appVersion
 val desktopVersionName = appVersion
 
-val macosVersionShort = "1.2"
-val macosVersionBuild = "1.2"
+val macosVersionShort = "1.3"
+val macosVersionBuild = "1.3"
 
 buildConfig {
     buildConfigField("APP_VERSION", appVersion)
