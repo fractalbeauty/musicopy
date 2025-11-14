@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -17,18 +20,28 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.musicopy.formatSize
 import app.musicopy.openDirectoryInExplorer
 import app.musicopy.rememberPoll
 import app.musicopy.ui.components.WidgetContainer
+import com.composables.core.Dialog
+import com.composables.core.DialogPanel
+import com.composables.core.DialogState
+import com.composables.core.Scrim
+import com.composables.core.rememberDialogState
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.delete_sweep_24px
 import musicopy_root.musicopy.generated.resources.folder_open_24px
@@ -40,7 +53,19 @@ import uniffi.musicopy.TranscodePolicy
 fun SettingsWidget(
     libraryModel: LibraryModel,
     onSetTranscodePolicy: (TranscodePolicy) -> Unit,
+    onDeleteUnusedTranscodes: () -> Unit,
+    onDeleteAllTranscodes: () -> Unit,
 ) {
+    val cleanTranscodesState = rememberDialogState(initiallyVisible = false)
+    CleanTranscodesDialog(
+        state = cleanTranscodesState,
+        onClose = {
+            cleanTranscodesState.visible = false
+        },
+        onDeleteUnusedTranscodes = onDeleteUnusedTranscodes,
+        onDeleteAllTranscodes = onDeleteAllTranscodes,
+    )
+
     WidgetContainer(
         title = "OPTIONS",
     ) {
@@ -125,7 +150,7 @@ fun SettingsWidget(
 
                     IconButton(
                         onClick = {
-                            // TODO
+                            cleanTranscodesState.visible = true
                         },
                     ) {
                         Icon(
@@ -182,5 +207,111 @@ internal fun TranscodePolicyButton(
         shape = shape,
     ) {
         Text(text = text)
+    }
+}
+
+@Composable
+private fun CleanTranscodesDialog(
+    state: DialogState,
+    onClose: () -> Unit,
+    onDeleteUnusedTranscodes: () -> Unit,
+    onDeleteAllTranscodes: () -> Unit,
+) {
+    Dialog(state = state, onDismiss = onClose) {
+        Scrim()
+        DialogPanel(
+            modifier = Modifier
+                .widthIn(max = 600.dp)
+                .padding(16.dp)
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        text = "Clean transcodes cache",
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+
+                    var selected by remember { mutableStateOf("all") }
+
+                    Column(
+                        modifier = Modifier.selectableGroup()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = (selected == "all"),
+                                    onClick = { selected = "all" },
+                                    role = Role.RadioButton,
+                                )
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            RadioButton(
+                                selected = (selected == "all"),
+                                onClick = null
+                            )
+                            Text(
+                                text = "Delete all transcodes",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = (selected == "unused"),
+                                    onClick = { selected = "unused" },
+                                    role = Role.RadioButton,
+                                )
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            RadioButton(
+                                selected = (selected == "unused"),
+                                onClick = null
+                            )
+                            Text(
+                                text = "Delete only unused transcodes",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.End),
+                    ) {
+                        TextButton(
+                            onClick = onClose,
+                        ) {
+                            Text("Cancel")
+                        }
+
+                        TextButton(
+                            onClick = {
+                                if (selected == "all") {
+                                    onDeleteAllTranscodes()
+                                } else if (selected == "unused") {
+                                    onDeleteUnusedTranscodes()
+                                }
+
+                                onClose()
+                            }
+                        ) {
+                            Text("Delete")
+                        }
+                    }
+                }
+            }
+        }
     }
 }

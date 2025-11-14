@@ -59,6 +59,8 @@ fun DesktopHomeScreenshot() {
         onAddLibraryRoot = { _: String, _: String -> },
         onRemoveLibraryRoot = {},
         onRescanLibrary = {},
-        onSetTranscodePolicy = {}
+        onSetTranscodePolicy = {},
+        onDeleteUnusedTranscodes = {},
+        onDeleteAllTranscodes = {},
     )
 }

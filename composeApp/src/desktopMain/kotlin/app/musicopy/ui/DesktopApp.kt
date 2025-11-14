@@ -46,7 +46,13 @@ fun DesktopApp(
                 onSetTranscodePolicy = { policy ->
                     AppSettings.transcodePolicy = policy
                     coreInstance.instance.setTranscodePolicy(policy)
-                }
+                },
+                onDeleteUnusedTranscodes = {
+                    coreInstance.instance.deleteUnusedTranscodes()
+                },
+                onDeleteAllTranscodes = {
+                    coreInstance.instance.deleteAllTranscodes()
+                },
             )
         }
     }

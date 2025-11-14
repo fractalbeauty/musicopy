@@ -63,6 +63,8 @@ fun DesktopHome(
     onRemoveLibraryRoot: (name: String) -> Unit,
     onRescanLibrary: () -> Unit,
     onSetTranscodePolicy: (TranscodePolicy) -> Unit,
+    onDeleteUnusedTranscodes: () -> Unit,
+    onDeleteAllTranscodes: () -> Unit,
 ) {
     val oneCol = LocalWindowInfo.current.containerSize.width < 600
 
@@ -137,6 +139,8 @@ fun DesktopHome(
             SettingsWidget(
                 libraryModel = libraryModel,
                 onSetTranscodePolicy = onSetTranscodePolicy,
+                onDeleteUnusedTranscodes = onDeleteUnusedTranscodes,
+                onDeleteAllTranscodes = onDeleteAllTranscodes,
             )
             JobsWidget(
                 libraryModel = libraryModel,
