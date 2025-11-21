@@ -1,0 +1,45 @@
+---
+import BaseLayout from "../components/BaseLayout.astro";
+import Footer from "../components/Footer.astro";
+import Main from "../components/Main.astro";
+import Nav from "../components/Nav.astro";
+---
+
+<BaseLayout title="Musicopy | Privacy">
+  <Nav />
+
+  <Main>
+    <h1>Privacy</h1>
+
+    <p>
+        Musicopy does not operate servers or require an account, and we do not collect any user data.
+    </p>
+
+    <p>
+        The app uses a unique identifier to facilitate connections between devices.
+        This identifier is randomly generated, and visible in the app (as text or a QR code).
+        The identifier is publicly associated with your IP address and closest relay server.
+        Sharing this identifier or connecting to another device reveals this information.
+    </p>
+
+    <h3>Third-party data collection</h3>
+
+    <p>
+        Connections between devices use third-party relay servers from <a href="https://www.iroh.computer">Iroh</a>.
+        Connections are end-to-end encrypted, so relays only see which devices are communicating, and can't read any user data.
+        Relays only store aggregated usage metrics.
+        When the app is running, relays temporarily collect and publish associations between unique device identifiers and IP addresses to facilitate connections.
+    </p>
+
+    <h3>Additional information</h3>
+    
+    <p>
+        This information may be updated in the future.
+        If you have questions, please email <a href="mailto:support@musicopy.app">support@musicopy.app</a>.
+    </p>
+  </Main>
+
+  <div class="flex-1"></div>
+
+  <Footer />
+</BaseLayout>
