@@ -406,6 +406,16 @@ impl Core {
         Ok(())
     }
 
+    pub fn untrust_node(&self, node_id: &str) -> Result<(), CoreError> {
+        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
+
+        self.node
+            .send(NodeCommand::UntrustNode(node_id))
+            .context("failed to send to node thread")?;
+
+        Ok(())
+    }
+
     pub fn deny_connection(&self, node_id: &str) -> Result<(), CoreError> {
         let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
 
