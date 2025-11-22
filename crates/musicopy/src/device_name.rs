@@ -39,18 +39,12 @@ fn device_name_impl() -> anyhow::Result<String> {
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn device_name_impl() -> anyhow::Result<String> {
-    let name = whoami::realname().or_else(|_| whoami::username()).ok();
-
     let device = whoami::devicename()
         .or_else(|_| whoami::hostname())
         .or_else(|_| whoami::distro())
         .unwrap_or_else(|_| whoami::platform().to_string());
 
-    if let Some(name) = name {
-        Ok(format!("{name} on {device}"))
-    } else {
-        Ok(device)
-    }
+    Ok(device)
 }
 
 static DEVICE_NAME: LazyLock<String> =
