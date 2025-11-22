@@ -66,6 +66,8 @@ fun DesktopHome(
     onDeleteUnusedTranscodes: () -> Unit,
     onDeleteAllTranscodes: () -> Unit,
     onUntrustNode: (nodeId: String) -> Unit,
+
+    screenshotHideTopBar: Boolean = false,
 ) {
     val oneCol = LocalWindowInfo.current.containerSize.width < 600
 
@@ -80,40 +82,42 @@ fun DesktopHome(
     Column(
         modifier = Modifier.fillMaxWidth().padding(8.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier.padding(end = 8.dp)
+        if (!screenshotHideTopBar) {
+            Row(
+                modifier = Modifier.padding(bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Image(
-                    painter = painterResource(Res.drawable.icon),
-                    contentDescription = "Musicopy logo",
-                    modifier = Modifier
-                        .size(44.dp)
-                        .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                )
-            }
+                Box(
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Image(
+                        painter = painterResource(Res.drawable.icon),
+                        contentDescription = "Musicopy logo",
+                        modifier = Modifier
+                            .size(44.dp)
+                            .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                    )
+                }
 
-            Text("MUSICOPY", style = MaterialTheme.typography.logotype)
+                Text("MUSICOPY", style = MaterialTheme.typography.logotype)
 
-            Box(modifier = Modifier.weight(1f))
+                Box(modifier = Modifier.weight(1f))
 
-            FilledIconButton(
-                onClick = {
-                    aboutState.visible = true
-                },
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.info_24px),
-                    contentDescription = "About button icon",
-                    modifier = Modifier.size(20.dp)
-                )
+                FilledIconButton(
+                    onClick = {
+                        aboutState.visible = true
+                    },
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.info_24px),
+                        contentDescription = "About button icon",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
 

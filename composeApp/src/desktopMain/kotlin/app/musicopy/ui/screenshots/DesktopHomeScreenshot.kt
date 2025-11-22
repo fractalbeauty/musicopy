@@ -62,6 +62,8 @@ fun DesktopHomeScreenshot() {
         onSetTranscodePolicy = {},
         onDeleteUnusedTranscodes = {},
         onDeleteAllTranscodes = {},
-        onUntrustNode = {}
+        onUntrustNode = {},
+
+        screenshotHideTopBar = true,
     )
 }

@@ -23,13 +23,16 @@ fun MobileTransferScreenshot() {
                 add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
             }
 
+            add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
+            add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
+
             listOf(
                 "One" to (1.2 to 2.3),
                 "Two" to (0.6 to 3.4),
                 "Three" to (3.2 to 4.5),
                 "Four" to (2.3 to 3.6),
                 "Five" to (2.3 to 4.7),
-                "Six" to (2.3 to 2.8),
+//                "Six" to (2.3 to 2.8),
 //                "Seven" to (1.2 to 1.9)
             ).forEach { it ->
                 add(
