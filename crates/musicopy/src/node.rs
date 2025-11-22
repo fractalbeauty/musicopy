@@ -147,6 +147,14 @@ pub struct ClientModel {
     pub transfer_jobs: Vec<TransferJobModel>,
 }
 
+/// Model of a trusted node.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TrustedNodeModel {
+    pub node_id: String,
+    pub name: String,
+    pub connected_at: Option<u64>,
+}
+
 /// Model of a recently connected server.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct RecentServerModel {
@@ -176,7 +184,7 @@ pub struct NodeModel {
     pub servers: HashMap<String, ServerModel>,
     pub clients: HashMap<String, ClientModel>,
 
-    pub trusted_nodes: Vec<String>,
+    pub trusted_nodes: Vec<TrustedNodeModel>,
     pub recent_servers: Vec<RecentServerModel>,
 }
 
@@ -225,6 +233,7 @@ pub enum NodeCommand {
 enum NodeEvent {
     FilesRequested(HashSet<PathBuf>),
 
+    TrustedNodesChanged,
     RecentServersChanged,
 
     ServerOpened {
@@ -643,6 +652,9 @@ impl Node {
                             }
                         }
 
+                        NodeEvent::TrustedNodesChanged => {
+                            self.update_model(NodeModelUpdate::UpdateTrustedNodes);
+                        }
                         NodeEvent::RecentServersChanged => {
                             self.update_model(NodeModelUpdate::UpdateRecentServers);
                         }
@@ -747,8 +759,12 @@ impl Node {
                         }
                     };
                     trusted_nodes
-                        .iter()
-                        .map(|node_id| node_id.to_string())
+                        .into_iter()
+                        .map(|node| TrustedNodeModel {
+                            node_id: node.node_id.to_string(),
+                            name: node.name.unwrap_or_else(|| "Unknown".to_string()),
+                            connected_at: node.connected_at,
+                        })
                         .collect()
                 };
 
@@ -1502,7 +1518,7 @@ impl Server {
                 node_id: remote_node_id,
                 handle,
 
-                name: client_name,
+                name: client_name.clone(),
                 connected_at: self.connected_at,
             })
             .expect("failed to send NodeEvent::ServerOpened");
@@ -1580,6 +1596,16 @@ impl Server {
         send.send(ServerMessage::Index(index.clone()))
             .await
             .expect("failed to send Index message");
+
+        // update name and connected_at for trusted nodes
+        {
+            let db = self.db.lock().unwrap();
+            db.update_trusted_node(remote_node_id, &client_name, self.connected_at)
+                .context("failed to update trusted node in database")?;
+        }
+        self.event_tx
+            .send(NodeEvent::TrustedNodesChanged)
+            .expect("failed to send NodeEvent::TrustedNodesChanged");
 
         // spawn task to watch for finished transcodes
         // TODO: shutdown signal
@@ -2506,7 +2532,7 @@ impl Client {
         // update recent servers in database
         {
             let db = self.db.lock().unwrap();
-            db.update_recent_server(remote_node_id, server_name, self.connected_at)
+            db.update_recent_server(remote_node_id, &server_name, self.connected_at)
                 .context("failed to update recent server in database")?;
         }
         self.event_tx

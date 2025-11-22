@@ -61,6 +61,12 @@ pub struct InsertFileSize<'a> {
     pub estimated_size: u64,
 }
 
+pub struct TrustedNode {
+    pub node_id: NodeId,
+    pub name: Option<String>,
+    pub connected_at: Option<u64>,
+}
+
 pub struct RecentServer {
     pub node_id: NodeId,
     pub name: String,
@@ -144,10 +150,19 @@ impl Database {
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS trusted_nodes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                node_id TEXT NOT NULL UNIQUE
+                node_id TEXT NOT NULL UNIQUE,
+                name TEXT,
+                connected_at INTEGER
             )",
             [],
         )?;
+        let _ = self
+            .conn
+            .execute("ALTER TABLE trusted_nodes ADD COLUMN name TEXT", []);
+        let _ = self.conn.execute(
+            "ALTER TABLE trusted_nodes ADD COLUMN connected_at INTEGER",
+            [],
+        );
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS recent_servers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -685,16 +700,23 @@ impl Database {
         Ok(())
     }
 
-    pub fn get_trusted_nodes(&self) -> anyhow::Result<Vec<NodeId>> {
+    pub fn get_trusted_nodes(&self) -> anyhow::Result<Vec<TrustedNode>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT node_id FROM trusted_nodes")
+            .prepare("SELECT node_id, name, connected_at FROM trusted_nodes ORDER BY id ASC")
             .expect("should prepare statement");
 
         stmt.query_and_then([], |row| {
             let node_id =
                 hex::decode(row.get::<_, String>(0)?).context("failed to parse node id")?;
-            NodeId::try_from(node_id.as_slice()).context("failed to parse node id")
+            let node_id =
+                NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
+
+            Ok(TrustedNode {
+                node_id,
+                name: row.get(1)?,
+                connected_at: row.get(2)?,
+            })
         })
         .expect("should bind parameters")
         .collect()
@@ -731,17 +753,33 @@ impl Database {
         Ok(exists.is_some())
     }
 
+    /// Update a node ID's stored name and connected_at if it is trusted.
+    pub fn update_trusted_node(
+        &self,
+        node_id: NodeId,
+        name: &str,
+        connected_at: u64,
+    ) -> anyhow::Result<()> {
+        let node_id = node_id_to_string(&node_id);
+        self.conn.execute(
+            "UPDATE trusted_nodes SET name = ?, connected_at = ? WHERE node_id = ?",
+            [name, &connected_at.to_string(), &node_id],
+        )?;
+        Ok(())
+    }
+
+    /// Insert or update a recent server entry.
     pub fn update_recent_server(
         &self,
         node_id: NodeId,
-        name: String,
+        name: &str,
         connected_at: u64,
     ) -> anyhow::Result<()> {
         let node_id = node_id_to_string(&node_id);
         self.conn.execute(
             "INSERT INTO recent_servers (node_id, name, connected_at) VALUES (?, ?, ?)
             ON CONFLICT(node_id) DO UPDATE SET name = excluded.name, connected_at = excluded.connected_at",
-            [&node_id, &name, &connected_at.to_string()],
+            [&node_id, name, &connected_at.to_string()],
         )?;
         Ok(())
     }

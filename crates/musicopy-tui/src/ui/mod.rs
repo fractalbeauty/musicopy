@@ -131,7 +131,16 @@ impl<'a> App<'a> {
             .node_model
             .trusted_nodes
             .iter()
-            .map(shorten_id)
+            .map(|n| {
+                format!(
+                    "{} ({}) [{}]",
+                    shorten_id(&n.node_id),
+                    n.name,
+                    n.connected_at
+                        .map(|x| x.to_string())
+                        .unwrap_or_else(|| "never".into())
+                )
+            })
             .collect::<Vec<_>>()
             .join(", ");
 
@@ -139,7 +148,14 @@ impl<'a> App<'a> {
             .node_model
             .recent_servers
             .iter()
-            .map(|n| format!("{} ({})", shorten_id(&n.node_id), n.connected_at))
+            .map(|n| {
+                format!(
+                    "{} ({}) [{}]",
+                    shorten_id(&n.node_id),
+                    n.name,
+                    n.connected_at
+                )
+            })
             .collect::<Vec<_>>()
             .join(", ");
 
