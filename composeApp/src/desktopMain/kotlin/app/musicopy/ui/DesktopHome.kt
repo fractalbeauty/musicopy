@@ -65,6 +65,7 @@ fun DesktopHome(
     onSetTranscodePolicy: (TranscodePolicy) -> Unit,
     onDeleteUnusedTranscodes: () -> Unit,
     onDeleteAllTranscodes: () -> Unit,
+    onUntrustNode: (nodeId: String) -> Unit,
 ) {
     val oneCol = LocalWindowInfo.current.containerSize.width < 600
 
@@ -138,9 +139,11 @@ fun DesktopHome(
         val right = @Composable {
             SettingsWidget(
                 libraryModel = libraryModel,
+                nodeModel = nodeModel,
                 onSetTranscodePolicy = onSetTranscodePolicy,
                 onDeleteUnusedTranscodes = onDeleteUnusedTranscodes,
                 onDeleteAllTranscodes = onDeleteAllTranscodes,
+                onUntrustNode = onUntrustNode,
             )
             JobsWidget(
                 libraryModel = libraryModel,

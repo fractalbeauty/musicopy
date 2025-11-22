@@ -53,6 +53,9 @@ fun DesktopApp(
                 onDeleteAllTranscodes = {
                     coreInstance.instance.deleteAllTranscodes()
                 },
+                onUntrustNode = { nodeId ->
+                    coreInstance.instance.untrustNode(nodeId)
+                }
             )
         }
     }
