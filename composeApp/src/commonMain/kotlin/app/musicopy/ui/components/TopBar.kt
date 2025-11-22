@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.style.TextOverflow
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.arrow_back_24px
-import musicopy_root.musicopy.generated.resources.network_node_24px
+import musicopy_root.musicopy.generated.resources.more_vert_24px
 import org.jetbrains.compose.resources.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -21,12 +21,12 @@ fun TopBar(
     onShowNodeStatus: () -> Unit,
     onBack: (() -> Unit)? = null,
 ) {
-    var colors = TopAppBarDefaults.topAppBarColors(
+    val colors = TopAppBarDefaults.topAppBarColors(
         containerColor = MaterialTheme.colorScheme.primaryContainer,
         titleContentColor = MaterialTheme.colorScheme.primary,
     )
 
-    var title = @Composable {
+    val title = @Composable {
         Text(
             title,
             maxLines = 1,
@@ -34,10 +34,10 @@ fun TopBar(
         )
     }
 
-    var nodeInfoButton = @Composable {
+    val nodeInfoButton = @Composable {
         IconButton(onClick = onShowNodeStatus) {
             Icon(
-                painter = painterResource(Res.drawable.network_node_24px),
+                painter = painterResource(Res.drawable.more_vert_24px),
                 contentDescription = "Node info"
             )
         }
@@ -64,6 +64,7 @@ fun TopBar(
             colors = colors,
             title = title,
             actions = {
+                // TODO
                 nodeInfoButton();
             },
         )
