@@ -15,7 +15,7 @@ import uniffi.musicopy.LibraryRootModel
 @Composable
 fun DesktopHomeScreenshot() {
     val nodeModel = mockNodeModel(
-        nodeId = "ec3d55519d7486a99d326774e2831335a75ce2810156cddc279311ef670e0e21",
+        nodeId = "941117ff675f3ac981ed27eb0bef5f32471bbc493fdc7aa4d416e5fa0d99f83a",
         servers = listOf(
             mockServerModel(
                 transferJobs = buildList {
