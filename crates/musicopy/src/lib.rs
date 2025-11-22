@@ -1,4 +1,5 @@
 pub mod database;
+pub mod device_name;
 pub mod error;
 pub mod file_dialog;
 pub mod fs;

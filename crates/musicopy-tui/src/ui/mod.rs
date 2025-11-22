@@ -148,7 +148,7 @@ impl<'a> App<'a> {
             .servers
             .values()
             .filter(|s| matches!(s.state, ServerStateModel::Accepted))
-            .map(|s| shorten_id(&s.node_id))
+            .map(|s| format!("{} ({})", shorten_id(&s.node_id), s.name))
             .collect::<Vec<_>>()
             .join(", ");
         let pending_servers = self
@@ -156,7 +156,7 @@ impl<'a> App<'a> {
             .servers
             .values()
             .filter(|s| matches!(s.state, ServerStateModel::Pending))
-            .map(|s| shorten_id(&s.node_id))
+            .map(|s| format!("{} ({})", shorten_id(&s.node_id), s.name))
             .collect::<Vec<_>>()
             .join(", ");
         let closed_servers = self
@@ -165,8 +165,9 @@ impl<'a> App<'a> {
             .values()
             .filter_map(|s| match &s.state {
                 ServerStateModel::Closed { error } => Some(format!(
-                    "{} ({})",
+                    "{} ({}) [{}]",
                     shorten_id(&s.node_id),
+                    s.name,
                     error.as_deref().unwrap_or("no error")
                 )),
                 _ => None,
@@ -179,7 +180,7 @@ impl<'a> App<'a> {
             .clients
             .values()
             .filter(|c| matches!(c.state, ClientStateModel::Accepted))
-            .map(|s| shorten_id(&s.node_id))
+            .map(|c| format!("{} ({})", shorten_id(&c.node_id), c.name))
             .collect::<Vec<_>>()
             .join(", ");
         let pending_clients = self
@@ -187,7 +188,7 @@ impl<'a> App<'a> {
             .clients
             .values()
             .filter(|c| matches!(c.state, ClientStateModel::Pending))
-            .map(|s| shorten_id(&s.node_id))
+            .map(|c| format!("{} ({})", shorten_id(&c.node_id), c.name))
             .collect::<Vec<_>>()
             .join(", ");
         let closed_clients = self
@@ -196,8 +197,9 @@ impl<'a> App<'a> {
             .values()
             .filter_map(|c| match &c.state {
                 ClientStateModel::Closed { error } => Some(format!(
-                    "{} ({})",
+                    "{} ({}) [{}]",
                     shorten_id(&c.node_id),
+                    c.name,
                     error.as_deref().unwrap_or("no error")
                 )),
                 _ => None,

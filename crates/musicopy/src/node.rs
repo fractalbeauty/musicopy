@@ -11,6 +11,7 @@
 use crate::{
     EventHandler,
     database::{Database, InsertFile},
+    device_name::device_name,
     fs::{OpenMode, TreeFile, TreePath},
     library::{
         Library, LibraryCommand,
@@ -1475,20 +1476,16 @@ impl Server {
             log::error!("failed to receive Identify message");
             return Ok(());
         };
-        match message {
-            ClientMessage::Identify(name) => {
-                // TODO: store
-                log::debug!("client identified as {name}");
-            }
+        let client_name = match message {
+            ClientMessage::Identify(name) => name,
             _ => {
                 log::error!("unexpected message, expected Identify: {message:?}");
                 return Ok(());
             }
-        }
+        };
 
         // send server Identify
-        // TODO: real name
-        send.send(ServerMessage::Identify("server".to_string()))
+        send.send(ServerMessage::Identify(device_name().to_string()))
             .await
             .expect("failed to send Identify message");
 
@@ -1503,7 +1500,7 @@ impl Server {
                 node_id: remote_node_id,
                 handle,
 
-                name: "unknown".to_string(), // TODO: real name
+                name: client_name,
                 connected_at: self.connected_at,
             })
             .expect("failed to send NodeEvent::ServerOpened");
@@ -2413,8 +2410,7 @@ impl Client {
             });
 
         // send client Identify
-        // TODO: real name
-        send.send(ClientMessage::Identify("client".to_string()))
+        send.send(ClientMessage::Identify(device_name().to_string()))
             .await
             .expect("failed to send Identify message");
 
@@ -2424,16 +2420,13 @@ impl Client {
             log::error!("failed to receive Identify message");
             return Ok(());
         };
-        match message {
-            ServerMessage::Identify(name) => {
-                // TODO: store
-                log::info!("server identified as {name}");
-            }
+        let server_name = match message {
+            ServerMessage::Identify(name) => name,
             _ => {
                 log::error!("unexpected message, expected Identify: {message:?}");
                 return Ok(());
             }
-        }
+        };
 
         // handshake finished, send handle to Node
         let handle = ClientHandle {
@@ -2447,7 +2440,7 @@ impl Client {
                 node_id: remote_node_id,
                 handle,
 
-                name: "unknown".to_string(), // TODO: real name
+                name: server_name,
                 connected_at: self.connected_at,
             })
             .expect("failed to send NodeEvent::ClientOpened");
