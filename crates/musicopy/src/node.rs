@@ -151,6 +151,7 @@ pub struct ClientModel {
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct RecentServerModel {
     pub node_id: String,
+    pub name: String,
     pub connected_at: u64,
 }
 
@@ -765,6 +766,7 @@ impl Node {
                             .into_iter()
                             .map(|node| RecentServerModel {
                                 node_id: node.node_id.to_string(),
+                                name: node.name,
                                 connected_at: node.connected_at,
                             })
                             .collect(),
@@ -2440,7 +2442,7 @@ impl Client {
                 node_id: remote_node_id,
                 handle,
 
-                name: server_name,
+                name: server_name.clone(),
                 connected_at: self.connected_at,
             })
             .expect("failed to send NodeEvent::ClientOpened");
@@ -2504,7 +2506,7 @@ impl Client {
         // update recent servers in database
         {
             let db = self.db.lock().unwrap();
-            db.update_recent_server(remote_node_id, self.connected_at)
+            db.update_recent_server(remote_node_id, server_name, self.connected_at)
                 .context("failed to update recent server in database")?;
         }
         self.event_tx

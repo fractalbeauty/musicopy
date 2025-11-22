@@ -208,8 +208,6 @@ fun RecentConnection(
     connectingTo: String?,
     onConnect: () -> Unit,
 ) {
-    val name = shortenNodeId(recentServer.nodeId)
-
     val daysAgo = (now() - recentServer.connectedAt).toInt().seconds.inWholeDays
     val readableDaysAgo = when (daysAgo) {
         0L -> "today"
@@ -232,7 +230,7 @@ fun RecentConnection(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = name,
+                    text = recentServer.name,
                     style = MaterialTheme.typography.labelLarge,
                 )
                 Text(
@@ -265,6 +263,7 @@ fun HomeScreenSandbox() {
                 add(
                     RecentServerModel(
                         nodeId = mockNodeId(),
+                        name = "My Desktop",
                         connectedAt = now() - (0uL..1_000_000uL).random()
                     )
                 )
