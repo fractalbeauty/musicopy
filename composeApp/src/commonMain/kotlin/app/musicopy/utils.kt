@@ -344,6 +344,9 @@ fun mockLibraryModel(
     )
 }
 
+/**
+ * Get the current system time in seconds
+ */
 internal fun now(): ULong {
     return Clock.System.now().epochSeconds.toULong()
 }

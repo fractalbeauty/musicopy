@@ -2,12 +2,12 @@ package app.musicopy.ui.screenshots
 
 import androidx.compose.runtime.Composable
 import app.musicopy.now
-import app.musicopy.ui.screens.TransferScreen
+import app.musicopy.ui.screens.PreTransferScreen
 import uniffi.musicopy.ClientModel
 import uniffi.musicopy.ClientStateModel
 
 @Composable
-fun MobileTransferScreenshot() {
+fun MobilePreTransferScreenshot() {
     val clientModel = ClientModel(
         name = "Desktop",
         nodeId = demoNodeId,
@@ -15,15 +15,17 @@ fun MobileTransferScreenshot() {
         state = ClientStateModel.Accepted,
         connectionType = "direct",
         latencyMs = 42u,
-        index = emptyList(),
-        transferJobs = screenshotTransferJobs
+        index = screenshotIndex,
+        transferJobs = emptyList()
     )
 
-    TransferScreen(
+    PreTransferScreen(
         snackbarHost = {},
         onShowNodeStatus = {},
 
         clientModel = clientModel,
+        onDownloadAll = {},
+        onDownloadPartial = {},
         onCancel = {}
     )
 }

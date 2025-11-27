@@ -13,7 +13,7 @@ import app.musicopy.ui.DesktopHome
 import uniffi.musicopy.LibraryRootModel
 
 @Composable
-fun DesktopHomeScreenshot() {
+fun DesktopHeroScreenshot() {
     val nodeModel = mockNodeModel(
         nodeId = "941117ff675f3ac981ed27eb0bef5f32471bbc493fdc7aa4d416e5fa0d99f83a",
         servers = listOf(
