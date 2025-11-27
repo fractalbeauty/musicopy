@@ -101,6 +101,7 @@ kotlin {
             implementation("com.russhwolf:multiplatform-settings-no-arg:1.3.0")
             implementation("com.russhwolf:multiplatform-settings-make-observable:1.3.0")
             implementation("com.russhwolf:multiplatform-settings-coroutines:1.3.0")
+            implementation("com.russhwolf:multiplatform-settings-test:1.3.0")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

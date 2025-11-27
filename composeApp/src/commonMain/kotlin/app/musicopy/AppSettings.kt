@@ -3,6 +3,7 @@
 package app.musicopy
 
 import com.russhwolf.settings.ExperimentalSettingsApi
+import com.russhwolf.settings.MapSettings
 import com.russhwolf.settings.ObservableSettings
 import com.russhwolf.settings.coroutines.getStringOrNullFlow
 import com.russhwolf.settings.observable.makeObservable
@@ -15,7 +16,11 @@ const val DOWNLOAD_DIRECTORY_KEY = "downloadDirectory"
 const val TRANSCODE_POLICY_KEY = "transcodePolicy"
 
 object AppSettings {
-    private val settings: ObservableSettings = Settings().makeObservable()
+    private var settings: ObservableSettings = Settings().makeObservable()
+
+    fun installMockSettings() {
+        settings = MapSettings().makeObservable()
+    }
 
     var downloadDirectory: String?
         get() = settings.getStringOrNull(DOWNLOAD_DIRECTORY_KEY)
