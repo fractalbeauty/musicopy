@@ -21,10 +21,10 @@ captures
 # Cargo
 /target
 
+# cargo-mutants
+/mutants.out
+
 # Conveyor
 /output
-
-# TODO
-musicopy.db
 
 /screenshots
