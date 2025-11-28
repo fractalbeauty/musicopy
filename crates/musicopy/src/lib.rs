@@ -416,7 +416,7 @@ impl Core {
 
         Ok(())
     }
-    
+
     pub fn trust_node(&self, node_id: &str) -> Result<(), CoreError> {
         let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
 
@@ -487,6 +487,15 @@ impl Core {
     pub fn rescan_library(&self) -> Result<(), CoreError> {
         self.library
             .send(LibraryCommand::Rescan)
+            .context("failed to send to library thread")?;
+        Ok(())
+    }
+
+    // TODO: used in test
+    pub fn prioritize_transcodes(&self, paths: Vec<String>) -> Result<(), CoreError> {
+        let paths = paths.into_iter().map(PathBuf::from).collect();
+        self.library
+            .send(LibraryCommand::PrioritizeTranscodes(paths))
             .context("failed to send to library thread")?;
         Ok(())
     }
