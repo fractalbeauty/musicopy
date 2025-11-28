@@ -72,6 +72,20 @@ impl TestCore {
         .await;
     }
 
+    /// Wait until the node model satisfies the given condition
+    pub async fn wait_for_node_model_condition(
+        &self,
+        msg: &str,
+        condition: impl Fn(&NodeModel) -> bool,
+    ) {
+        let full_msg = format!("{} node model where {}", self.label, msg);
+        wait_until(&full_msg, || {
+            let model = self.core.get_node_model().expect("should get node model");
+            condition(&model)
+        })
+        .await;
+    }
+
     /// Wait until we have a client with the given node id
     pub async fn wait_for_client(&self, other: impl TestNodeIdExt) {
         wait_until(
@@ -208,6 +222,31 @@ impl TestCore {
             matches!(server.state, ServerStateModel::Closed { .. })
         })
         .await;
+    }
+
+    /// Check a client condition immediately
+    pub async fn check_client_condition(
+        &self,
+        msg: &str,
+        other: impl TestNodeIdExt,
+        condition: impl Fn(&ClientModel) -> bool,
+    ) {
+        let full_msg = format!(
+            "{} has client for {}, where {}",
+            self.label,
+            other.label(),
+            msg
+        );
+
+        let model = self.core.get_node_model().expect("should get node model");
+        let Some(client) = model.clients.get(&other.node_id_str()) else {
+            panic!(
+                "check_client_condition: {}: client for {} missing?",
+                full_msg,
+                other.label()
+            );
+        };
+        assert!(condition(client), "{full_msg}");
     }
 
     pub fn node_id(&self) -> NodeId {
