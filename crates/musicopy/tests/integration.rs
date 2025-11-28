@@ -452,3 +452,208 @@ mod connect {
             .await;
     }
 }
+
+mod library {
+    use crate::common::{TestCore, fixture_path};
+
+    #[tokio::test]
+    async fn add_root_with_files() {
+        let core = TestCore::start("core").await;
+
+        let fixture_path = fixture_path("minimal");
+        let root_dir = fixture_path;
+
+        core.core
+            .add_library_root("foo".into(), root_dir.to_string_lossy().to_string())
+            .expect("should add library root");
+
+        core.wait_for_library_model_condition("model has root", |model| {
+            model.local_roots.len() == 1
+        })
+        .await;
+        core.wait_for_library_model_condition("root has 1 file", |model| {
+            let root = model.local_roots.first().unwrap();
+            root.num_files == 1
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn add_root_without_files() {
+        let core = TestCore::start("core").await;
+
+        let root_dir = core.instance_dir.join("library/root1");
+        std::fs::create_dir_all(&root_dir).expect("should create root dir");
+
+        // add library root
+        core.core
+            .add_library_root("bar".into(), root_dir.to_string_lossy().to_string())
+            .expect("should add library root");
+
+        // should have 0 files
+        core.wait_for_library_model_condition("model has root", |model| {
+            model.local_roots.len() == 1
+        })
+        .await;
+        core.wait_for_library_model_condition("root has 0 files", |model| {
+            let root = model.local_roots.first().unwrap();
+            root.num_files == 0
+        })
+        .await;
+
+        // copy fixture file to root dir
+        let fixture_path = fixture_path("minimal");
+        std::fs::copy(fixture_path.join("test.mp3"), root_dir.join("test.mp3"))
+            .expect("should copy fixture files");
+
+        // rescan
+        core.core.rescan_library().expect("should rescan library");
+
+        // should have 1 file
+        core.wait_for_library_model_condition("root has 1 file", |model| {
+            let root = model.local_roots.first().unwrap();
+            root.num_files == 1
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn remove_root() {
+        let core = TestCore::start("core").await;
+
+        let fixture_path = fixture_path("minimal");
+        let root_dir = fixture_path;
+
+        // add library root
+        core.core
+            .add_library_root("foo".into(), root_dir.to_string_lossy().to_string())
+            .expect("should add library root");
+
+        // should have 1 file
+        core.wait_for_library_model_condition("model has root", |model| {
+            model.local_roots.len() == 1
+        })
+        .await;
+        core.wait_for_library_model_condition("root has 1 file", |model| {
+            let root = model.local_roots.first().unwrap();
+            root.num_files == 1
+        })
+        .await;
+
+        // remove library root
+        core.core
+            .remove_library_root("foo".into())
+            .expect("should remove library root");
+
+        // should have 0 roots
+        core.wait_for_library_model_condition("model has 0 roots", |model| {
+            model.local_roots.is_empty()
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn delete_file() {
+        let core = TestCore::start("core").await;
+
+        let root_dir = core.instance_dir.join("library/root1");
+        let file_path = root_dir.join("test.mp3");
+        std::fs::create_dir_all(&root_dir).expect("should create root dir");
+
+        // copy fixture file to root dir
+        let fixture_path = fixture_path("minimal");
+        std::fs::copy(fixture_path.join("test.mp3"), &file_path)
+            .expect("should copy fixture files");
+
+        // add library root
+        core.core
+            .add_library_root("foo".into(), root_dir.to_string_lossy().to_string())
+            .expect("should add library root");
+
+        // should have 1 file
+        core.wait_for_library_model_condition("model has root", |model| {
+            model.local_roots.len() == 1
+        })
+        .await;
+        core.wait_for_library_model_condition("root has 1 file", |model| {
+            let root = model.local_roots.first().unwrap();
+            root.num_files == 1
+        })
+        .await;
+
+        // delete file
+        std::fs::remove_file(&file_path).expect("should delete file");
+
+        // rescan
+        core.core.rescan_library().expect("should rescan library");
+
+        // should have 0 files
+        core.wait_for_library_model_condition("root has 0 files", |model| {
+            let root = model.local_roots.first().unwrap();
+            root.num_files == 0
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn prioritize_transcodes() {
+        let core = TestCore::start("core").await;
+
+        let fixture_path = fixture_path("minimal");
+        let root_dir = fixture_path;
+        let file_path = root_dir.join("test.mp3");
+
+        let transcodes_dir = core.cache_dir.join("transcodes");
+
+        // add library root
+        core.core
+            .add_library_root("foo".into(), root_dir.to_string_lossy().to_string())
+            .expect("should add library root");
+
+        // wait for file
+        core.wait_for_library_model_condition("model has root", |model| {
+            model.local_roots.len() == 1
+        })
+        .await;
+        core.wait_for_library_model_condition("root has 1 file", |model| {
+            let root = model.local_roots.first().unwrap();
+            root.num_files == 1
+        })
+        .await;
+
+        // should be 0 transcodes
+        assert_eq!(
+            transcodes_dir
+                .read_dir()
+                .expect("should read transcodes dir")
+                .count(),
+            0
+        );
+
+        // prioritize transcodes
+        core.core
+            .prioritize_transcodes(vec![file_path.to_string_lossy().to_string()])
+            .expect("should prioritize transcodes");
+
+        // should have 1 not-ready transcode
+        core.wait_for_library_model_condition("1 inprogress/queued transcode", |model| {
+            model.transcode_count_inprogress.get() + model.transcode_count_queued.get() == 1
+        })
+        .await;
+
+        // should have 1 ready transcode
+        core.wait_for_library_model_condition("1 ready transcode", |model| {
+            model.transcode_count_ready.get() == 1
+        })
+        .await;
+
+        // should be 1 transcode
+        assert_eq!(
+            transcodes_dir
+                .read_dir()
+                .expect("should read transcodes dir")
+                .count(),
+            1
+        );
+    }
+}

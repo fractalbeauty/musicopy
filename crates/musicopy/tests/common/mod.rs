@@ -1,11 +1,22 @@
-use std::{borrow::Cow, sync::Arc};
-
 use iroh::NodeId;
 use musicopy::{
     Core, CoreOptions, EventHandler, ProjectDirsOptions,
     library::{LibraryModel, transcode::TranscodePolicy},
     node::{ClientModel, ClientStateModel, NodeModel, ServerModel, ServerStateModel},
 };
+use std::{borrow::Cow, path::PathBuf, sync::Arc};
+
+pub fn fixture_path(fixture: &str) -> PathBuf {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+
+    let mut p = PathBuf::from(manifest_dir);
+    p.push("tests/fixtures");
+    p.push(fixture);
+
+    assert!(p.exists(), "fixture path does not exist: {p:?}");
+
+    p
+}
 
 pub async fn wait_until(msg: &str, condition: impl Fn() -> bool) {
     let start = std::time::Instant::now();
@@ -28,6 +39,10 @@ impl EventHandler for TestEventHandler {
 #[derive(Clone)]
 pub struct TestCore {
     pub label: String,
+
+    pub instance_dir: PathBuf,
+    pub cache_dir: PathBuf,
+
     pub event_handler: Arc<TestEventHandler>,
     pub core: Arc<Core>,
 }
@@ -58,6 +73,10 @@ impl TestCore {
 
         Self {
             label: label.to_string(),
+
+            instance_dir,
+            cache_dir,
+
             event_handler,
             core,
         }
@@ -81,6 +100,23 @@ impl TestCore {
         let full_msg = format!("{} node model where {}", self.label, msg);
         wait_until(&full_msg, || {
             let model = self.core.get_node_model().expect("should get node model");
+            condition(&model)
+        })
+        .await;
+    }
+
+    /// Wait until the library model satisfies the given condition
+    pub async fn wait_for_library_model_condition(
+        &self,
+        msg: &str,
+        condition: impl Fn(&LibraryModel) -> bool,
+    ) {
+        let full_msg = format!("{} library model where {}", self.label, msg);
+        wait_until(&full_msg, || {
+            let model = self
+                .core
+                .get_library_model()
+                .expect("should get library model");
             condition(&model)
         })
         .await;
