@@ -657,3 +657,120 @@ mod library {
         );
     }
 }
+
+mod transfer {
+    use crate::common::{TestCore, TestNodeIdExt, fixture_path};
+    use musicopy::node::TransferJobProgressModel;
+
+    #[tokio::test]
+    async fn transfer() {
+        let core_1 = TestCore::start("core 1").await;
+        let core_2 = TestCore::start("core 2").await;
+
+        // set up download directory
+        let download_dir = core_1.instance_dir.join("downloads");
+        std::fs::create_dir_all(&download_dir).expect("should create download dir");
+        core_1
+            .core
+            .set_download_directory(&download_dir.to_string_lossy())
+            .expect("should set download directory");
+
+        // set up core 2 library
+        let fixture_path = fixture_path("minimal");
+        let root_dir = fixture_path;
+        core_2
+            .core
+            .add_library_root("foo".into(), root_dir.to_string_lossy().to_string())
+            .expect("should add library root");
+
+        // wait for file
+        core_2
+            .wait_for_library_model_condition("model has root", |model| {
+                model.local_roots.len() == 1
+            })
+            .await;
+        core_2
+            .wait_for_library_model_condition("root has 1 file", |model| {
+                let root = model.local_roots.first().unwrap();
+                root.num_files == 1
+            })
+            .await;
+
+        // core 1: connect to core 2
+        core_1.wait_for_relay().await;
+        core_2.wait_for_relay().await;
+        core_1
+            .core
+            .connect(&core_2.node_id_str())
+            .await
+            .expect("should connect");
+
+        // should be pending
+        core_1.wait_for_client_pending(&core_2).await;
+        core_2.wait_for_server_pending(&core_1).await;
+
+        // core 2: accept connection
+        core_2
+            .core
+            .accept_connection(&core_1.node_id_str())
+            .expect("should accept");
+
+        // should be accepted
+        core_1.wait_for_client_accepted(&core_2).await;
+        core_2.wait_for_server_accepted(&core_1).await;
+
+        // core 1: should have index
+        core_1
+            .wait_for_client_condition("index is Some", &core_2, |client| client.index.is_some())
+            .await;
+        {
+            let model = core_1.core.get_node_model().expect("should get node model");
+            let client = model
+                .clients
+                .get(&core_2.node_id_str())
+                .expect("should have client");
+
+            let index = client.index.as_ref().expect("should have index");
+            assert_eq!(index.len(), 1);
+
+            let item = index.first().unwrap();
+            assert_eq!(item.node_id, core_2.node_id_str());
+            assert_eq!(item.root, "foo");
+            assert_eq!(item.path, "test.mp3");
+            assert!(!item.downloaded);
+        }
+
+        // core 1: download all
+        core_1
+            .core
+            .download_all(&core_2.node_id_str())
+            .expect("should download all");
+
+        // should have transfer jobs
+        core_1
+            .wait_for_client_condition("has transfer job", &core_2, |client| {
+                client.transfer_jobs.len() == 1
+            })
+            .await;
+        core_2
+            .wait_for_server_condition("has transfer job", &core_1, |server| {
+                server.transfer_jobs.len() == 1
+            })
+            .await;
+
+        // wait for transfer to finish
+        core_1
+            .wait_for_client_condition("job is finished", &core_2, |client| {
+                matches!(
+                    client.transfer_jobs.first().unwrap().progress,
+                    TransferJobProgressModel::Finished { .. }
+                )
+            })
+            .await;
+
+        // file should exist in download directory
+        let downloaded_file_path =
+            download_dir.join(format!("musicopy-{}-foo/test.ogg", core_2.node_id_str()));
+        assert!(downloaded_file_path.exists());
+    }
+}
