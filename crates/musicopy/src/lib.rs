@@ -152,14 +152,23 @@ impl Core {
                     let data_dir = project_dirs.data_local_dir().to_owned();
                     let cache_dir = project_dirs.cache_dir().to_owned();
 
-                    std::fs::create_dir_all(&data_dir)
-                        .context("failed to create data directory")?;
-                    std::fs::create_dir_all(&cache_dir)
-                        .context("failed to create cache directory")?;
-
                     (data_dir, cache_dir)
                 }
             };
+
+            // try to create data and cache dirs
+            if let Err(e) = std::fs::create_dir_all(&data_dir) {
+                error!(
+                    "core: failed to create data directory at {}: {e:#}",
+                    data_dir.display()
+                );
+            }
+            if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+                error!(
+                    "core: failed to create cache directory at {}: {e:#}",
+                    cache_dir.display()
+                );
+            }
 
             let db_path = data_dir.join("musicopy_v1.db");
             let db = Database::open_file(&db_path).context("failed to open database")?;
