@@ -1,0 +1,28 @@
+name: Run tests
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        run: |
+          rustup install stable
+          rustup default stable
+      
+      - name: Set up Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      
+      - name: Set up Nextest
+        uses: taiki-e/install-action@nextest
+      
+      - name: Run tests
+        run: cargo nextest run
