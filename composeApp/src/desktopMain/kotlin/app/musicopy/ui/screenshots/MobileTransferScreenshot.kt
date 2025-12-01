@@ -24,6 +24,8 @@ fun MobileTransferScreenshot() {
         onShowNodeStatus = {},
 
         clientModel = clientModel,
-        onCancel = {}
+        onCancel = {},
+        onTransferMore = {},
+        onDone = {},
     )
 }

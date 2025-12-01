@@ -56,6 +56,8 @@ fun MobileHeroScreenshot() {
         onShowNodeStatus = {},
 
         clientModel = clientModel,
-        onCancel = {}
+        onCancel = {},
+        onTransferMore = {},
+        onDone = {},
     )
 }

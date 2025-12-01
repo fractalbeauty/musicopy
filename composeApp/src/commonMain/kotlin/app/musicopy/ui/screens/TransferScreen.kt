@@ -1,6 +1,11 @@
 package app.musicopy.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -44,6 +51,9 @@ import androidx.compose.ui.unit.dp
 import app.musicopy.formatFloat
 import app.musicopy.isAndroid
 import app.musicopy.mockClientModel
+import app.musicopy.mockTransferJobModel
+import app.musicopy.mockTransferJobProgressModelFinished
+import app.musicopy.mockTransferJobProgressModelInProgress
 import app.musicopy.rememberNotificationsPermission
 import app.musicopy.ui.components.Info
 import app.musicopy.ui.components.TopBar
@@ -67,6 +77,8 @@ fun TransferScreen(
 
     clientModel: ClientModel,
     onCancel: () -> Unit,
+    onTransferMore: () -> Unit,
+    onDone: () -> Unit,
 ) {
     val jobs = clientModel.transferJobs.sortedBy { it.jobId }
 
@@ -92,6 +104,35 @@ fun TransferScreen(
                 onShowNodeStatus = onShowNodeStatus,
                 onBack = onCancel
             )
+        },
+        bottomBar = {
+            val isSettled = waitingJobs.isEmpty() && inProgressJobs.isEmpty()
+            
+            AnimatedVisibility(
+                visible = isSettled,
+                enter = slideInVertically { height -> height } + fadeIn(),
+                exit = slideOutVertically { height -> height } + fadeOut(),
+            ) {
+                BottomAppBar {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = onTransferMore,
+                        ) {
+                            Text("Transfer more")
+                        }
+
+                        Button(
+                            onClick = onDone
+                        ) {
+                            Text("Done")
+                        }
+                    }
+                }
+            }
         },
         snackbarHost = snackbarHost,
     ) { innerPadding ->
@@ -400,6 +441,45 @@ fun TransferScreenSandbox() {
         onShowNodeStatus = {},
 
         clientModel = mockClientModel(),
-        onCancel = {}
+        onCancel = {},
+        onTransferMore = {},
+        onDone = {},
+    )
+}
+
+@Composable
+fun TransferScreenFinishedSandbox() {
+    var finished by remember { mutableStateOf(true) }
+
+    val clientModel = if (finished) {
+        mockClientModel(
+            transferJobs = listOf(
+                mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
+                mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
+                mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
+                mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
+                mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
+            )
+        )
+    } else {
+        mockClientModel(
+            transferJobs = listOf(
+                mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
+                mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
+                mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
+                mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
+                mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
+            )
+        )
+    }
+
+    TransferScreen(
+        snackbarHost = {},
+        onShowNodeStatus = {},
+
+        clientModel = clientModel,
+        onCancel = { finished = !finished },
+        onTransferMore = {},
+        onDone = {},
     )
 }

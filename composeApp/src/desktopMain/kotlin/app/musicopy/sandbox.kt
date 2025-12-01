@@ -35,6 +35,8 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.musicopy.ui.Theme
 import app.musicopy.ui.components.Info
+import app.musicopy.ui.screens.TransferScreenFinishedSandbox
+import app.musicopy.ui.screens.TransferScreenSandbox
 import app.musicopy.ui.screenshots.DesktopHeroScreenshot
 import app.musicopy.ui.screenshots.MobileHeroScreenshot
 import app.musicopy.ui.screenshots.MobileHomeScreenshot
@@ -79,7 +81,8 @@ private fun Sandbox() {
 
 @Composable
 private fun SandboxContent() {
-    SandboxScreenshot()
+//    SandboxScreenshot()
+    TransferScreenFinishedSandbox()
 }
 
 val DIMENSIONS_MOBILE = 350 to 600

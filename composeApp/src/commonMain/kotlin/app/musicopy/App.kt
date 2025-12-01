@@ -333,6 +333,14 @@ fun App(
                         onCancel = {
                             // pop back to pretransfer
                             navController.popBackStack(PreTransfer(nodeId), inclusive = false)
+                        },
+                        onTransferMore = {
+                            // pop back to pretransfer
+                            navController.popBackStack(PreTransfer(nodeId), inclusive = false)
+                        },
+                        onDone = {
+                            // pop back to home
+                            navController.popBackStack(Home, inclusive = false)
                         }
                     )
                 }
