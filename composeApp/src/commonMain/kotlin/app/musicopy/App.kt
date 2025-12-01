@@ -360,11 +360,16 @@ fun App(
             composable<Disconnected> { backStackEntry ->
                 val route: Disconnected = backStackEntry.toRoute()
                 val nodeId = route.nodeId
+                
+                val clientModel = nodeModel.clients.values.find { x -> x.nodeId == nodeId }
+                val name = clientModel?.name ?: "Unknown"
+
                 DisconnectedScreen(
                     snackbarHost = snackbarHost,
                     onShowNodeStatus = onShowNodeStatus,
 
                     nodeId = nodeId,
+                    name = name,
                     isConnecting = isConnecting,
                     onReconnect = { onConnect(nodeId, true) },
                     onCancel = {

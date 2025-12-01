@@ -15,6 +15,7 @@ import app.musicopy.mockNodeId
 import app.musicopy.shortenNodeId
 import app.musicopy.ui.components.LoadingButton
 import app.musicopy.ui.components.TopBar
+import app.musicopy.ui.widgetHeadline
 
 @Composable
 fun DisconnectedScreen(
@@ -22,6 +23,7 @@ fun DisconnectedScreen(
     onShowNodeStatus: () -> Unit,
 
     nodeId: String,
+    name: String,
     isConnecting: Boolean,
     onCancel: () -> Unit,
     onReconnect: () -> Unit,
@@ -42,8 +44,19 @@ fun DisconnectedScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                "Lost connection to ${shortenNodeId(nodeId)}",
-                style = MaterialTheme.typography.headlineSmall
+                text = "DISCONNECTED",
+                style = MaterialTheme.typography.widgetHeadline,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+
+            Text(
+                text = name,
+                style = MaterialTheme.typography.headlineMedium
+            )
+
+            Text(
+                text = shortenNodeId(nodeId),
+                style = MaterialTheme.typography.labelMedium
             )
 
             LoadingButton(
@@ -62,6 +75,7 @@ fun DisconnectedScreenSandbox() {
         onShowNodeStatus = {},
 
         nodeId = mockNodeId(),
+        name = "My Desktop",
         isConnecting = false,
         onCancel = {},
         onReconnect = {}
