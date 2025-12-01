@@ -14,22 +14,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.musicopy.formatSize
 import app.musicopy.shortenNodeId
 import app.musicopy.toClipEntry
 import com.composables.core.DragIndication
@@ -67,14 +66,6 @@ val Peek = SheetDetent(identifier = "peek") { containerHeight, sheetHeight ->
 class NodeStatusSheetState(
     internal val inner: ModalBottomSheetState,
 ) {
-//    var targetDetent: SheetDetent
-//        get() {
-//            return inner.targetDetent
-//        }
-//        set(value) {
-//            inner.targetDetent = value
-//        }
-
     fun peek() {
         inner.targetDetent = Peek
     }
@@ -103,7 +94,7 @@ fun NodeStatusSheet(state: NodeStatusSheetState, nodeModel: NodeModel) {
             modifier = Modifier
                 .shadow(4.dp, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
                 .widthIn(max = 640.dp)
                 .fillMaxWidth()
                 .imePadding()
@@ -116,7 +107,10 @@ fun NodeStatusSheet(state: NodeStatusSheetState, nodeModel: NodeModel) {
                     DragIndication(
                         modifier = Modifier
                             .padding(top = 8.dp)
-                            .background(Color.Black.copy(0.4f), RoundedCornerShape(100))
+                            .background(
+                                MaterialTheme.colorScheme.outline,
+                                RoundedCornerShape(100)
+                            )
                             .width(32.dp)
                             .height(4.dp)
                     )
@@ -148,13 +142,21 @@ fun NodeStatusSheet(state: NodeStatusSheetState, nodeModel: NodeModel) {
 
                     StatusDetail(
                         label = stringResource(resource = Res.string.sent_label),
-                        value = "${nodeModel.sendIpv4} v4, ${nodeModel.sendIpv6} v6, ${nodeModel.sendRelay} relay",
+                        value = "${formatSize(nodeModel.sendIpv4)} v4, ${formatSize(nodeModel.sendIpv6)} v6, ${
+                            formatSize(
+                                nodeModel.sendRelay
+                            )
+                        } relay",
                         iconPainter = painterResource(Res.drawable.arrow_upward_24px),
                     )
 
                     StatusDetail(
                         label = stringResource(resource = Res.string.received_label),
-                        value = "${nodeModel.recvIpv4} v4, ${nodeModel.recvIpv6} v6, ${nodeModel.recvRelay} relay",
+                        value = "${formatSize(nodeModel.recvIpv4)} v4, ${formatSize(nodeModel.recvIpv6)} v6, ${
+                            formatSize(
+                                nodeModel.recvRelay
+                            )
+                        } relay",
                         iconPainter = painterResource(Res.drawable.arrow_downward_24px),
                     )
                 }
@@ -170,16 +172,12 @@ private fun StatusDetail(
     iconPainter: Painter,
     textToCopy: String? = null,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
-    ) {
+    OutlinedCard {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp)
+                .height(56.dp)
         ) {
             Icon(
                 painter = iconPainter,
