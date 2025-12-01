@@ -32,8 +32,9 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.snapshots.SnapshotStateSet
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -95,7 +96,7 @@ fun PreTransferScreen(
         } ?: false
     }
 
-    val selected = remember { mutableStateListOf<IndexItemModel>() }
+    val selected = remember { mutableStateSetOf<IndexItemModel>() }
 
     val allCheckboxState = if (selected.isEmpty()) {
         ToggleableState.Off
@@ -222,7 +223,7 @@ fun PreTransferScreen(
 @Composable
 internal fun Tree(
     clientModel: ClientModel,
-    selected: SnapshotStateList<IndexItemModel>,
+    selected: SnapshotStateSet<IndexItemModel>,
 ) {
     // build node graph
     val topLevelNodes = remember(clientModel.index) {
