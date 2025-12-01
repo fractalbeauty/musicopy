@@ -426,14 +426,44 @@ internal fun buildNodeSizes(
 }
 
 internal enum class RowState {
+    /**
+     * All descendants are unselected.
+     */
     None,
+
+    /**
+     * All descendants are selected.
+     */
     Selected,
+
+    /**
+     * All descendants are downloaded.
+     */
     Downloaded,
+
+    /**
+     * All descendants are downloaded or unselected.
+     */
+    DownloadedOrNone,
+
+    /**
+     * All descendants are downloaded or selected.
+     */
+    DownloadedOrSelected,
+
+    /**
+     * Some descendants are selected and some are unselected.
+     *
+     * Some descendants may also be downloaded.
+     */
     Indeterminate,
 }
 
 /**
  * Gets the `RowState` of a node in the file tree.
+ *
+ * We need to know more than just Indeterminate to correctly
+ * select/unselect indeterminate rows with mixed descendants.
  *
  * If the node is a leaf (file), then:
  *  - If it is downloaded, the state is Downloaded
@@ -444,6 +474,8 @@ internal enum class RowState {
  *  - If all children are Downloaded, it is Downloaded
  *  - If all children are Selected, it is Selected
  *  - If all children are None, it is None
+ *  - If all children are DownloadedOrNone, Downloaded, or None, it is DownloadedOrNone
+ *  - If all children are DownloadedOrSelected, Downloaded, or Selected, it is DownloadedOrSelected
  *  - Otherwise, it is Indeterminate
  */
 internal fun getNodeState(
@@ -465,21 +497,55 @@ internal fun getNodeState(
             return null
         }
 
-        val allChildrenHaveState = { state: RowState ->
-            node.children.all { child ->
-                getNodeState(
-                    child,
-                    isSelected
-                ) == state
+        var total = 0
+        var countNone = 0
+        var countSelected = 0
+        var countDownloaded = 0
+        var countDownloadedOrNone = 0
+        var countDownloadedOrSelected = 0
+
+        node.children.forEach { child ->
+            val state = getNodeState(child, isSelected)
+            when (state) {
+                RowState.None -> {
+                    total += 1
+                    countNone += 1
+                }
+
+                RowState.Selected -> {
+                    total += 1
+                    countSelected += 1
+                }
+
+                RowState.Downloaded -> {
+                    total += 1
+                    countDownloaded += 1
+                }
+
+                RowState.DownloadedOrNone -> {
+                    total += 1
+                    countDownloadedOrNone += 1
+                }
+
+                RowState.DownloadedOrSelected -> {
+                    total += 1
+                    countDownloadedOrSelected += 1
+                }
+
+                RowState.Indeterminate, null -> {}
             }
         }
 
-        if (allChildrenHaveState(RowState.Downloaded)) {
-            RowState.Downloaded
-        } else if (allChildrenHaveState(RowState.Selected)) {
-            RowState.Selected
-        } else if (allChildrenHaveState(RowState.None)) {
+        if (countNone == total) {
             RowState.None
+        } else if (countSelected == total) {
+            RowState.Selected
+        } else if (countDownloaded == total) {
+            RowState.Downloaded
+        } else if (countSelected == 0 && countDownloadedOrSelected == 0) {
+            RowState.DownloadedOrNone
+        } else if (countNone == 0 && countDownloadedOrNone == 0) {
+            RowState.DownloadedOrSelected
         } else {
             RowState.Indeterminate
         }
@@ -524,11 +590,11 @@ internal fun LazyListScope.renderNode(
         {
             // set children based on current state
             when (rowState) {
-                RowState.Selected, RowState.Indeterminate -> {
+                RowState.Selected, RowState.DownloadedOrSelected, RowState.Indeterminate -> {
                     onSelectRecursive(node, onSelect, false)
                 }
 
-                RowState.None -> {
+                RowState.None, RowState.DownloadedOrNone -> {
                     onSelectRecursive(node, onSelect, true)
                 }
 
@@ -693,6 +759,8 @@ internal fun TreeRow(
                 RowState.None -> ToggleableState.Off
                 RowState.Selected -> ToggleableState.On
                 RowState.Downloaded -> ToggleableState.On
+                RowState.DownloadedOrNone -> ToggleableState.Indeterminate
+                RowState.DownloadedOrSelected -> ToggleableState.On
                 RowState.Indeterminate -> ToggleableState.Indeterminate
                 null -> ToggleableState.Off
             }
