@@ -89,7 +89,7 @@ fun App(
         }
     }
 
-    val onConnect = fun(nodeId: String) {
+    val onConnect = fun(nodeId: String, popToHome: Boolean) {
         // only connect to one node at a time
         if (connectingTo != null) {
             println("onConnect failed, already connecting")
@@ -103,9 +103,21 @@ fun App(
                 delay(100) // TODO
                 val client = nodeModel.clients.values.find { it.nodeId == nodeId }
                 if (client?.state is ClientStateModel.Accepted) {
-                    navController.navigate(PreTransfer(nodeId = nodeId))
+                    navController.navigate(PreTransfer(nodeId = nodeId)) {
+                        if (popToHome) {
+                            popUpTo<Home> {
+                                inclusive = false
+                            }
+                        }
+                    }
                 } else {
-                    navController.navigate(Waiting(nodeId = nodeId))
+                    navController.navigate(Waiting(nodeId = nodeId)) {
+                        if (popToHome) {
+                            popUpTo<Home> {
+                                inclusive = false
+                            }
+                        }
+                    }
                 }
             } catch (e: CoreException) {
                 showErrorSnackbar("Failed to connect", e)
@@ -176,7 +188,7 @@ fun App(
                     onConnectManuallyButtonClicked = {
                         navController.navigate(ConnectManually)
                     },
-                    onConnectRecent = onConnect,
+                    onConnectRecent = { nodeId -> onConnect(nodeId, false) },
                 )
             }
             composable<ConnectQR> {
@@ -185,7 +197,7 @@ fun App(
                     onShowNodeStatus = onShowNodeStatus,
 
                     isConnecting = isConnecting,
-                    onSubmit = onConnect,
+                    onSubmit = { nodeId -> onConnect(nodeId, false) },
                     onCancel = {
                         navController.popBackStack(Home, inclusive = false)
                     },
@@ -198,7 +210,7 @@ fun App(
                     onShowNodeStatus = onShowNodeStatus,
 
                     isConnecting = isConnecting,
-                    onSubmit = onConnect,
+                    onSubmit = { nodeId -> onConnect(nodeId, false) },
                     onCancel = {
                         navController.popBackStack(Home, inclusive = false)
                     }
@@ -354,7 +366,7 @@ fun App(
 
                     nodeId = nodeId,
                     isConnecting = isConnecting,
-                    onReconnect = { onConnect(nodeId) },
+                    onReconnect = { onConnect(nodeId, true) },
                     onCancel = {
                         // pop back to home
                         navController.popBackStack(Home, inclusive = false)
