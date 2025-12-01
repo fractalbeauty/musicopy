@@ -339,8 +339,7 @@ fun App(
                             navController.popBackStack(PreTransfer(nodeId), inclusive = false)
                         },
                         onDone = {
-                            // pop back to home
-                            navController.popBackStack(Home, inclusive = false)
+                            leaveClientScreen(nodeId)
                         }
                     )
                 }
