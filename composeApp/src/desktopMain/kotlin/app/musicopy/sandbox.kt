@@ -86,9 +86,10 @@ private fun Sandbox() {
 private fun SandboxContent() {
 //    SandboxScreenshot()
 //    WaitingScreenSandbox()
-//    PreTransferScreenSandbox()
+    PreTransferScreenSandbox()
+//    TransferScreenSandbox()
 //    TransferScreenFinishedSandbox()
-    DisconnectedScreenSandbox()
+//    DisconnectedScreenSandbox()
 }
 
 val DIMENSIONS_MOBILE = 350 to 600

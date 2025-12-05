@@ -288,6 +288,12 @@ fun App(
                         onShowNodeStatus = onShowNodeStatus,
 
                         clientModel = clientModel,
+                        hasDownloadDirectory = downloadDirectory != null,
+                        onPickDownloadDirectory = {
+                            scope.launch {
+                                directoryPicker.pickDownloadDirectory()
+                            }
+                        },
                         onDownloadAll = {
                             downloadDirectory?.let { downloadDirectory ->
                                 coreInstance.instance.downloadAll(nodeId)
@@ -313,7 +319,6 @@ fun App(
                             leaveClientScreen(nodeId)
                         }
                     )
-
                 }
             }
             composable<Transfer> { backStackEntry ->

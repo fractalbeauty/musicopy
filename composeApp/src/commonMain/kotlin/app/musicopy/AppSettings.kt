@@ -27,7 +27,7 @@ object AppSettings {
         set(value) {
             value?.let {
                 settings.putString(DOWNLOAD_DIRECTORY_KEY, value)
-            } ?: {
+            } ?: run {
                 settings.remove(DOWNLOAD_DIRECTORY_KEY)
             }
         }

@@ -24,6 +24,8 @@ fun MobilePreTransferScreenshot() {
         onShowNodeStatus = {},
 
         clientModel = clientModel,
+        hasDownloadDirectory = true,
+        onPickDownloadDirectory = {},
         onDownloadAll = {},
         onDownloadPartial = {},
         onCancel = {}

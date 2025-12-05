@@ -32,8 +32,10 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateSet
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +52,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.musicopy.AppSettings
 import app.musicopy.formatSize
 import app.musicopy.mockClientModel
 import app.musicopy.ui.components.DetailBox
@@ -73,6 +76,8 @@ fun PreTransferScreen(
     onShowNodeStatus: () -> Unit,
 
     clientModel: ClientModel,
+    hasDownloadDirectory: Boolean,
+    onPickDownloadDirectory: () -> Unit,
     onDownloadAll: () -> Unit,
     onDownloadPartial: (List<DownloadPartialItemModel>) -> Unit,
     onCancel: () -> Unit,
@@ -160,43 +165,33 @@ fun PreTransferScreen(
                     )
                 }
 
-                Button(
-                    onClick = onDownload,
-                    modifier = Modifier.fillMaxWidth().height(64.dp),
-                    shape = MaterialTheme.shapes.large,
-                    contentPadding = PaddingValues(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val allSelected = selected.size == clientModel.index?.size
-
-                        Text(
-                            if (selected.isEmpty() || allSelected) {
-                                "Download everything"
-                            } else {
-                                val selectedSize = selected.sumOf { item -> item.fileSize.value() }
-                                val selectedEstimated =
-                                    selected.any { item -> item.fileSize !is FileSizeModel.Actual }
-
-                                "Download selected (${selected.size} files, ${
-                                    formatSize(
-                                        selectedSize,
-                                        estimated = selectedEstimated,
-                                        decimals = 0
-                                    )
-                                })"
-                            }
-                        )
-
-                        Icon(
-                            painter = painterResource(Res.drawable.chevron_forward_24px),
-                            contentDescription = null,
-                        )
-                    }
+                if (!hasDownloadDirectory) {
+                    ActionButton(
+                        onClick = onPickDownloadDirectory,
+                        text = "Choose download directory"
+                    )
                 }
+
+                val allSelected = selected.size == clientModel.index?.size
+                ActionButton(
+                    onClick = onDownload,
+                    enabled = hasDownloadDirectory,
+                    text = if (selected.isEmpty() || allSelected) {
+                        "Download everything"
+                    } else {
+                        val selectedSize = selected.sumOf { item -> item.fileSize.value() }
+                        val selectedEstimated =
+                            selected.any { item -> item.fileSize !is FileSizeModel.Actual }
+
+                        "Download selected (${selected.size} files, ${
+                            formatSize(
+                                selectedSize,
+                                estimated = selectedEstimated,
+                                decimals = 0
+                            )
+                        })"
+                    }
+                )
             }
 
             HorizontalDivider(thickness = 1.dp)
@@ -215,6 +210,36 @@ fun PreTransferScreen(
             Tree(
                 clientModel = clientModel,
                 selected = selected,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActionButton(
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    text: String,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth().height(64.dp),
+        shape = MaterialTheme.shapes.large,
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = text,
+            )
+
+            Icon(
+                painter = painterResource(Res.drawable.chevron_forward_24px),
+                contentDescription = null,
             )
         }
     }
@@ -845,13 +870,17 @@ fun FileSizeModel.value(): ULong {
 
 @Composable
 fun PreTransferScreenSandbox() {
+    var hasDownloadDirectory by remember { mutableStateOf((false)) }
+
     PreTransferScreen(
         snackbarHost = {},
         onShowNodeStatus = {},
 
         clientModel = mockClientModel(),
+        hasDownloadDirectory = hasDownloadDirectory,
+        onPickDownloadDirectory = { hasDownloadDirectory = true },
         onDownloadAll = {},
         onDownloadPartial = {},
-        onCancel = {}
+        onCancel = { hasDownloadDirectory = false }
     )
 }
