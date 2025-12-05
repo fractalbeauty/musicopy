@@ -360,6 +360,21 @@ impl Library {
                     .strip_prefix(&root.path)
                     .context("failed to strip root path prefix")?;
 
+                // strip leading separator if present
+                //
+                // this happens when the root is a verbatim UNC path like \\?\UNC\\server\share,
+                // which is parsed as Component::Prefix instead of Component::Prefix + Component::RootDir,
+                // so the leading separator isn't stripped above and needs to be stripped here.
+                //
+                // even if some other case is possible, the path is always supposed to be
+                // relative to the root, so it should be fine to strip it here.
+                let path = if path.starts_with(std::path::MAIN_SEPARATOR_STR) {
+                    path.strip_prefix(std::path::MAIN_SEPARATOR_STR)
+                        .context("failed to strip leading separator")?
+                } else {
+                    path
+                };
+
                 // convert to slash path (replace backslashes on windows)
                 use path_slash::PathExt;
                 let path = path.to_slash_lossy().to_string();
