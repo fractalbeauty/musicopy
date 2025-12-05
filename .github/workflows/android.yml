@@ -74,5 +74,5 @@ jobs:
           releaseFiles: composeApp/build/outputs/bundle/release/musicopy-release.aab
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: app.musicopy
-          track: internal
+          track: alpha
           status: draft
