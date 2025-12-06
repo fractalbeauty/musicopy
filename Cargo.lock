@@ -3143,7 +3143,6 @@ dependencies = [
  "arc-swap",
  "async-std",
  "async-stream",
- "base64",
  "dashmap 6.1.0",
  "directories-next",
  "dunce",
@@ -3152,18 +3151,16 @@ dependencies = [
  "futures",
  "globwalk",
  "hex",
- "image",
  "iroh",
  "itertools 0.14.0",
  "jni",
  "log",
  "log-panics",
+ "musicopy-transcode",
  "n0-future",
  "ndk-context",
  "objc2",
  "objc2-core-foundation",
- "ogg",
- "opus",
  "oslog",
  "path-slash",
  "postcard",
@@ -3171,7 +3168,6 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "rfd",
- "rubato",
  "rusqlite",
  "serde",
  "symphonia",
@@ -3183,6 +3179,20 @@ dependencies = [
  "uniffi",
  "url",
  "whoami 2.0.0-pre.3",
+]
+
+[[package]]
+name = "musicopy-transcode"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "image",
+ "log",
+ "ogg",
+ "opus",
+ "rubato",
+ "symphonia",
 ]
 
 [[package]]
