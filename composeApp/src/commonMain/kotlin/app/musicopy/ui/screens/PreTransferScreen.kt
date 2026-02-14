@@ -1,9 +1,9 @@
 package app.musicopy.ui.screens
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,8 +17,11 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.triStateToggleable
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -30,34 +33,31 @@ import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateSet
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.musicopy.AppSettings
+import app.musicopy.BackHandler
 import app.musicopy.formatSize
 import app.musicopy.mockClientModel
-import app.musicopy.ui.components.DetailBox
-import app.musicopy.ui.components.DetailItem
-import app.musicopy.ui.components.SectionHeader
 import app.musicopy.ui.components.TopBar
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.arrow_downward_24px
@@ -82,14 +82,9 @@ fun PreTransferScreen(
     onDownloadPartial: (List<DownloadPartialItemModel>) -> Unit,
     onCancel: () -> Unit,
 ) {
-    val numFolders = remember(clientModel.index) {
-        countIndexFolders(
-            clientModel.index ?: emptyList()
-        )
-    }
-    val numFiles = remember(clientModel.index) {
-        clientModel.index?.size ?: 0
-    }
+    val selected = remember { mutableStateSetOf<IndexItemModel>() }
+
+    // Total size
     val totalSize = remember(clientModel.index) {
         clientModel.index?.let { index ->
             index.sumOf { item -> item.fileSize.value() }
@@ -101,21 +96,106 @@ fun PreTransferScreen(
         } ?: false
     }
 
-    val selected = remember { mutableStateSetOf<IndexItemModel>() }
-
-    val allCheckboxState = if (selected.isEmpty()) {
-        ToggleableState.Off
-    } else {
-        ToggleableState.On
+    // Build node graph
+    val topLevelNodes = remember(clientModel.index) {
+        buildTree(clientModel.index ?: emptyList())
     }
-    val onAllCheckboxClick: () -> Unit = {
-        if (selected.isEmpty()) {
-            clientModel.index?.let { index ->
-                selected.clear()
-                selected.addAll(index)
-            }
+
+    // Build node size lookup
+    val nodeSizes = remember(topLevelNodes) {
+        buildNodeSizes(topLevelNodes)
+    }
+
+    // Navigation stack for breadcrumb navigation
+    val navigationStack = remember { mutableStateListOf<TreeNode>() }
+
+    // Stored scroll states for each folder
+    val scrollStates =
+        remember { mutableMapOf<String, LazyListState>() }
+
+    // Current scroll state based on navigation stack
+    val currentScrollState = scrollStates.getOrPut(navigationStack.joinToString("/")) {
+        LazyListState()
+    }
+
+    // Current children based on navigation stack
+    val currentChildren = navigationStack.lastOrNull()?.children ?: topLevelNodes
+
+    // Current folder size
+    val currentFolderSize: ULong
+    val currentFolderSizeEstimated: Boolean
+    if (navigationStack.isEmpty()) {
+        currentFolderSize = totalSize
+        currentFolderSizeEstimated = totalSizeEstimated
+    } else {
+        val currentFolder = navigationStack.last()
+        val folderSizeModel = nodeSizes.getOrElse(currentFolder) { FileSizeModel.Unknown }
+        currentFolderSize = folderSizeModel.value()
+        currentFolderSizeEstimated = folderSizeModel !is FileSizeModel.Actual
+    }
+
+    BackHandler(enabled = navigationStack.isNotEmpty()) {
+        navigationStack.removeLast()
+    }
+
+    // Checkbox state and handler
+    val checkboxState: ToggleableState
+    val onCheckboxClick: () -> Unit
+    if (navigationStack.isEmpty()) {
+        // At root: select all items in the entire index
+        checkboxState = if (selected.isEmpty()) {
+            ToggleableState.Off
+        } else if (selected.size == clientModel.index?.size) {
+            ToggleableState.On
         } else {
-            selected.clear()
+            ToggleableState.Indeterminate
+        }
+        onCheckboxClick = {
+            if (selected.size == clientModel.index?.size) {
+                selected.clear()
+            } else {
+                clientModel.index?.let { index ->
+                    selected.clear()
+                    selected.addAll(index)
+                }
+            }
+        }
+    } else {
+        // In a folder: select all items in current folder
+        val currentFolder = navigationStack.last()
+        val isSelected: (IndexItemModel) -> Boolean = { item -> selected.contains(item) }
+        val currentFolderState = getNodeState(currentFolder, isSelected)
+
+        checkboxState = when (currentFolderState) {
+            RowState.None -> ToggleableState.Off
+            RowState.Selected -> ToggleableState.On
+            RowState.Downloaded -> ToggleableState.On
+            RowState.DownloadedOrNone -> ToggleableState.Indeterminate
+            RowState.DownloadedOrSelected -> ToggleableState.On
+            RowState.Indeterminate -> ToggleableState.Indeterminate
+            null -> ToggleableState.Off
+        }
+
+        onCheckboxClick = {
+            val onSelect: (IndexItemModel, Boolean) -> Unit = { item, shouldSelect ->
+                if (shouldSelect) {
+                    selected.add(item)
+                } else {
+                    selected.remove(item)
+                }
+            }
+
+            when (currentFolderState) {
+                RowState.Selected, RowState.DownloadedOrSelected, RowState.Indeterminate -> {
+                    onSelectRecursive(currentFolder, onSelect, false)
+                }
+
+                RowState.None, RowState.DownloadedOrNone -> {
+                    onSelectRecursive(currentFolder, onSelect, true)
+                }
+
+                RowState.Downloaded, null -> {}
+            }
         }
     }
 
@@ -140,77 +220,127 @@ fun PreTransferScreen(
             TopBar(
                 title = "Transfer",
                 onShowNodeStatus = onShowNodeStatus,
-                onBack = onCancel
+                onBack = {
+                    if (navigationStack.isNotEmpty()) {
+                        navigationStack.removeLast()
+                    } else {
+                        onCancel()
+                    }
+                }
             )
+        },
+        bottomBar = {
+            BottomAppBar {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                ) {
+                    if (!hasDownloadDirectory) {
+                        ActionButton(
+                            onClick = onPickDownloadDirectory,
+                            text = "Choose download directory"
+                        )
+                    } else {
+                        val allSelected = selected.size == clientModel.index?.size
+                        val numFiles = clientModel.index?.size ?: 0
+                        ActionButton(
+                            onClick = onDownload,
+                            enabled = hasDownloadDirectory,
+                            text = if (selected.isEmpty() || allSelected) {
+                                "Download everything ($numFiles files, ${
+                                    formatSize(
+                                        totalSize,
+                                        estimated = totalSizeEstimated,
+                                        decimals = 0
+                                    )
+                                })"
+                            } else {
+                                val selectedSize = selected.sumOf { item -> item.fileSize.value() }
+                                val selectedEstimated =
+                                    selected.any { item -> item.fileSize !is FileSizeModel.Actual }
+
+                                "Download selected (${selected.size} files, ${
+                                    formatSize(
+                                        selectedSize,
+                                        estimated = selectedEstimated,
+                                        decimals = 0
+                                    )
+                                })"
+                            }
+                        )
+                    }
+                }
+            }
         },
         snackbarHost = snackbarHost,
     ) { innerPadding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
         ) {
-            Column(
-                modifier = Modifier.padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                DetailBox {
-                    DetailItem("Folders", "$numFolders")
-                    DetailItem("Files", "$numFiles")
-                    DetailItem(
-                        "Total Size",
-                        formatSize(
-                            totalSize,
-                            estimated = totalSizeEstimated,
-                            decimals = 0,
-                        )
-                    )
-                }
-
-                if (!hasDownloadDirectory) {
-                    ActionButton(
-                        onClick = onPickDownloadDirectory,
-                        text = "Choose download directory"
-                    )
-                }
-
-                val allSelected = selected.size == clientModel.index?.size
-                ActionButton(
-                    onClick = onDownload,
-                    enabled = hasDownloadDirectory,
-                    text = if (selected.isEmpty() || allSelected) {
-                        "Download everything"
-                    } else {
-                        val selectedSize = selected.sumOf { item -> item.fileSize.value() }
-                        val selectedEstimated =
-                            selected.any { item -> item.fileSize !is FileSizeModel.Actual }
-
-                        "Download selected (${selected.size} files, ${
-                            formatSize(
-                                selectedSize,
-                                estimated = selectedEstimated,
-                                decimals = 0
-                            )
-                        })"
+            BreadcrumbBar(
+                navigationStack = navigationStack,
+                deviceName = clientModel.name,
+                onNavigateToRoot = { navigationStack.clear() },
+                onNavigateToIndex = { index ->
+                    // Keep items 0..index, remove rest
+                    while (navigationStack.size > index + 1) {
+                        navigationStack.removeLast()
                     }
-                )
-            }
-
-            HorizontalDivider(thickness = 1.dp)
-
-            SectionHeader(
-                text = "FILES",
-                leftContent = {
-                    TriStateCheckbox(
-                        state = allCheckboxState,
-                        onClick = onAllCheckboxClick
-                    )
                 },
-                contentPadding = PaddingValues()
+                checkboxState = checkboxState,
+                onCheckboxClick = onCheckboxClick,
+                currentFolderSize = currentFolderSize,
+                currentFolderSizeEstimated = currentFolderSizeEstimated,
             )
 
-            Tree(
-                clientModel = clientModel,
-                selected = selected,
-            )
+            LazyColumn(state = currentScrollState) {
+                items(
+                    items = currentChildren,
+                    key = { node -> node.part }
+                ) { node ->
+                    val isSelected: (IndexItemModel) -> Boolean =
+                        { item -> selected.contains(item) }
+                    val onSelect: (IndexItemModel, Boolean) -> Unit = { item, shouldSelect ->
+                        if (shouldSelect) {
+                            selected.add(item)
+                        } else {
+                            selected.remove(item)
+                        }
+                    }
+
+                    val rowState = getNodeState(node, isSelected)
+
+                    val onSelectThis = node.leaf?.let {
+                        {
+                            // Toggle selected item
+                            onSelect(it, !isSelected(it))
+                        }
+                    } ?: run {
+                        {
+                            // Set children based on current state
+                            when (rowState) {
+                                RowState.Selected, RowState.DownloadedOrSelected, RowState.Indeterminate -> {
+                                    onSelectRecursive(node, onSelect, false)
+                                }
+
+                                RowState.None, RowState.DownloadedOrNone -> {
+                                    onSelectRecursive(node, onSelect, true)
+                                }
+
+                                RowState.Downloaded, null -> {}
+                            }
+                        }
+                    }
+
+                    FileRow(
+                        node = node,
+                        rowState = rowState,
+                        onSelect = onSelectThis,
+                        onNavigate = if (node.leaf == null) {
+                            { navigationStack.add(node) }
+                        } else null,
+                    )
+                }
+            }
         }
     }
 }
@@ -246,59 +376,162 @@ private fun ActionButton(
 }
 
 @Composable
-internal fun Tree(
-    clientModel: ClientModel,
-    selected: SnapshotStateSet<IndexItemModel>,
+private fun BreadcrumbBar(
+    navigationStack: SnapshotStateList<TreeNode>,
+    deviceName: String,
+    onNavigateToRoot: () -> Unit,
+    onNavigateToIndex: (Int) -> Unit,
+    checkboxState: ToggleableState,
+    onCheckboxClick: () -> Unit,
+    currentFolderSize: ULong,
+    currentFolderSizeEstimated: Boolean,
 ) {
-    // build node graph
-    val topLevelNodes = remember(clientModel.index) {
-        buildTree(clientModel.index ?: emptyList())
-    }
+    val scrollState = rememberScrollState()
 
-    // build node size lookup
-    val nodeSizes = remember(topLevelNodes) {
-        buildNodeSizes(topLevelNodes)
-    }
-
-    val expanded = remember {
-        val expanded = mutableStateListOf<TreeNode>()
-
-        // expand top level nodes if they contain only non-leaves
-        for (node in topLevelNodes) {
-            if (node.children.all { child -> child.leaf == null }) {
-                expanded.add(node)
-            }
+    // Scroll to end when navigation stack changes
+    LaunchedEffect(navigationStack.size) {
+        if (navigationStack.isNotEmpty()) {
+            scrollState.animateScrollTo(scrollState.maxValue)
         }
-
-        expanded
     }
 
-    LazyColumn {
-        topLevelNodes.forEach { topLevelNode ->
-            renderNode(
-                node = topLevelNode,
-                isExpanded = { node ->
-                    expanded.contains(node)
-                },
-                onExpand = { node ->
-                    if (expanded.contains(node)) {
-                        expanded.remove(node)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TriStateCheckbox(
+            state = checkboxState,
+            onClick = onCheckboxClick
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalScroll(scrollState),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = deviceName,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontWeight = FontWeight.Bold,
+                    modifier = if (navigationStack.isNotEmpty()) {
+                        Modifier.clickable { onNavigateToRoot() }
                     } else {
-                        expanded.add(node)
+                        Modifier
                     }
-                },
-                isSelected = { item -> selected.contains(item) },
-                onSelect = { item, shouldSelect ->
-                    if (shouldSelect) {
-                        selected.add(item)
-                    } else {
-                        selected.remove(item)
-                    }
-                },
-                nodeSizes = nodeSizes
+                )
+
+                // Path crumbs
+                navigationStack.forEachIndexed { index, node ->
+                    Icon(
+                        painter = painterResource(Res.drawable.chevron_forward_24px),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 2.dp).requiredSize(18.dp)
+                    )
+                    Text(
+                        text = node.part,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable { onNavigateToIndex(index) }
+                    )
+                }
+
+                // Add padding at the end for better scrolling
+                if (navigationStack.isNotEmpty()) {
+                    Box(modifier = Modifier.width(16.dp))
+                }
+            }
+
+            Text(
+                text = formatSize(
+                    currentFolderSize,
+                    estimated = currentFolderSizeEstimated,
+                    decimals = 0,
+                ),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.padding(start = 4.dp, end = 16.dp)
             )
         }
     }
+}
+
+@Composable
+internal fun FileRow(
+    node: TreeNode,
+    rowState: RowState?,
+    onSelect: () -> Unit,
+    onNavigate: (() -> Unit)?,
+) {
+    val isFolder = node.leaf == null
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clickable(
+                onClick = {
+                    if (isFolder && onNavigate != null) {
+                        onNavigate()
+                    } else {
+                        onSelect()
+                    }
+                },
+            ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (rowState == RowState.Downloaded) {
+            DownloadedCheckbox()
+        } else {
+            val toggleableState = when (rowState) {
+                RowState.None -> ToggleableState.Off
+                RowState.Selected -> ToggleableState.On
+                RowState.Downloaded -> ToggleableState.On
+                RowState.DownloadedOrNone -> ToggleableState.Indeterminate
+                RowState.DownloadedOrSelected -> ToggleableState.On
+                RowState.Indeterminate -> ToggleableState.Indeterminate
+                null -> ToggleableState.Off
+            }
+
+            TriStateCheckbox(
+                state = toggleableState,
+                enabled = rowState != null,
+                onClick = onSelect,
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxSize().padding(end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = node.part,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            if (isFolder) {
+                Icon(
+                    painter = painterResource(Res.drawable.chevron_forward_24px),
+                    contentDescription = "Navigate into folder"
+                )
+            }
+        }
+    }
+    HorizontalDivider(thickness = 1.dp)
 }
 
 /**
@@ -595,67 +828,6 @@ internal fun onSelectRecursive(
     }
 }
 
-internal fun LazyListScope.renderNode(
-    node: TreeNode,
-    isExpanded: (TreeNode) -> Boolean,
-    onExpand: (TreeNode) -> Unit,
-    isSelected: (IndexItemModel) -> Boolean,
-    onSelect: (IndexItemModel, Boolean) -> Unit,
-    nodeSizes: Map<TreeNode, FileSizeModel>,
-    keyPath: String = "",
-    indent: Int = 0,
-) {
-    val rowState = getNodeState(node, isSelected)
-
-    val onSelectThis = node.leaf?.let {
-        {
-            // toggle selected item
-            onSelect(it, !isSelected(it))
-        }
-    } ?: run {
-        {
-            // set children based on current state
-            when (rowState) {
-                RowState.Selected, RowState.DownloadedOrSelected, RowState.Indeterminate -> {
-                    onSelectRecursive(node, onSelect, false)
-                }
-
-                RowState.None, RowState.DownloadedOrNone -> {
-                    onSelectRecursive(node, onSelect, true)
-                }
-
-                RowState.Downloaded, null -> {}
-            }
-        }
-    }
-
-    item(key = "$keyPath/${node.part}") {
-        TreeRow(
-            node,
-            isExpanded = isExpanded(node),
-            onExpand = { onExpand(node) },
-            rowState = rowState,
-            onSelect = onSelectThis,
-            fileSize = nodeSizes.getOrElse(node, defaultValue = { FileSizeModel.Unknown }),
-            indent = indent,
-        )
-    }
-
-    if (isExpanded(node)) {
-        node.children.forEach { child ->
-            renderNode(
-                node = child,
-                isExpanded = isExpanded,
-                onExpand = onExpand,
-                indent = indent + 1,
-                isSelected = isSelected,
-                onSelect = onSelect,
-                nodeSizes = nodeSizes,
-                keyPath = "$keyPath/${node.part}"
-            )
-        }
-    }
-}
 
 private val CheckboxStateLayerSize = 40.dp
 private val CheckboxDefaultPadding = 2.dp
@@ -747,118 +919,12 @@ private fun DrawScope.drawBox(
     }
 }
 
-@Composable
-internal fun TreeRow(
-    node: TreeNode,
-    isExpanded: Boolean,
-    onExpand: () -> Unit,
-    rowState: RowState?,
-    onSelect: () -> Unit,
-    fileSize: FileSizeModel,
-    indent: Int,
-) {
-    val degrees by animateFloatAsState(if (isExpanded) 90f else 0f)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .clickable(
-                onClick = {
-                    if (node.children.isEmpty()) {
-                        onSelect()
-                    } else {
-                        onExpand()
-                    }
-                },
-                // should be clickable if not downloaded or not leaf
-                enabled = (rowState != RowState.Downloaded) || (node.children.isNotEmpty())
-            ),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(modifier = Modifier.width((indent * 24).dp))
-
-        if (rowState == RowState.Downloaded) {
-            DownloadedCheckbox()
-        } else {
-            val toggleableState = when (rowState) {
-                RowState.None -> ToggleableState.Off
-                RowState.Selected -> ToggleableState.On
-                RowState.Downloaded -> ToggleableState.On
-                RowState.DownloadedOrNone -> ToggleableState.Indeterminate
-                RowState.DownloadedOrSelected -> ToggleableState.On
-                RowState.Indeterminate -> ToggleableState.Indeterminate
-                null -> ToggleableState.Off
-            }
-            val enabled = rowState != null
-
-            TriStateCheckbox(
-                state = toggleableState,
-                enabled = enabled,
-                onClick = onSelect,
-            )
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = node.part,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.StartEllipsis,
-                modifier = Modifier.weight(1f)
-            )
-
-            node.leaf?.let { leaf ->
-                // Text("${leaf.path}", modifier = Modifier.padding(end = 16.dp))
-            } ?: run {
-                Text(
-                    formatSize(
-                        fileSize.value(),
-                        estimated = fileSize !is FileSizeModel.Actual,
-                        decimals = 0,
-                    ),
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-
-                Image(
-                    painter = painterResource(Res.drawable.chevron_forward_24px),
-                    contentDescription = "Expand icon",
-                    modifier = Modifier.padding(end = 8.dp).rotate(degrees),
-                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
-                )
-            }
-        }
-    }
-    HorizontalDivider(thickness = 1.dp)
-}
 
 internal data class TreeNode(
     val part: String,
     val children: MutableList<TreeNode> = mutableListOf(),
     val leaf: IndexItemModel? = null,
 )
-
-internal fun countIndexFolders(index: List<IndexItemModel>): Int {
-    val seen = mutableSetOf<String>()
-
-    for (item in index) {
-        // split by / and drop last part
-        val path = item.path.removePrefix("/")
-        val parts = path.split('/')
-        val pathParts = parts.dropLast(1)
-
-        // count unique
-        val key = pathParts.joinToString("/")
-        seen.add(key)
-    }
-
-    return seen.size
-}
 
 fun FileSizeModel.value(): ULong {
     return when (this) {
