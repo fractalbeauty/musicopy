@@ -110,3 +110,8 @@ actual fun rememberNotificationsPermission(): MutableState<PermissionState> {
 
     return permissionState
 }
+
+@Composable
+actual fun BackHandler(enabled: Boolean, onBack: () -> Unit) {
+    androidx.activity.compose.BackHandler(enabled = enabled, onBack = onBack)
+}

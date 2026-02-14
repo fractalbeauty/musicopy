@@ -34,3 +34,8 @@ actual fun formatFloat(f: Float, decimals: Int): String {
 actual fun rememberNotificationsPermission(): MutableState<PermissionState> {
     return stubRememberNotificationsPermission()
 }
+
+@Composable
+actual fun BackHandler(enabled: Boolean, onBack: () -> Unit) {
+    // not implemented on iOS
+}

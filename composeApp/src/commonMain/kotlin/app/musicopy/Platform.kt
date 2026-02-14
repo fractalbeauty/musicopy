@@ -50,3 +50,6 @@ expect fun rememberNotificationsPermission(): MutableState<PermissionState>
 @Composable
 fun stubRememberNotificationsPermission() =
     remember { mutableStateOf(PermissionState(isGranted = true, requestPermission = {})) }
+
+@Composable
+expect fun BackHandler(enabled: Boolean, onBack: () -> Unit)
