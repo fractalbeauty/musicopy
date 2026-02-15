@@ -1,48 +1,68 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
-    flake-utils.lib.eachDefaultSystem
-      (system:
+  outputs =
+    { nixpkgs, fenix, ... }:
+    let
+      eachSupportedSystem = nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed;
+    in
+    {
+      devShells = eachSupportedSystem (
+        system:
         let
-          overlays = [ (import rust-overlay) ];
-
           pkgs = import nixpkgs {
-            inherit system overlays;
+            inherit system;
+            config.allowUnfree = true;
+            config.android_sdk.accept_license = true;
           };
+          f = fenix.packages.${system};
 
-          rustToolchain = pkgs.rust-bin.stable.latest.default.override {
-            extensions = [ "rust-src" "llvm-tools-preview" ];
-            targets = [
-              "aarch64-linux-android"
-              "armv7-linux-androideabi"
-              "i686-linux-android"
-              "x86_64-linux-android"
-            ];
-          };
-
-          nativeBuildInputs = [
-            rustToolchain
-            pkgs.cargo-ndk
-            pkgs.cargo-nextest
-            pkgs.cargo-llvm-cov
-            pkgs.just
+          rustToolchain = f.combine [
+            f.stable.defaultToolchain
+            f.stable.rust-src
+            f.stable.llvm-tools-preview
+            f.targets.aarch64-linux-android.stable.rust-std
+            f.targets.armv7-linux-androideabi.stable.rust-std
+            f.targets.i686-linux-android.stable.rust-std
+            f.targets.x86_64-linux-android.stable.rust-std
           ];
-          buildInputs = [];
+
+          androidComposition = pkgs.androidenv.composeAndroidPackages {
+            buildToolsVersions = [
+              "34.0.0"
+            ];
+            platformVersions = [
+              "33"
+              "34"
+              "35"
+              "latest"
+            ];
+            includeNDK = true;
+          };
+          lastBuildTools = pkgs.lib.lists.last androidComposition.build-tools;
         in
         {
-          devShells.default = pkgs.mkShell rec {
-            inherit nativeBuildInputs buildInputs;
+          default = pkgs.mkShell rec {
+            nativeBuildInputs = [
+              rustToolchain
+              pkgs.cargo-ndk
+              pkgs.cargo-nextest
+              pkgs.cargo-llvm-cov
+              pkgs.just
+              pkgs.jdk
+            ];
+
+            JAVA_HOME = "${pkgs.jdk}";
+            ANDROID_HOME = "${androidComposition.androidsdk}/libexec/android-sdk";
+            GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${ANDROID_HOME}/build-tools/${lastBuildTools.version}/aapt2";
           };
         }
       );
+    };
 }
