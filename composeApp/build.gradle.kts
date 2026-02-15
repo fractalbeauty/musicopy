@@ -22,6 +22,10 @@ plugins {
     id("dev.hydraulic.conveyor") version "1.12"
 
     id("com.github.gmazzo.buildconfig") version "5.6.7"
+
+    // Kotest
+    id("io.kotest") version "6.1.3"
+    id("com.google.devtools.ksp") version "2.3.5"
 }
 
 val appVersionCode = System.getenv("APP_VERSION_CODE")?.toInt() ?: 1
@@ -67,7 +71,20 @@ kotlin {
     }
 
     sourceSets {
-        val desktopMain by getting
+        val desktopMain by getting {
+            dependencies {
+                implementation(compose.desktop.currentOs)
+                implementation(libs.kotlinx.coroutinesSwing)
+            }
+        }
+        val desktopTest by getting {
+            dependencies {
+                // Kotest
+                implementation("io.kotest:kotest-runner-junit5:6.1.3")
+                implementation("io.kotest:kotest-framework-engine:6.1.3")
+                implementation("io.kotest:kotest-assertions-core:6.1.3")
+            }
+        }
 
         androidMain.dependencies {
             implementation(compose.preview)
@@ -102,13 +119,6 @@ kotlin {
             implementation("com.russhwolf:multiplatform-settings-make-observable:1.3.0")
             implementation("com.russhwolf:multiplatform-settings-coroutines:1.3.0")
             implementation("com.russhwolf:multiplatform-settings-test:1.3.0")
-        }
-        commonTest.dependencies {
-            implementation(libs.kotlin.test)
-        }
-        desktopMain.dependencies {
-            implementation(compose.desktop.currentOs)
-            implementation(libs.kotlinx.coroutinesSwing)
         }
     }
 }
@@ -211,5 +221,11 @@ configurations.all {
         // https://github.com/JetBrains/compose-jb/issues/1404#issuecomment-1146894731
         attribute(Attribute.of("ui", String::class.java), "awt")
     }
+}
+// endregion
+
+// region Kotest setup
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }
 // endregion
