@@ -2,6 +2,7 @@ package app.musicopy
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.ClipEntry
 import uniffi.musicopy.CoreOptions
 import java.awt.Window
@@ -31,6 +32,7 @@ actual object CoreProvider : ICoreProvider {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 actual fun toClipEntry(string: String): ClipEntry = ClipEntry(StringSelection(string))
 
 actual fun formatFloat(f: Float, decimals: Int): String {

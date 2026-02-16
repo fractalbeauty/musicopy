@@ -7,25 +7,25 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.composeMultiplatform)
-    alias(libs.plugins.composeCompiler)
-    alias(libs.plugins.composeHotReload)
-    alias(libs.plugins.serialization)
+    alias(libs.plugins.compose)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.compose.hotreload)
+    alias(libs.plugins.kotlin.serialization)
 
+    alias(libs.plugins.conveyor)
+    alias(libs.plugins.buildconfig)
+
+    // Gobley (requires atomicfu)
     alias(libs.plugins.gobleyCargo)
     alias(libs.plugins.gobleyRust)
     alias(libs.plugins.gobleyUniffi)
-    kotlin("plugin.atomicfu") version libs.versions.kotlin
+    alias(libs.plugins.atomicfu)
 
-    id("dev.hydraulic.conveyor") version "1.12"
-
-    id("com.github.gmazzo.buildconfig") version "5.6.7"
-
-    // Kotest
-    id("io.kotest") version "6.1.3"
-    id("com.google.devtools.ksp") version "2.3.5"
+    // Kotest (requires KSP)
+    alias(libs.plugins.kotest)
+    alias(libs.plugins.ksp)
 }
 
 val appVersionCode = System.getenv("APP_VERSION_CODE")?.toInt() ?: 1
@@ -77,54 +77,44 @@ kotlin {
         val desktopMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
-                implementation(libs.kotlinx.coroutinesSwing)
+                implementation(libs.kotlinx.coroutines.swing)
             }
         }
         val desktopTest by getting {
             dependencies {
                 // Kotest
-                implementation("io.kotest:kotest-runner-junit5:6.1.3")
-                implementation("io.kotest:kotest-framework-engine:6.1.3")
-                implementation("io.kotest:kotest-assertions-core:6.1.3")
-                implementation("io.kotest:kotest-assertions-json:6.1.3")
+                implementation(libs.kotest.runner.junit5)
+                implementation(libs.kotest.framework.engine)
+                implementation(libs.kotest.assertions.core)
+                implementation(libs.kotest.assertions.json)
 
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
+                implementation(libs.kotlinx.serialization.json)
             }
         }
 
         androidMain.dependencies {
-            implementation(compose.preview)
+            implementation(libs.compose.ui.tooling.preview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.splashscreen)
-
-            // QR scanner
-            implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+            implementation(libs.play.services.code.scanner)
         }
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.ui)
-            implementation(compose.components.resources)
-            implementation(compose.components.uiToolingPreview)
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.ui)
+            implementation(libs.compose.components.resources)
+            implementation(libs.compose.ui.tooling.preview)
             implementation(libs.androidx.lifecycle.viewmodel)
-            implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.androidx.lifecycle.viewmodel.compose)
-
-            // bottom sheet
-            implementation("com.composables:core:1.36.1")
-
-            // QR generator
-            implementation("io.github.alexzhirkevich:qrose:1.0.1")
-
-            // navigation
-            implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.0-beta03")
-
-            // multiplatform settings
-            implementation("com.russhwolf:multiplatform-settings-no-arg:1.3.0")
-            implementation("com.russhwolf:multiplatform-settings-make-observable:1.3.0")
-            implementation("com.russhwolf:multiplatform-settings-coroutines:1.3.0")
-            implementation("com.russhwolf:multiplatform-settings-test:1.3.0")
+            implementation(libs.androidx.navigation.compose)
+            implementation(libs.composables.composeunstyled.primitives)
+            implementation(libs.qrose)
+            implementation(libs.multiplatform.settings.no.arg)
+            implementation(libs.multiplatform.settings.make.observable)
+            implementation(libs.multiplatform.settings.coroutines)
+            implementation(libs.multiplatform.settings.test)
         }
     }
 }
@@ -157,13 +147,13 @@ android {
 }
 
 dependencies {
-    debugImplementation(compose.uiTooling)
+    debugImplementation(libs.compose.ui.tooling)
 
     // Conveyor
-    linuxAmd64(compose.desktop.linux_x64)
-    macAmd64(compose.desktop.macos_x64)
-    macAarch64(compose.desktop.macos_arm64)
-    windowsAmd64(compose.desktop.windows_x64)
+    linuxAmd64(libs.compose.desktop.linux.x64)
+    macAmd64(libs.compose.desktop.macos.x64)
+    macAarch64(libs.compose.desktop.macos.arm64)
+    windowsAmd64(libs.compose.desktop.windows.x64)
 }
 
 compose.desktop {
