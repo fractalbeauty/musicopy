@@ -588,12 +588,13 @@ internal fun buildTree(
         collapseNodeChildren(root)
     }
 
-    // if there's only one root, return its contents as the top level
-    return if (roots.size == 1) {
-        roots[0].children
-    } else {
-        roots
+    // strip single-child folders from the top
+    var topLevel = roots
+    while (topLevel.size == 1 && topLevel[0].leaf == null) {
+        topLevel = topLevel[0].children
     }
+
+    return topLevel
 }
 
 /**
@@ -614,8 +615,8 @@ internal fun collapseNodeChildren(node: TreeNode) {
             continue;
         }
 
-        // only collapse if all grandchildren are non-leafs
-        val shouldCollapse = child.children.all { grandchild -> grandchild.leaf == null }
+        // only collapse if there's exactly one child and it's a folder
+        val shouldCollapse = child.children.size == 1 && child.children[0].leaf == null
         if (!shouldCollapse) {
             continue
         }
