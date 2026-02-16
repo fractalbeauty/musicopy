@@ -86,6 +86,9 @@ kotlin {
                 implementation("io.kotest:kotest-runner-junit5:6.1.3")
                 implementation("io.kotest:kotest-framework-engine:6.1.3")
                 implementation("io.kotest:kotest-assertions-core:6.1.3")
+                implementation("io.kotest:kotest-assertions-json:6.1.3")
+
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
             }
         }
 
