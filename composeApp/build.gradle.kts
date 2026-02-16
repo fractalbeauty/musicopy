@@ -65,10 +65,13 @@ kotlin {
 
     jvm("desktop")
 
-    jvmToolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-        vendor = JvmVendorSpec.JETBRAINS
-    }
+    // TODO: this was added at some point (maybe for Conveyor?) but breaks building using the Nix flake,
+    // maybe because the flake's toolchain doesn't match and it fails to download the correct toolchain.
+    // Commented out for now but might be needed for something.
+    // jvmToolchain {
+    //     languageVersion = JavaLanguageVersion.of(21)
+    //     vendor = JvmVendorSpec.JETBRAINS
+    // }
 
     sourceSets {
         val desktopMain by getting {
