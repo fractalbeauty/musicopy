@@ -111,6 +111,14 @@ pub enum FileSizeModel {
     Actual(u64),
 }
 
+/// Model of the download status of an item in a client's index.
+#[derive(Debug, Clone, uniffi::Enum)]
+pub enum IndexItemDownloadStatusModel {
+    InProgress,
+    Downloaded,
+    Failed,
+}
+
 /// Model of an item in the index sent by the server.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct IndexItemModel {
@@ -120,7 +128,7 @@ pub struct IndexItemModel {
 
     pub file_size: FileSizeModel,
 
-    pub downloaded: bool,
+    pub download_status: Option<IndexItemDownloadStatusModel>,
 }
 
 /// Model of the state of a client connection.
@@ -1006,17 +1014,45 @@ impl Node {
                                 .into_iter()
                                 .map(|item| {
                                     // check if file is downloaded to the current download directory
-                                    let downloaded = download_directory.as_ref().is_some_and(
+                                    let file_exists = download_directory.as_ref().is_some_and(
                                         |download_directory| {
                                             db.exists_file_by_node_root_path_localtree(
                                                 node_id,
                                                 &item.root,
                                                 &item.path,
-                                                &download_directory,
+                                                download_directory,
                                             )
                                             .unwrap_or(false)
                                         },
                                     );
+
+                                    // determine download status
+                                    let download_status = if file_exists {
+                                        Some(IndexItemDownloadStatusModel::Downloaded)
+                                    } else {
+                                        // check if there's an active transfer job for this file
+                                        let transfer_job =
+                                            client.transfer_jobs.iter().find(|job| {
+                                                job.file_root == item.root
+                                                    && job.file_path == item.path
+                                            });
+
+                                        match transfer_job {
+                                            Some(job) => match &job.progress {
+                                                TransferJobProgressModel::Requested
+                                                | TransferJobProgressModel::Transcoding
+                                                | TransferJobProgressModel::Ready
+                                                | TransferJobProgressModel::InProgress { .. } => {
+                                                    Some(IndexItemDownloadStatusModel::InProgress)
+                                                }
+                                                TransferJobProgressModel::Failed { .. } => {
+                                                    Some(IndexItemDownloadStatusModel::Failed)
+                                                }
+                                                TransferJobProgressModel::Finished { .. } => None,
+                                            },
+                                            None => None,
+                                        }
+                                    };
 
                                     IndexItemModel {
                                         node_id: node_id.to_string(),
@@ -1029,7 +1065,7 @@ impl Node {
                                             FileSize::Actual(n) => FileSizeModel::Actual(n),
                                         },
 
-                                        downloaded,
+                                        download_status,
                                     }
                                 })
                                 .collect();

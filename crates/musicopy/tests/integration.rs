@@ -737,7 +737,7 @@ mod transfer {
             assert_eq!(item.node_id, core_2.node_id_str());
             assert_eq!(item.root, "foo");
             assert_eq!(item.path, "test.mp3");
-            assert!(!item.downloaded);
+            assert!(item.download_status.is_none());
         }
 
         // core 1: download all
