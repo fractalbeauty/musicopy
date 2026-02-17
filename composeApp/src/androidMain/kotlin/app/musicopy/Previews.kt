@@ -30,6 +30,7 @@ fun ConnectQRScreenPreview() {
             snackbarHost = {},
             onShowNodeStatus = {},
 
+            autoLaunch = false,
             onSubmit = {},
             onCancel = {},
             isConnecting = false

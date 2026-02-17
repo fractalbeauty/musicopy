@@ -61,7 +61,7 @@ private sealed interface CameraAccess {
 }
 
 @Composable
-actual fun QRScanner(onResult: (String) -> Unit) {
+actual fun QRScanner(autoLaunch: Boolean, onResult: (String) -> Unit) {
     var cameraAccess: CameraAccess by remember { mutableStateOf(CameraAccess.Unknown) }
     LaunchedEffect(Unit) {
         when (AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)) {

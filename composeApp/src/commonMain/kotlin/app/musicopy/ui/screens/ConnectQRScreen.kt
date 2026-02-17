@@ -29,6 +29,7 @@ fun ConnectQRScreen(
     snackbarHost: @Composable () -> Unit,
     onShowNodeStatus: () -> Unit,
 
+    autoLaunch: Boolean,
     isConnecting: Boolean,
     onSubmit: (String) -> Unit,
     onCancel: () -> Unit,
@@ -97,9 +98,12 @@ fun ConnectQRScreen(
             }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                QRScanner(onResult = { nodeId ->
-                    onSubmit(nodeId)
-                })
+                QRScanner(
+                    autoLaunch = autoLaunch,
+                    onResult = { nodeId ->
+                        onSubmit(nodeId)
+                    }
+                )
             }
         }
     }

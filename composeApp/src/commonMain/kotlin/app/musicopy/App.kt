@@ -191,13 +191,23 @@ fun App(
                     onConnectRecent = { nodeId -> onConnect(nodeId, false) },
                 )
             }
-            composable<ConnectQR> {
+            composable<ConnectQR> { backStackEntry ->
+                // Track whether we've submitted from this backstack entry.
+                //
+                // If we have, we're returning from a deeper screen and we shouldn't auto-launch the
+                // QR scanner, since it feels weird for it to appear after a back gesture.
+                val hasSubmitted = backStackEntry.savedStateHandle.get<Boolean>("hasSubmitted") ?: false
+
                 ConnectQRScreen(
                     snackbarHost = snackbarHost,
                     onShowNodeStatus = onShowNodeStatus,
 
+                    autoLaunch = !hasSubmitted,
                     isConnecting = isConnecting,
-                    onSubmit = { nodeId -> onConnect(nodeId, false) },
+                    onSubmit = { nodeId ->
+                        backStackEntry.savedStateHandle.set("hasSubmitted", true)
+                        onConnect(nodeId, false)
+                    },
                     onCancel = {
                         navController.popBackStack(Home, inclusive = false)
                     },

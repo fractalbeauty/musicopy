@@ -19,10 +19,11 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 
 @Composable
-actual fun QRScanner(onResult: (String) -> Unit) {
+actual fun QRScanner(autoLaunch: Boolean, onResult: (String) -> Unit) {
     var resultText by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
+
     val startScan = {
         val options = GmsBarcodeScannerOptions.Builder()
             .setBarcodeFormats(
@@ -51,8 +52,10 @@ actual fun QRScanner(onResult: (String) -> Unit) {
             }
     }
 
-    LaunchedEffect(true) {
-        startScan()
+    LaunchedEffect(Unit) {
+        if (autoLaunch) {
+            startScan()
+        }
     }
 
     Column(
