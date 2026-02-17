@@ -4,7 +4,17 @@ default:
   just --list
 
 test:
+  just test-rust
+  just test-gradle
+
+test-rust:
   cargo nextest run --package musicopy
+
+test-gradle:
+  ./gradlew desktopTest --info
+
+test-gradle-report:
+  xdg-open ./composeApp/build/reports/tests/desktopTest/index.html
 
 cov:
   cargo llvm-cov --html nextest --package musicopy
