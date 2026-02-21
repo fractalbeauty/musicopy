@@ -23,7 +23,7 @@ kotlinx-serialization = "1.10.0"
 ksp = "2.3.5"
 multiplatform-settings = "1.3.0"
 play-services-code-scanner = "16.1.0"
-qrose = "1.1.2"
+qrose = "1.0.1"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
