@@ -57,6 +57,8 @@ jobs:
       - name: Build app
         env:
           APP_VERSION_CODE: ${{ steps.buildcount.outputs.versioncode }}
+          # Build UniFFI bindings from the release build since we need to do the release build either way
+          GOBLEY_UNIFFI_VARIANT: release
         run: ./gradlew bundleRelease
 
       - name: Sign app
