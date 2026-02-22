@@ -66,13 +66,15 @@ kotlin {
 
     jvm("desktop")
 
-    // TODO: this was added at some point (maybe for Conveyor?) but breaks building using the Nix flake,
-    // maybe because the flake's toolchain doesn't match and it fails to download the correct toolchain.
-    // Commented out for now but might be needed for something.
-    // jvmToolchain {
-    //     languageVersion = JavaLanguageVersion.of(21)
-    //     vendor = JvmVendorSpec.JETBRAINS
-    // }
+    // We set this so that Conveyor knows which JVM toolchain to use for packaging the desktop app,
+    // but we have an option to disable it since it causes problems when using the Nix flake.
+    val skipJvmToolchain = System.getenv("MUSICOPY_UNSET_JVM_TOOLCHAIN") == "true"
+    if (!skipJvmToolchain) {
+        jvmToolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+            vendor = JvmVendorSpec.JETBRAINS
+        }
+    }
 
     sourceSets {
         val desktopMain by getting {

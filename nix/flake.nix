@@ -61,6 +61,8 @@
             JAVA_HOME = "${pkgs.jdk}";
             ANDROID_HOME = "${androidComposition.androidsdk}/libexec/android-sdk";
             GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${ANDROID_HOME}/build-tools/${lastBuildTools.version}/aapt2";
+
+            MUSICOPY_UNSET_JVM_TOOLCHAIN = "true";
           };
         }
       );

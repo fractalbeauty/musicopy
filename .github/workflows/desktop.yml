@@ -125,6 +125,7 @@ jobs:
       - name: Set build variables
         run: |
           echo "GOBLEY_RUST_VARIANT=release" >> $GITHUB_ENV
+          # Skip building Rust since we're downloading the built jars from the build-rust job
           echo "GOBLEY_RUST_SKIP=true" >> $GITHUB_ENV
           echo "GOBLEY_UNIFFI_TARGET=x86_64-unknown-linux-gnu" >> $GITHUB_ENV
           echo "GOBLEY_UNIFFI_VARIANT=debug" >> $GITHUB_ENV
