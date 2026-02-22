@@ -51,9 +51,6 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 fun main() = application {
-    // use mock settings store
-    AppSettings.installMockSettings()
-
     val state = rememberWindowState(
         size = DpSize(WINDOW_WIDTH.dp, WINDOW_HEIGHT.dp),
     )

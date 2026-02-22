@@ -15,9 +15,10 @@ import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
     val platformAppContext = PlatformAppContext()
+    val appSettings = AppSettings()
 
     // TODO: measure how long blocking on this takes
-    val coreInstance = CoreInstance.start(platformAppContext)
+    val coreInstance = CoreInstance.start(platformAppContext, appSettings)
 
     awaitApplication {
         val state = rememberWindowState()
@@ -33,6 +34,7 @@ fun main() = runBlocking {
                 platformAppContext = platformAppContext,
                 platformActivityContext = platformActivityContext,
                 coreInstance = coreInstance,
+                appSettings = appSettings
             )
 
             // TODO

@@ -41,8 +41,11 @@ actual class PlatformActivityContext private actual constructor() {
 }
 
 actual object CoreProvider : ICoreProvider {
-    override fun getOptions(platformAppContext: PlatformAppContext): CoreOptions {
-        val options = super.getOptions(platformAppContext)
+    override fun getOptions(
+        platformAppContext: PlatformAppContext,
+        appSettings: AppSettings,
+    ): CoreOptions {
+        val options = super.getOptions(platformAppContext, appSettings)
         options.projectDirs = ProjectDirsOptions(
             dataDir = platformAppContext.application.filesDir.path,
             cacheDir = platformAppContext.application.cacheDir.path

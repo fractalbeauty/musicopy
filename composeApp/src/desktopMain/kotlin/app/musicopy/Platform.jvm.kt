@@ -25,8 +25,11 @@ actual class PlatformActivityContext private actual constructor() {
 }
 
 actual object CoreProvider : ICoreProvider {
-    override fun getOptions(platformAppContext: PlatformAppContext): CoreOptions {
-        val defaults = super.getOptions(platformAppContext)
+    override fun getOptions(
+        platformAppContext: PlatformAppContext,
+        appSettings: AppSettings,
+    ): CoreOptions {
+        val defaults = super.getOptions(platformAppContext, appSettings)
 //        defaults.inMemory = true
         return defaults
     }

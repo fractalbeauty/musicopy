@@ -46,6 +46,7 @@ fun App(
     platformAppContext: PlatformAppContext,
     platformActivityContext: PlatformActivityContext,
     coreInstance: CoreInstance,
+    appSettings: AppSettings,
     navController: NavHostController = rememberNavController(),
 ) {
     val scope = rememberCoroutineScope()
@@ -54,10 +55,10 @@ fun App(
     val libraryModel by coreInstance.libraryState.collectAsState()
     val nodeModel by coreInstance.nodeState.collectAsState()
 
-    val directoryPicker = rememberDirectoryPicker(platformActivityContext)
+    val directoryPicker = rememberDirectoryPicker(platformActivityContext, appSettings)
 
     // set download directory when changed
-    val downloadDirectory by AppSettings.downloadDirectoryFlow.collectAsState(initial = null)
+    val downloadDirectory by appSettings.downloadDirectoryFlow.collectAsState(initial = null)
     LaunchedEffect(downloadDirectory) {
         downloadDirectory?.let {
             coreInstance.instance.setDownloadDirectory(it)
@@ -172,6 +173,8 @@ fun App(
         ) {
             composable<Home> {
                 HomeScreen(
+                    appSettings = appSettings,
+                    
                     snackbarHost = snackbarHost,
                     onShowNodeStatus = onShowNodeStatus,
 
@@ -289,7 +292,7 @@ fun App(
 
                 // TODO: handle null better, redirect to error screen?
                 if (clientModel != null) {
-                    val downloadDirectory by AppSettings.downloadDirectoryFlow.collectAsState(
+                    val downloadDirectory by appSettings.downloadDirectoryFlow.collectAsState(
                         null
                     )
 

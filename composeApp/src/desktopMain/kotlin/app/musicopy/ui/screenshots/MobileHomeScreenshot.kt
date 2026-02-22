@@ -2,6 +2,7 @@ package app.musicopy.ui.screenshots
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import app.musicopy.AppSettings
 import app.musicopy.mockNodeId
 import app.musicopy.now
@@ -10,8 +11,10 @@ import uniffi.musicopy.RecentServerModel
 
 @Composable
 fun MobileHomeScreenshot() {
+    val appSettings = remember { AppSettings.createMock() }
+
     LaunchedEffect(true) {
-        AppSettings.downloadDirectory = "My Music"
+        appSettings.downloadDirectory = "My Music"
     }
 
     val recentServers = listOf(
@@ -31,6 +34,7 @@ fun MobileHomeScreenshot() {
         snackbarHost = {},
         onShowNodeStatus = {},
 
+        appSettings = appSettings,
         recentServers = recentServers,
         connectingTo = null,
         onPickDownloadDirectory = {},

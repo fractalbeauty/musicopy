@@ -50,6 +50,8 @@ import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun HomeScreen(
+    appSettings: AppSettings,
+
     snackbarHost: @Composable () -> Unit,
     onShowNodeStatus: () -> Unit,
 
@@ -71,7 +73,7 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(modifier = Modifier.padding(8.dp)) {
-                val downloadDirectory by AppSettings.downloadDirectoryFlow.collectAsState(
+                val downloadDirectory by appSettings.downloadDirectoryFlow.collectAsState(
                     null
                 )
 
@@ -254,6 +256,7 @@ fun RecentConnection(
 
 @Composable
 fun HomeScreenSandbox() {
+    val appSettings = remember { AppSettings.createMock() }
     val recentServers = remember {
         buildList {
             repeat(10) {
@@ -281,6 +284,8 @@ fun HomeScreenSandbox() {
     }
 
     HomeScreen(
+        appSettings = appSettings,
+        
         snackbarHost = {},
         onShowNodeStatus = {},
 

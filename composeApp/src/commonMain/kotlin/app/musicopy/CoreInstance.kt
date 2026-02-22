@@ -9,11 +9,11 @@ import uniffi.musicopy.NodeModel
 
 class CoreInstance private constructor() : EventHandler {
     companion object {
-        suspend fun start(platformAppContext: PlatformAppContext): CoreInstance {
+        suspend fun start(platformAppContext: PlatformAppContext, appSettings: AppSettings): CoreInstance {
             val instance = CoreInstance()
             instance._instance = Core.start(
                 eventHandler = instance,
-                options = CoreProvider.getOptions(platformAppContext)
+                options = CoreProvider.getOptions(platformAppContext, appSettings)
             )
             instance._libraryState = MutableStateFlow(instance._instance.getLibraryModel())
             instance._nodeState = MutableStateFlow(instance._instance.getNodeModel())

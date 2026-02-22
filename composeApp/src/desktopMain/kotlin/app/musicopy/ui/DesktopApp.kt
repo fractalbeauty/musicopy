@@ -18,6 +18,7 @@ fun DesktopApp(
     platformAppContext: PlatformAppContext,
     platformActivityContext: PlatformActivityContext,
     coreInstance: CoreInstance,
+    appSettings: AppSettings,
 ) {
     val libraryModel by coreInstance.libraryState.collectAsState()
     val nodeModel by coreInstance.nodeState.collectAsState()
@@ -44,7 +45,7 @@ fun DesktopApp(
                 onRemoveLibraryRoot = { name -> coreInstance.instance.removeLibraryRoot(name) },
                 onRescanLibrary = { coreInstance.instance.rescanLibrary() },
                 onSetTranscodePolicy = { policy ->
-                    AppSettings.transcodePolicy = policy
+                    appSettings.transcodePolicy = policy
                     coreInstance.instance.setTranscodePolicy(policy)
                 },
                 onDeleteUnusedTranscodes = {

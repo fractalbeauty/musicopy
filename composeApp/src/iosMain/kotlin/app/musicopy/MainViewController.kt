@@ -13,10 +13,11 @@ import platform.UIKit.UIViewController
 fun MainViewController(): UIViewController {
     val platformAppContext = PlatformAppContext()
     val platformActivityContext = PlatformActivityContext()
+    val appSettings = AppSettings()
 
     val coreInstanceState: MutableState<CoreInstance?> = mutableStateOf(null)
     GlobalScope.launch {
-        coreInstanceState.value = CoreInstance.start(platformAppContext)
+        coreInstanceState.value = CoreInstance.start(platformAppContext, appSettings)
     }
 
     return ComposeUIViewController {
@@ -26,7 +27,8 @@ fun MainViewController(): UIViewController {
             App(
                 platformAppContext = platformAppContext,
                 platformActivityContext = platformActivityContext,
-                coreInstance = coreInstance
+                coreInstance = coreInstance,
+                appSettings = appSettings
             )
         }
     }

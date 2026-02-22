@@ -20,6 +20,7 @@ const val NOTIFICATION_ID_TRANSFER = 100
 
 class AppApplication : Application() {
     var platformAppContext: PlatformAppContext = PlatformAppContext(this)
+    val appSettings: AppSettings = AppSettings()
 
     lateinit var coreInstance: CoreInstance
         private set
@@ -38,7 +39,7 @@ class AppApplication : Application() {
         // launch coroutine to initialize core instance asynchronously
         @OptIn(DelicateCoroutinesApi::class)
         GlobalScope.launch {
-            coreInstance = CoreInstance.start(platformAppContext)
+            coreInstance = CoreInstance.start(platformAppContext, appSettings)
             coreInstanceReady.value = true
 
             onCoreInstanceReady()

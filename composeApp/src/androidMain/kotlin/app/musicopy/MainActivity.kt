@@ -20,6 +20,7 @@ import androidx.lifecycle.LifecycleOwner
 class AppLifecycleObserver(
     private val registry: ActivityResultRegistry,
     private val contentResolver: ContentResolver,
+    private val appSettings: AppSettings,
 ) :
     DefaultLifecycleObserver {
     lateinit var openDocumentTree: ActivityResultLauncher<Uri?>
@@ -38,7 +39,7 @@ class AppLifecycleObserver(
                 contentResolver.takePersistableUriPermission(uri, modeFlags)
 
                 // store
-                AppSettings.downloadDirectory = uri.toString()
+                appSettings.downloadDirectory = uri.toString()
             }
     }
 }
@@ -53,13 +54,13 @@ class MainActivity : ComponentActivity() {
 
         super.onCreate(savedInstanceState)
 
-        // register activity lifecycle observer
-        observer = AppLifecycleObserver(activityResultRegistry, contentResolver)
-        lifecycle.addObserver(observer)
-
         // show splash screen until core is ready
         val app = application as AppApplication
         splashScreen.setKeepOnScreenCondition { !app.coreInstanceReady.value }
+
+        // register activity lifecycle observer
+        observer = AppLifecycleObserver(activityResultRegistry, contentResolver, app.appSettings)
+        lifecycle.addObserver(observer)
 
         // cancel transfer notification
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -73,7 +74,8 @@ class MainActivity : ComponentActivity() {
                 App(
                     platformAppContext = app.platformAppContext,
                     platformActivityContext = platformActivityContext,
-                    coreInstance = app.coreInstance
+                    coreInstance = app.coreInstance,
+                    appSettings = app.appSettings
                 )
             }
         }

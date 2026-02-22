@@ -15,11 +15,13 @@ import uniffi.musicopy.TranscodePolicy
 const val DOWNLOAD_DIRECTORY_KEY = "downloadDirectory"
 const val TRANSCODE_POLICY_KEY = "transcodePolicy"
 
-object AppSettings {
-    private var settings: ObservableSettings = Settings().makeObservable()
-
-    fun installMockSettings() {
-        settings = MapSettings().makeObservable()
+class AppSettings(
+    private val settings: ObservableSettings = Settings().makeObservable(),
+) {
+    companion object {
+        fun createMock(): AppSettings {
+            return AppSettings(MapSettings().makeObservable())
+        }
     }
 
     var downloadDirectory: String?

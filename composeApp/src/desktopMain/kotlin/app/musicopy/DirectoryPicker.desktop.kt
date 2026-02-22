@@ -5,20 +5,20 @@ import androidx.compose.runtime.remember
 import uniffi.musicopy.CoreException
 import uniffi.musicopy.pickFolder
 
-actual class DirectoryPicker {
-    internal constructor(platformContext: PlatformActivityContext)
-
+actual class DirectoryPicker internal constructor(private val appSettings: AppSettings) {
     actual suspend fun pickDownloadDirectory() {
         try {
             val pickedPath = pickFolder()
-            AppSettings.downloadDirectory = pickedPath
+            appSettings.downloadDirectory = pickedPath
         } catch (e: CoreException) {
             // TODO: toast?
-            println("Error: ${e}")
+            println("Error: $e")
         }
     }
 }
 
 @Composable
-actual fun rememberDirectoryPicker(platformContext: PlatformActivityContext) =
-    remember { DirectoryPicker(platformContext) }
+actual fun rememberDirectoryPicker(
+    platformContext: PlatformActivityContext,
+    appSettings: AppSettings
+) = remember { DirectoryPicker(appSettings) }

@@ -28,14 +28,17 @@ actual class DirectoryPicker internal constructor(val onPick: () -> Unit) {
 
 @OptIn(ExperimentalForeignApi::class)
 @Composable
-actual fun rememberDirectoryPicker(platformContext: PlatformActivityContext): DirectoryPicker {
+actual fun rememberDirectoryPicker(
+    platformContext: PlatformActivityContext,
+    appSettings: AppSettings,
+): DirectoryPicker {
     val uiViewController = LocalUIViewController.current
 
-    val delegate = remember {
+    val delegate = remember(appSettings) {
         object : NSObject(), UIDocumentPickerDelegateProtocol {
             override fun documentPicker(
                 controller: UIDocumentPickerViewController,
-                didPickDocumentsAtURLs: List<*>
+                didPickDocumentsAtURLs: List<*>,
             ) {
                 if (didPickDocumentsAtURLs.isEmpty()) {
                     return
@@ -61,7 +64,7 @@ actual fun rememberDirectoryPicker(platformContext: PlatformActivityContext): Di
                 }
 
                 val bookmarkString = bookmarkData.base64EncodedStringWithOptions(0uL)
-                AppSettings.downloadDirectory = bookmarkString
+                appSettings.downloadDirectory = bookmarkString
                 // TODO: display something nicer
             }
         }

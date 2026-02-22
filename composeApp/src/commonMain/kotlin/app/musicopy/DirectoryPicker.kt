@@ -7,4 +7,7 @@ expect class DirectoryPicker {
 }
 
 @Composable
-expect fun rememberDirectoryPicker(platformContext: PlatformActivityContext): DirectoryPicker
+expect fun rememberDirectoryPicker(
+    platformContext: PlatformActivityContext,
+    appSettings: AppSettings
+): DirectoryPicker

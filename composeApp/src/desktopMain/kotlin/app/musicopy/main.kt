@@ -20,11 +20,12 @@ const val WINDOW_HEIGHT = 768
 
 fun main() = runBlocking {
     val platformAppContext = PlatformAppContext()
+    val appSettings = AppSettings()
 
     // TODO: measure how long blocking on this takes
     // TODO: maybe switch to splash screen of some sort
     val coreInstance = try {
-        CoreInstance.start(platformAppContext)
+        CoreInstance.start(platformAppContext, appSettings)
     } catch (e: CoreException) {
         println("error starting core: ${e.message()}")
         return@runBlocking
@@ -48,7 +49,8 @@ fun main() = runBlocking {
             DesktopApp(
                 platformAppContext = platformAppContext,
                 platformActivityContext = platformActivityContext,
-                coreInstance = coreInstance
+                coreInstance = coreInstance,
+                appSettings = appSettings
             )
 
             // TODO

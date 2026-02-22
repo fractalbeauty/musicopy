@@ -23,12 +23,12 @@ expect class PlatformAppContext private constructor() {
 expect class PlatformActivityContext private constructor() {}
 
 interface ICoreProvider {
-    fun getOptions(platformAppContext: PlatformAppContext): CoreOptions {
+    fun getOptions(platformAppContext: PlatformAppContext, appSettings: AppSettings): CoreOptions {
         return CoreOptions(
             initLogging = true,
             inMemory = false,
             projectDirs = null,
-            transcodePolicy = AppSettings.transcodePolicy
+            transcodePolicy = appSettings.transcodePolicy
         )
     }
 }
