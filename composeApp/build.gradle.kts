@@ -31,14 +31,14 @@ plugins {
 // YYMMDDBB set by CI
 val appVersionCode = System.getenv("APP_VERSION_CODE")?.toInt() ?: 1
 
-val appVersion = "0.1.7"
+val appVersion = "0.1.8"
 
 version = appVersion
 val androidVersionName = appVersion
 val desktopVersionName = appVersion
 
-val macosVersionShort = "1.7"
-val macosVersionBuild = "1.7"
+val macosVersionShort = "1.7.8"
+val macosVersionBuild = "1.7.8"
 
 buildConfig {
     buildConfigField("APP_VERSION", appVersion)
