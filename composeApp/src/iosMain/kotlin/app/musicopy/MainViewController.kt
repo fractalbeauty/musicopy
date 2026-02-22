@@ -13,7 +13,7 @@ import platform.UIKit.UIViewController
 fun MainViewController(): UIViewController {
     val platformAppContext = PlatformAppContext()
     val platformActivityContext = PlatformActivityContext()
-    val appSettings = AppSettings()
+    val appSettings = AppSettings(platformAppContext)
 
     val coreInstanceState: MutableState<CoreInstance?> = mutableStateOf(null)
     GlobalScope.launch {

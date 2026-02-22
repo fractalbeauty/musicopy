@@ -11,7 +11,7 @@ import app.musicopy.ui.screens.ConnectQRScreen
 
 @Composable
 fun ScreenPreview(
-    content: @Composable() () -> Unit,
+    content: @Composable () -> Unit,
 ) {
     MaterialTheme {
         Scaffold { innerPadding ->

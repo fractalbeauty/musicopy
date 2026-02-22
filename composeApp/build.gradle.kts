@@ -114,7 +114,7 @@ kotlin {
             implementation(libs.androidx.navigation.compose)
             implementation(libs.composables.composeunstyled.primitives)
             implementation(libs.qrose)
-            implementation(libs.multiplatform.settings.no.arg)
+            implementation(libs.multiplatform.settings)
             implementation(libs.multiplatform.settings.make.observable)
             implementation(libs.multiplatform.settings.coroutines)
             implementation(libs.multiplatform.settings.test)

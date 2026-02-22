@@ -5,6 +5,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.ClipEntry
+import com.russhwolf.settings.Settings
 import uniffi.musicopy.CoreOptions
 import uniffi.musicopy.TranscodePolicy
 
@@ -13,14 +14,16 @@ expect val isAndroid: Boolean
 /**
  * Platform-specific application/process-scoped context.
  */
-expect class PlatformAppContext private constructor() {
+expect class PlatformAppContext {
     val name: String
+
+    val settingsFactory: Settings.Factory
 }
 
 /**
  * Platform-specific activity/scene-scoped context.
  */
-expect class PlatformActivityContext private constructor() {}
+expect class PlatformActivityContext
 
 interface ICoreProvider {
     fun getOptions(platformAppContext: PlatformAppContext, appSettings: AppSettings): CoreOptions {

@@ -20,7 +20,7 @@ const val WINDOW_HEIGHT = 768
 
 fun main() = runBlocking {
     val platformAppContext = PlatformAppContext()
-    val appSettings = AppSettings()
+    val appSettings = AppSettings(platformAppContext)
 
     // TODO: measure how long blocking on this takes
     // TODO: maybe switch to splash screen of some sort

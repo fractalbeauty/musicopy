@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.ClipEntry
+import com.russhwolf.settings.PreferencesSettings
+import com.russhwolf.settings.Settings
 import uniffi.musicopy.CoreOptions
 import java.awt.Window
 import java.awt.datatransfer.StringSelection
@@ -11,15 +13,16 @@ import java.text.DecimalFormat
 
 actual val isAndroid = false
 
-actual class PlatformAppContext actual constructor() {
+actual class PlatformAppContext {
     actual val name: String = "Java ${System.getProperty("java.version")}"
+
+    actual val settingsFactory: Settings.Factory = PreferencesSettings.Factory()
 }
 
-actual class PlatformActivityContext private actual constructor() {
-    lateinit var mainWindow: Window
-        private set
+actual class PlatformActivityContext {
+    val mainWindow: Window
 
-    constructor(mainWindow: Window) : this() {
+    constructor(mainWindow: Window) {
         this.mainWindow = mainWindow
     }
 }

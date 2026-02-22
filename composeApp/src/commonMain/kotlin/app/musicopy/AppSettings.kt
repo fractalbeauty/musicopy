@@ -8,19 +8,20 @@ import com.russhwolf.settings.ObservableSettings
 import com.russhwolf.settings.coroutines.getStringOrNullFlow
 import com.russhwolf.settings.observable.makeObservable
 import kotlinx.coroutines.flow.Flow
-import com.russhwolf.settings.Settings
 import kotlinx.coroutines.flow.map
 import uniffi.musicopy.TranscodePolicy
 
 const val DOWNLOAD_DIRECTORY_KEY = "downloadDirectory"
 const val TRANSCODE_POLICY_KEY = "transcodePolicy"
 
-class AppSettings(
-    private val settings: ObservableSettings = Settings().makeObservable(),
-) {
+class AppSettings private constructor(private val settings: ObservableSettings) {
+    constructor(platformAppContext: PlatformAppContext) : this(
+        settings = platformAppContext.settingsFactory.create().makeObservable()
+    )
+
     companion object {
         fun createMock(): AppSettings {
-            return AppSettings(MapSettings().makeObservable())
+            return AppSettings(settings = MapSettings())
         }
     }
 

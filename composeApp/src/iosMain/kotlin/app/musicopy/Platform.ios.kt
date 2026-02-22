@@ -4,18 +4,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.ClipEntry
+import com.russhwolf.settings.NSUserDefaultsSettings
+import com.russhwolf.settings.Settings
 import platform.Foundation.NSNumber
 import platform.Foundation.NSNumberFormatter
 import platform.UIKit.UIDevice
 
 actual val isAndroid = false
 
-actual class PlatformAppContext actual constructor() {
+actual class PlatformAppContext {
     actual val name: String =
         UIDevice.currentDevice.systemName() + " " + UIDevice.currentDevice.systemVersion
+
+    actual val settingsFactory: Settings.Factory = NSUserDefaultsSettings.Factory()
 }
 
-actual class PlatformActivityContext actual constructor() {}
+actual class PlatformActivityContext
 
 actual object CoreProvider : ICoreProvider
 

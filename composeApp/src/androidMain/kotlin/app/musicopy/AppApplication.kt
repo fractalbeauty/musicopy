@@ -19,8 +19,8 @@ const val NOTIFICATION_CHANNEL_ID_FOREGROUND = "foreground"
 const val NOTIFICATION_ID_TRANSFER = 100
 
 class AppApplication : Application() {
-    var platformAppContext: PlatformAppContext = PlatformAppContext(this)
-    val appSettings: AppSettings = AppSettings()
+    lateinit var platformAppContext: PlatformAppContext
+    lateinit var appSettings: AppSettings
 
     lateinit var coreInstance: CoreInstance
         private set
@@ -35,6 +35,9 @@ class AppApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        platformAppContext = PlatformAppContext(this)
+        appSettings = AppSettings(platformAppContext)
 
         // launch coroutine to initialize core instance asynchronously
         @OptIn(DelicateCoroutinesApi::class)

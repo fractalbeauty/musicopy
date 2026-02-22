@@ -16,26 +16,30 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.toClipEntry
 import androidx.core.content.ContextCompat
+import com.russhwolf.settings.Settings
+import com.russhwolf.settings.SharedPreferencesSettings
 import uniffi.musicopy.CoreOptions
 import uniffi.musicopy.ProjectDirsOptions
 
 actual val isAndroid = true
 
-actual class PlatformAppContext private actual constructor() {
+actual class PlatformAppContext {
     actual val name: String = "Android ${Build.VERSION.SDK_INT}"
 
-    lateinit var application: AppApplication
+    actual val settingsFactory: Settings.Factory
 
-    constructor(application: AppApplication) : this() {
+    val application: AppApplication
+
+    constructor(application: AppApplication) {
         this.application = application
+        this.settingsFactory = SharedPreferencesSettings.Factory(this.application)
     }
 }
 
-actual class PlatformActivityContext private actual constructor() {
-    lateinit var mainActivity: MainActivity
-        private set
+actual class PlatformActivityContext {
+    val mainActivity: MainActivity
 
-    constructor(mainActivity: MainActivity) : this() {
+    constructor(mainActivity: MainActivity) {
         this.mainActivity = mainActivity
     }
 }
