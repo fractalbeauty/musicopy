@@ -1,0 +1,113 @@
+---
+import BaseLayout from "../components/BaseLayout.astro";
+import FilledButtonLink from "../components/FilledButtonLink.astro";
+import Footer from "../components/Footer.astro";
+import Main from "../components/Main.astro";
+import Nav from "../components/Nav.astro";
+---
+
+<BaseLayout title="Musicopy | Demo">
+  <Nav />
+
+  <Main>
+    <h1>Demo</h1>
+
+    <div class="qr">
+      <img src="/static/demo_qr_transparent.png" width="400" height="400" />
+    </div>
+
+    <p>
+      You can try the mobile app without installing the desktop app using the
+      live demo. Install the mobile app and choose "scan QR code".
+    </p>
+
+    <p>You can also connect manually by typing or pasting the code:</p>
+
+    <div class="code">
+      <code
+        >941117ff675f3ac981ed27eb0bef5f32471bbc493fdc7aa4d416e5fa0d99f83a</code
+      >
+      <code class="mobile-only">941117ff675f3ac9</code>
+      <code class="mobile-only">81ed27eb0bef5f32</code>
+      <code class="mobile-only">471bbc493fdc7aa4</code>
+      <code class="mobile-only">d416e5fa0d99f83a</code>
+    </div>
+
+    <br />
+
+    <div class="cta">
+      <FilledButtonLink href="/download" size="lg"
+        >Download mobile app</FilledButtonLink
+      >
+    </div>
+  </Main>
+</BaseLayout>
+
+<div class="flex-1"></div>
+
+<Footer />
+
+<style>
+  .qr {
+    float: right;
+    margin-left: 8px;
+    max-height: 200px;
+    max-width: 200px;
+    aspect-ratio: 1;
+    padding: 8px;
+    border-radius: 12px;
+    background-color: var(--color-surface-container-highest);
+  }
+  .qr img {
+    width: 100%;
+    height: 100%;
+  }
+  @media screen and (max-width: 800px) {
+    .qr {
+      float: none;
+      margin: 0 auto;
+      max-height: 50vw;
+      max-width: 50vw;
+    }
+  }
+
+  .code {
+    display: flex;
+    flex-direction: row;
+
+    width: fit-content;
+
+    background-color: var(--color-surface-container-highest);
+    padding: 16px;
+    border-radius: 12px;
+  }
+  @media screen and (max-width: 800px) {
+    .code {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+
+      margin: 0 auto;
+    }
+  }
+  .code .mobile-only {
+    display: none;
+  }
+  @media screen and (max-width: 800px) {
+    .code .mobile-only {
+      display: block;
+    }
+    .code :not(.mobile-only) {
+      display: none;
+    }
+  }
+
+  .cta {
+    display: flex;
+  }
+  @media screen and (max-width: 800px) {
+    .cta {
+      justify-content: center;
+    }
+  }
+</style>
