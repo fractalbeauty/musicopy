@@ -28,6 +28,7 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// YYMMDDBB set by CI
 val appVersionCode = System.getenv("APP_VERSION_CODE")?.toInt() ?: 1
 
 val appVersion = "0.1.7"
