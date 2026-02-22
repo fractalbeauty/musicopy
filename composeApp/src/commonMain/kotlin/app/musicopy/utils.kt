@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.datetime.Clock
 import uniffi.musicopy.ClientModel
 import uniffi.musicopy.ClientStateModel
 import uniffi.musicopy.CounterModel
@@ -21,6 +20,8 @@ import uniffi.musicopy.ServerStateModel
 import uniffi.musicopy.TranscodePolicy
 import uniffi.musicopy.TransferJobModel
 import uniffi.musicopy.TransferJobProgressModel
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 inline fun <T> T.letIf(condition: Boolean, block: (T) -> T): T =
     if (condition) this.let(block) else this
@@ -347,6 +348,7 @@ fun mockLibraryModel(
 /**
  * Get the current system time in seconds
  */
+@OptIn(ExperimentalTime::class)
 internal fun now(): ULong {
     return Clock.System.now().epochSeconds.toULong()
 }
