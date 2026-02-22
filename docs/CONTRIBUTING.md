@@ -23,3 +23,18 @@ For iOS:
 
 - Run Rust tests with `just test-rust` 
 - Run Kotlin tests with `just test-gradle` (open report HTML with `just test-gradle-report`)
+
+## Commit style
+
+Prefix commits with `area:`. Try to use one of the listed areas:
+```
+core: changes to Rust crates
+ui: changes to CMP project
+- desktop
+- mobile
+  - android
+  - ios
+tui: changes to musicopy-tui crate
+web
+docs
+```
