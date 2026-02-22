@@ -135,7 +135,7 @@ fun PreTransferScreen(
     }
 
     BackHandler(enabled = navigationStack.isNotEmpty()) {
-        navigationStack.removeLast()
+        navigationStack.removeAt(navigationStack.lastIndex)
     }
 
     // Checkbox state and handler
@@ -222,7 +222,7 @@ fun PreTransferScreen(
                 onShowNodeStatus = onShowNodeStatus,
                 onBack = {
                     if (navigationStack.isNotEmpty()) {
-                        navigationStack.removeLast()
+                        navigationStack.removeAt(navigationStack.lastIndex)
                     } else {
                         onCancel()
                     }
@@ -283,7 +283,7 @@ fun PreTransferScreen(
                 onNavigateToIndex = { index ->
                     // Keep items 0..index, remove rest
                     while (navigationStack.size > index + 1) {
-                        navigationStack.removeLast()
+                        navigationStack.removeAt(navigationStack.lastIndex)
                     }
                 },
                 checkboxState = checkboxState,
