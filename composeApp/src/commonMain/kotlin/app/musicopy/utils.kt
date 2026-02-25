@@ -268,6 +268,12 @@ fun mockClientModel(
                 nodeId = nodeId,
                 root = "six",
                 basePath = "",
+                downloadStatus = IndexItemDownloadStatusModel.PAUSED
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "six",
+                basePath = "",
                 downloadStatus = IndexItemDownloadStatusModel.FAILED
             ),
             mockIndexItemModel(nodeId = nodeId, root = "six", basePath = "", downloadStatus = null),

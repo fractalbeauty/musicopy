@@ -62,6 +62,7 @@ pub enum TransferJobProgressModel {
         /// Number of bytes written so far.
         bytes: Arc<CounterModel>,
     },
+    Paused,
     Finished {
         finished_at: u64,
     },
@@ -115,6 +116,7 @@ pub enum FileSizeModel {
 #[derive(Debug, Clone, uniffi::Enum)]
 pub enum IndexItemDownloadStatusModel {
     InProgress,
+    Paused,
     Downloaded,
     Failed,
 }
@@ -1054,6 +1056,9 @@ impl Node {
                                                 | TransferJobProgressModel::InProgress { .. } => {
                                                     Some(IndexItemDownloadStatusModel::InProgress)
                                                 }
+                                                TransferJobProgressModel::Paused => {
+                                                    Some(IndexItemDownloadStatusModel::Paused)
+                                                }
                                                 TransferJobProgressModel::Failed { .. } => {
                                                     Some(IndexItemDownloadStatusModel::Failed)
                                                 }
@@ -1124,6 +1129,10 @@ impl Node {
                                         },
                                         Some(*file_size),
                                     ),
+
+                                    ClientTransferJobProgress::Paused => {
+                                        (TransferJobProgressModel::Paused, None)
+                                    }
 
                                     ClientTransferJobProgress::Finished {
                                         finished_at,
@@ -2173,6 +2182,8 @@ enum ClientTransferJobProgress {
         file_size: u64,
         written: Arc<AtomicU64>,
     },
+    /// The client has paused the download.
+    Paused,
     /// The client has finished downloading the file.
     Finished { finished_at: u64, file_size: u64 },
     /// The client failed to download the file.

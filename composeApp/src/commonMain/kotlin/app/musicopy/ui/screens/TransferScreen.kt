@@ -65,6 +65,7 @@ import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.check_circle_24px
 import musicopy_root.musicopy.generated.resources.chevron_forward_24px
 import musicopy_root.musicopy.generated.resources.error_24px
+import musicopy_root.musicopy.generated.resources.pause_circle_24px
 import musicopy_root.musicopy.generated.resources.pending_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.ClientModel
@@ -268,6 +269,13 @@ fun TransferJob(job: TransferJobModel) {
                         )
                     }
 
+                    is TransferJobProgressModel.Paused -> {
+                        Icon(
+                            painter = painterResource(Res.drawable.pause_circle_24px),
+                            contentDescription = null,
+                        )
+                    }
+
                     is TransferJobProgressModel.Finished -> {
                         Icon(
                             painter = painterResource(Res.drawable.check_circle_24px),
@@ -386,6 +394,10 @@ internal fun formatJobSubtitle(job: TransferJobModel): String {
                 val progressMB = progress.bytes.get().toFloat() / 1_000_000f
                 "${formatFloat(progressMB, 1)} MB/${formatFloat(totalMB, 1)} MB"
             } ?: "Waiting..."
+        }
+
+        is TransferJobProgressModel.Paused -> {
+            "Paused"
         }
 
         is TransferJobProgressModel.Finished -> {

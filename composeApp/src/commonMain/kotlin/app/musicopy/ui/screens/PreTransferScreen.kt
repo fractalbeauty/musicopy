@@ -64,6 +64,7 @@ import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.arrow_downward_24px
 import musicopy_root.musicopy.generated.resources.chevron_forward_24px
 import musicopy_root.musicopy.generated.resources.exclamation_24px
+import musicopy_root.musicopy.generated.resources.more_horiz_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.ClientModel
 import uniffi.musicopy.DownloadPartialItemModel
@@ -596,32 +597,34 @@ internal enum class RowState {
     Selected,
 
     /**
-     * All descendants are disabled (downloaded or failed).
+     * All descendants are disabled (in progress, downloaded, or failed).
      */
     Disabled,
 
     /**
-     * All descendants are disabled (downloaded or failed) or unselected.
+     * All descendants are disabled (in progress, downloaded, or failed) or unselected.
      */
     DisabledOrNone,
 
     /**
-     * All descendants are disabled (downloaded or failed) or selected.
+     * All descendants are disabled (in progress, downloaded, or failed) or selected.
      */
     DisabledOrSelected,
 
     /**
      * Some descendants are selected and some are unselected.
      *
-     * Some descendants may also be disabled (downloaded or failed).
+     * Some descendants may also be disabled (in progress, downloaded, or failed).
      */
     Indeterminate,
 }
 
 /**
  * Renders the appropriate checkbox for a given [RowState]:
- * - [RowState.Disabled]: a non-interactive [DisabledIconCheckbox]; uses [exclamation_24px] for
- *   [IndexItemDownloadStatusModel.FAILED] leaves, [arrow_downward_24px] otherwise
+ * - [RowState.Disabled]: a non-interactive [DisabledIconCheckbox]; uses:
+ *   - [exclamation_24px] for [IndexItemDownloadStatusModel.FAILED] leaves
+ *   - [more_horiz_24px] for [IndexItemDownloadStatusModel.IN_PROGRESS] leaves
+ *   - [arrow_downward_24px] for [IndexItemDownloadStatusModel.DOWNLOADED] leaves
  * - All other states: a [TriStateCheckbox]
  */
 @Composable
@@ -631,10 +634,10 @@ internal fun RowStateCheckbox(
     onClick: () -> Unit,
 ) {
     if (rowState == RowState.Disabled) {
-        val painter = if (node.leaf?.downloadStatus == IndexItemDownloadStatusModel.FAILED) {
-            painterResource(Res.drawable.exclamation_24px)
-        } else {
-            painterResource(Res.drawable.arrow_downward_24px)
+        val painter = when (node.leaf?.downloadStatus) {
+            IndexItemDownloadStatusModel.FAILED -> painterResource(Res.drawable.exclamation_24px)
+            IndexItemDownloadStatusModel.IN_PROGRESS -> painterResource(Res.drawable.more_horiz_24px)
+            else -> painterResource(Res.drawable.arrow_downward_24px)
         }
         DisabledIconCheckbox(painter = painter)
     } else {
@@ -752,7 +755,7 @@ internal class SelectionManager {
 
     fun onIndexChanged(index: List<IndexItemModel>) {
         val toPreselect = index
-            .filter { it.downloadStatus == IndexItemDownloadStatusModel.IN_PROGRESS }
+            .filter { it.downloadStatus == IndexItemDownloadStatusModel.PAUSED }
             .map { it.root to it.path }
             .filterNot { _preselectedKeys.contains(it) }
 
@@ -822,7 +825,7 @@ internal class SelectionManager {
      * select/unselect indeterminate rows with mixed descendants.
      *
      * If the node is a leaf (file), then:
-     *  - If it is downloaded or failed, the state is Disabled
+     *  - If it is in progress, downloaded, or failed, the state is Disabled
      *  - If it is selected, the state is Selected
      *  - Otherwise, the state is None
      * If the node is a branch, then:
@@ -840,7 +843,8 @@ internal class SelectionManager {
         val state = node.leaf?.let {
             // leaf node
             if (it.downloadStatus == IndexItemDownloadStatusModel.DOWNLOADED ||
-                it.downloadStatus == IndexItemDownloadStatusModel.FAILED
+                it.downloadStatus == IndexItemDownloadStatusModel.FAILED ||
+                it.downloadStatus == IndexItemDownloadStatusModel.IN_PROGRESS
             ) {
                 RowState.Disabled
             } else if (isSelected(it)) {

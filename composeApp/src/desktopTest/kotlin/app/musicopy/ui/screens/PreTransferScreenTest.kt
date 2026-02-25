@@ -170,14 +170,14 @@ class PreTransferScreenTest : FunSpec({
     }
 
     context("SelectionManager") {
-        test("preselects InProgress items") {
+        test("preselects Paused items") {
             val manager = SelectionManager()
 
-            // A and B are in progress, so they should be preselected
+            // A and B are paused, so they should be preselected
             manager.onIndexChanged(
                 listOf(
-                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.IN_PROGRESS),
-                    makeIndexItem("library", "/b", IndexItemDownloadStatusModel.IN_PROGRESS),
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.PAUSED),
+                    makeIndexItem("library", "/b", IndexItemDownloadStatusModel.PAUSED),
                     makeIndexItem("library", "/c", IndexItemDownloadStatusModel.DOWNLOADED),
                     makeIndexItem("library", "/d", null),
                 )
@@ -186,22 +186,22 @@ class PreTransferScreenTest : FunSpec({
             manager.selectedKeys shouldBe setOf("library" to "/a", "library" to "/b")
         }
 
-        test("preselects new InProgress items after refresh") {
+        test("preselects new Paused items after refresh") {
             val manager = SelectionManager()
 
             // A is initially preselected
             manager.onIndexChanged(
                 listOf(
-                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.IN_PROGRESS),
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.PAUSED),
                     makeIndexItem("library", "/b", null),
                 )
             )
 
-            // Refresh changes status of B to InProgress
+            // Refresh changes status of B to Paused
             manager.onIndexChanged(
                 listOf(
-                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.IN_PROGRESS),
-                    makeIndexItem("library", "/b", IndexItemDownloadStatusModel.IN_PROGRESS),
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.PAUSED),
+                    makeIndexItem("library", "/b", IndexItemDownloadStatusModel.PAUSED),
                 )
             )
 
@@ -209,12 +209,12 @@ class PreTransferScreenTest : FunSpec({
             manager.selectedKeys shouldBe setOf("library" to "/a", "library" to "/b")
         }
 
-        test("doesn't re-preselect manually deselected InProgress items") {
+        test("doesn't re-preselect manually deselected Paused items") {
             val manager = SelectionManager()
 
             manager.onIndexChanged(
                 listOf(
-                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.IN_PROGRESS)
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.PAUSED)
                 )
             )
 
@@ -223,14 +223,14 @@ class PreTransferScreenTest : FunSpec({
                 makeIndexItem(
                     "library",
                     "/a",
-                    IndexItemDownloadStatusModel.IN_PROGRESS
+                    IndexItemDownloadStatusModel.PAUSED
                 ), false
             )
 
-            // Refresh with same item still InProgress
+            // Refresh with same item still Paused
             manager.onIndexChanged(
                 listOf(
-                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.IN_PROGRESS)
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.PAUSED)
                 )
             )
 
