@@ -3,11 +3,13 @@ package app.musicopy.ui.screens
 import app.musicopy.mockNodeId
 import io.kotest.assertions.json.shouldEqualJson
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import uniffi.musicopy.FileSizeModel
+import uniffi.musicopy.IndexItemDownloadStatusModel
 import uniffi.musicopy.IndexItemModel
 
 class PreTransferScreenTest : FunSpec({
@@ -23,7 +25,7 @@ class PreTransferScreenTest : FunSpec({
 
             val tree = buildTree(items)
 
-            nodesToJsonString(tree).shouldEqualJson("""{
+            nodeToJsonString(tree) shouldEqualJson """{
                 "album1": {
                     "song1.mp3": true,
                     "song2.mp3": true
@@ -33,7 +35,7 @@ class PreTransferScreenTest : FunSpec({
                     "song2.mp3": true
                 },
                 "other.mp3": true
-            }""")
+            }"""
         }
 
         test("removes shared leading paths") {
@@ -47,7 +49,7 @@ class PreTransferScreenTest : FunSpec({
 
             val tree = buildTree(items)
 
-            nodesToJsonString(tree).shouldEqualJson("""{
+            nodeToJsonString(tree) shouldEqualJson """{
                 "album1": {
                     "song1.mp3": true,
                     "song2.mp3": true
@@ -57,7 +59,7 @@ class PreTransferScreenTest : FunSpec({
                     "song2.mp3": true
                 },
                 "other.mp3": true
-            }""")
+            }"""
         }
 
         test("collapses an artist with a single album") {
@@ -69,13 +71,13 @@ class PreTransferScreenTest : FunSpec({
 
             val tree = buildTree(items)
 
-            nodesToJsonString(tree).shouldEqualJson("""{
+            nodeToJsonString(tree) shouldEqualJson """{
                 "artist1/album1": {
                     "song1.mp3": true,
                     "song2.mp3": true
                 },
                 "other.mp3": true
-            }""")
+            }"""
         }
 
         test("doesn't collapse an artist with multiple albums") {
@@ -89,7 +91,7 @@ class PreTransferScreenTest : FunSpec({
 
             val tree = buildTree(items)
 
-            nodesToJsonString(tree).shouldEqualJson("""{
+            nodeToJsonString(tree) shouldEqualJson """{
                 "artist1": {
                     "album1": {
                         "song1.mp3": true,
@@ -101,7 +103,7 @@ class PreTransferScreenTest : FunSpec({
                     }
                 },
                 "other.mp3": true
-            }""")
+            }"""
         }
 
         test("doesn't collapse an artist with loose songs") {
@@ -114,7 +116,7 @@ class PreTransferScreenTest : FunSpec({
 
             val tree = buildTree(items)
 
-            nodesToJsonString(tree).shouldEqualJson("""{
+            nodeToJsonString(tree) shouldEqualJson """{
                 "artist1": {
                     "album1": {
                         "song1.mp3": true,
@@ -123,7 +125,117 @@ class PreTransferScreenTest : FunSpec({
                     "single.mp3": true
                 },
                 "other.mp3": true
-            }""")
+            }"""
+        }
+
+        test("sorts items alphabetically") {
+            val items = makeIndexItems(
+                "library" to "ddd.mp3",
+                "library" to "aaa.mp3",
+                "library" to "ccc.mp3",
+                "library" to "bbb.mp3"
+            )
+
+            val tree = buildTree(items)
+
+            nodeToJsonString(tree) shouldEqualJson """{
+                "aaa.mp3": true,
+                "bbb.mp3": true,
+                "ccc.mp3": true,
+                "ddd.mp3": true
+            }"""
+        }
+
+        test("sorts folders before files") {
+            val items = makeIndexItems(
+                "library" to "zzz.mp3",
+                "library" to "aaa-folder/song.mp3",
+                "library" to "aaa.mp3",
+                "library" to "zzz-folder/song.mp3"
+            )
+
+            val tree = buildTree(items)
+
+            nodeToJsonString(tree) shouldEqualJson """{
+                "aaa-folder": {
+                    "song.mp3": true
+                },
+                "zzz-folder": {
+                    "song.mp3": true
+                },
+                "aaa.mp3": true,
+                "zzz.mp3": true
+            }"""
+        }
+    }
+
+    context("SelectionManager") {
+        test("preselects InProgress items") {
+            val manager = SelectionManager()
+
+            // A and B are in progress, so they should be preselected
+            manager.onIndexChanged(
+                listOf(
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.IN_PROGRESS),
+                    makeIndexItem("library", "/b", IndexItemDownloadStatusModel.IN_PROGRESS),
+                    makeIndexItem("library", "/c", IndexItemDownloadStatusModel.DOWNLOADED),
+                    makeIndexItem("library", "/d", null),
+                )
+            )
+
+            manager.selectedKeys shouldBe setOf("library" to "/a", "library" to "/b")
+        }
+
+        test("preselects new InProgress items after refresh") {
+            val manager = SelectionManager()
+
+            // A is initially preselected
+            manager.onIndexChanged(
+                listOf(
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.IN_PROGRESS),
+                    makeIndexItem("library", "/b", null),
+                )
+            )
+
+            // Refresh changes status of B to InProgress
+            manager.onIndexChanged(
+                listOf(
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.IN_PROGRESS),
+                    makeIndexItem("library", "/b", IndexItemDownloadStatusModel.IN_PROGRESS),
+                )
+            )
+
+            // Both should be selected
+            manager.selectedKeys shouldBe setOf("library" to "/a", "library" to "/b")
+        }
+
+        test("doesn't re-preselect manually deselected InProgress items") {
+            val manager = SelectionManager()
+
+            manager.onIndexChanged(
+                listOf(
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.IN_PROGRESS)
+                )
+            )
+
+            // User manually deselects A
+            manager.setSelected(
+                makeIndexItem(
+                    "library",
+                    "/a",
+                    IndexItemDownloadStatusModel.IN_PROGRESS
+                ), false
+            )
+
+            // Refresh with same item still InProgress
+            manager.onIndexChanged(
+                listOf(
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.IN_PROGRESS)
+                )
+            )
+
+            // A should not be selected
+            manager.selectedKeys shouldBe emptySet()
         }
     }
 })
@@ -144,23 +256,35 @@ private fun nodesToJson(nodes: List<TreeNode>): JsonElement {
     }
 }
 
-private fun nodesToJsonString(subject: List<TreeNode>): String {
+private fun nodeToJsonString(root: TreeNode): String {
     val json = Json {
         prettyPrint = true
     }
-    return json.encodeToString(nodesToJson(subject))
+    return json.encodeToString(nodeToJson(root))
 }
 
 private val nodeId = mockNodeId()
 
 private fun makeIndexItems(vararg paths: Pair<String, String>): List<IndexItemModel> {
     return paths.asList().map { path ->
-        IndexItemModel(
-            nodeId = nodeId,
+        makeIndexItem(
             root = path.first,
             path = path.second,
-            fileSize = FileSizeModel.Unknown,
-            downloaded = false
+            downloadStatus = null,
         )
     }
+}
+
+private fun makeIndexItem(
+    root: String,
+    path: String,
+    downloadStatus: IndexItemDownloadStatusModel?,
+): IndexItemModel {
+    return IndexItemModel(
+        nodeId = nodeId,
+        root = root,
+        path = path,
+        downloadStatus = downloadStatus,
+        fileSize = FileSizeModel.Unknown,
+    )
 }

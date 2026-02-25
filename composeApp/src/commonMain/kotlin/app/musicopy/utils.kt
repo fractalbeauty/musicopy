@@ -11,6 +11,7 @@ import uniffi.musicopy.ClientModel
 import uniffi.musicopy.ClientStateModel
 import uniffi.musicopy.CounterModel
 import uniffi.musicopy.FileSizeModel
+import uniffi.musicopy.IndexItemDownloadStatusModel
 import uniffi.musicopy.IndexItemModel
 import uniffi.musicopy.LibraryModel
 import uniffi.musicopy.LibraryRootModel
@@ -250,10 +251,26 @@ fun mockClientModel(
             mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a/b/c/d/e/f/g/h/i/j"),
             mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a/b/c/d/e/f/g/h/i/j/k"),
 
-            // downloaded example
-            mockIndexItemModel(nodeId = nodeId, root = "six", basePath = "/a", downloaded = true),
-            mockIndexItemModel(nodeId = nodeId, root = "six", basePath = "/b", downloaded = true),
-            mockIndexItemModel(nodeId = nodeId, root = "six", basePath = "/b", downloaded = false),
+            // download status examples
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "six",
+                basePath = "",
+                downloadStatus = IndexItemDownloadStatusModel.DOWNLOADED
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "six",
+                basePath = "",
+                downloadStatus = IndexItemDownloadStatusModel.IN_PROGRESS
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "six",
+                basePath = "",
+                downloadStatus = IndexItemDownloadStatusModel.FAILED
+            ),
+            mockIndexItemModel(nodeId = nodeId, root = "six", basePath = "", downloadStatus = null),
         ),
         transferJobs = transferJobs
     )
@@ -265,7 +282,7 @@ fun mockIndexItemModel(
     nodeId: String = mockNodeId(),
     root: String = "library",
     basePath: String = "/a/b/c",
-    downloaded: Boolean = false,
+    downloadStatus: IndexItemDownloadStatusModel? = null,
 ): IndexItemModel {
     val itemCount = nextMockIndexItemCount++
 
@@ -287,7 +304,7 @@ fun mockIndexItemModel(
 
         fileSize = fileSize,
 
-        downloaded = downloaded,
+        downloadStatus = downloadStatus,
     )
 }
 

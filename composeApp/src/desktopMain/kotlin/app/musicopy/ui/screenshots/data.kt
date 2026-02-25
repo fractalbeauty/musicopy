@@ -3,6 +3,7 @@ package app.musicopy.ui.screenshots
 import app.musicopy.now
 import uniffi.musicopy.CounterModel
 import uniffi.musicopy.FileSizeModel
+import uniffi.musicopy.IndexItemDownloadStatusModel
 import uniffi.musicopy.IndexItemModel
 import uniffi.musicopy.TransferJobModel
 import uniffi.musicopy.TransferJobProgressModel
@@ -146,7 +147,7 @@ val screenshotIndex = buildList {
                 root = "Favorites",
                 path = "underscores/boneyard/$title.flac",
                 fileSize = nextSize(),
-                downloaded = false
+                downloadStatus = null
             )
         )
     }
@@ -157,7 +158,7 @@ val screenshotIndex = buildList {
             root = "Favorites",
             path = "underscores/Poplife/Poplife.flac",
             fileSize = nextSize(),
-            downloaded = true
+            downloadStatus = IndexItemDownloadStatusModel.DOWNLOADED
         )
     )
 
@@ -168,7 +169,7 @@ val screenshotIndex = buildList {
                 root = "Favorites",
                 path = "underscores/Wallsocket/placeholder$it.flac",
                 fileSize = nextSize(),
-                downloaded = false
+                downloadStatus = null
             )
         )
     }
@@ -180,7 +181,11 @@ val screenshotIndex = buildList {
                 root = "Favorites",
                 path = "underscores/fishmonger/$title.flac",
                 fileSize = nextSize(),
-                downloaded = (index == 1 || index == 4 || index == 6)
+                downloadStatus = if (index == 1 || index == 4 || index == 6) {
+                    IndexItemDownloadStatusModel.DOWNLOADED
+                } else {
+                    null
+                }
             )
         )
     }

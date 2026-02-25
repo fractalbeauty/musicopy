@@ -285,7 +285,7 @@ fun HomeScreenSandbox() {
 
     HomeScreen(
         appSettings = appSettings,
-        
+
         snackbarHost = {},
         onShowNodeStatus = {},
 

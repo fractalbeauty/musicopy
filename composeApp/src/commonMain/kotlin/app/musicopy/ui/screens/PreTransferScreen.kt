@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
@@ -62,10 +63,12 @@ import app.musicopy.ui.components.TopBar
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.arrow_downward_24px
 import musicopy_root.musicopy.generated.resources.chevron_forward_24px
+import musicopy_root.musicopy.generated.resources.exclamation_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.ClientModel
 import uniffi.musicopy.DownloadPartialItemModel
 import uniffi.musicopy.FileSizeModel
+import uniffi.musicopy.IndexItemDownloadStatusModel
 import uniffi.musicopy.IndexItemModel
 import kotlin.math.floor
 import kotlin.math.max
@@ -82,134 +85,64 @@ fun PreTransferScreen(
     onDownloadPartial: (List<DownloadPartialItemModel>) -> Unit,
     onCancel: () -> Unit,
 ) {
-    val selected = remember { mutableStateSetOf<IndexItemModel>() }
-
-    // Total size
-    val totalSize = remember(clientModel.index) {
+    val selectionManager = remember { SelectionManager() }
+    LaunchedEffect(clientModel.index) {
         clientModel.index?.let { index ->
-            index.sumOf { item -> item.fileSize.value() }
-        } ?: 0u
-    }
-    val totalSizeEstimated = remember(clientModel.index) {
-        clientModel.index?.let { index ->
-            index.any { it.fileSize !is FileSizeModel.Actual }
-        } ?: false
+            selectionManager.onIndexChanged(index)
+        }
     }
 
     // Build node graph
-    val topLevelNodes = remember(clientModel.index) {
+    val root = remember(clientModel.index) {
         buildTree(clientModel.index ?: emptyList())
     }
 
     // Build node size lookup
-    val nodeSizes = remember(topLevelNodes) {
-        buildNodeSizes(topLevelNodes)
+    val nodeSizes = remember(root) {
+        buildNodeSizes(listOf(root))
     }
+
+    // Total size from root node
+    val rootSizeModel = nodeSizes.getOrElse(root) { FileSizeModel.Unknown }
+    val totalSize = rootSizeModel.value()
+    val totalSizeEstimated = rootSizeModel !is FileSizeModel.Actual
 
     // Navigation stack for breadcrumb navigation
-    val navigationStack = remember { mutableStateListOf<TreeNode>() }
-
-    // Stored scroll states for each folder
-    val scrollStates =
-        remember { mutableMapOf<String, LazyListState>() }
-
-    // Current scroll state based on navigation stack
-    val currentScrollState = scrollStates.getOrPut(navigationStack.joinToString("/")) {
-        LazyListState()
-    }
-
-    // Current children based on navigation stack
-    val currentChildren = navigationStack.lastOrNull()?.children ?: topLevelNodes
-
-    // Current folder size
-    val currentFolderSize: ULong
-    val currentFolderSizeEstimated: Boolean
-    if (navigationStack.isEmpty()) {
-        currentFolderSize = totalSize
-        currentFolderSizeEstimated = totalSizeEstimated
-    } else {
-        val currentFolder = navigationStack.last()
-        val folderSizeModel = nodeSizes.getOrElse(currentFolder) { FileSizeModel.Unknown }
-        currentFolderSize = folderSizeModel.value()
-        currentFolderSizeEstimated = folderSizeModel !is FileSizeModel.Actual
+    val navigationStack = remember { mutableStateListOf<String>() }
+    val currentNode: TreeNode = navigationStack.fold(root) { node, part ->
+        node.children.find { it.part == part } ?: node
     }
 
     BackHandler(enabled = navigationStack.isNotEmpty()) {
         navigationStack.removeAt(navigationStack.lastIndex)
     }
 
-    // Checkbox state and handler
-    val checkboxState: ToggleableState
-    val onCheckboxClick: () -> Unit
-    if (navigationStack.isEmpty()) {
-        // At root: select all items in the entire index
-        checkboxState = if (selected.isEmpty()) {
-            ToggleableState.Off
-        } else if (selected.size == clientModel.index?.size) {
-            ToggleableState.On
-        } else {
-            ToggleableState.Indeterminate
-        }
-        onCheckboxClick = {
-            if (selected.size == clientModel.index?.size) {
-                selected.clear()
-            } else {
-                clientModel.index?.let { index ->
-                    selected.clear()
-                    selected.addAll(index)
-                }
-            }
-        }
-    } else {
-        // In a folder: select all items in current folder
-        val currentFolder = navigationStack.last()
-        val isSelected: (IndexItemModel) -> Boolean = { item -> selected.contains(item) }
-        val currentFolderState = getNodeState(currentFolder, isSelected)
+    // Stored scroll states for each folder
+    val scrollStates = remember { mutableMapOf<String, LazyListState>() }
 
-        checkboxState = when (currentFolderState) {
-            RowState.None -> ToggleableState.Off
-            RowState.Selected -> ToggleableState.On
-            RowState.Downloaded -> ToggleableState.On
-            RowState.DownloadedOrNone -> ToggleableState.Indeterminate
-            RowState.DownloadedOrSelected -> ToggleableState.On
-            RowState.Indeterminate -> ToggleableState.Indeterminate
-            null -> ToggleableState.Off
-        }
-
-        onCheckboxClick = {
-            val onSelect: (IndexItemModel, Boolean) -> Unit = { item, shouldSelect ->
-                if (shouldSelect) {
-                    selected.add(item)
-                } else {
-                    selected.remove(item)
-                }
-            }
-
-            when (currentFolderState) {
-                RowState.Selected, RowState.DownloadedOrSelected, RowState.Indeterminate -> {
-                    onSelectRecursive(currentFolder, onSelect, false)
-                }
-
-                RowState.None, RowState.DownloadedOrNone -> {
-                    onSelectRecursive(currentFolder, onSelect, true)
-                }
-
-                RowState.Downloaded, null -> {}
-            }
-        }
+    // Current scroll state based on navigation stack
+    val currentScrollState = scrollStates.getOrPut(navigationStack.joinToString("/")) {
+        LazyListState()
     }
 
-    val onDownload = {
-        val allSelected = selected.size == clientModel.index?.size
+    // Current children and folder size
+    val currentChildren = currentNode.children
+    val folderSizeModel = nodeSizes.getOrElse(currentNode) { FileSizeModel.Unknown }
+    val currentFolderSize = folderSizeModel.value()
+    val currentFolderSizeEstimated = folderSizeModel !is FileSizeModel.Actual
 
-        if (selected.isEmpty() || allSelected) {
+    val onDownload = {
+        val selectedKeys = selectionManager.selectedKeys
+        val allSelected = selectedKeys.size == clientModel.index?.size
+
+        if (selectedKeys.isEmpty() || allSelected) {
             onDownloadAll()
         } else {
-            onDownloadPartial(selected.map { item ->
+            onDownloadPartial(selectedKeys.map { (root, path) ->
                 DownloadPartialItemModel(
-                    nodeId = item.nodeId,
-                    root = item.root,
-                    path = item.path
+                    nodeId = clientModel.nodeId,
+                    root = root,
+                    path = path
                 )
             })
         }
@@ -240,12 +173,13 @@ fun PreTransferScreen(
                             text = "Choose download directory"
                         )
                     } else {
-                        val allSelected = selected.size == clientModel.index?.size
+                        val selectedKeys = selectionManager.selectedKeys
+                        val allSelected = selectedKeys.size == clientModel.index?.size
                         val numFiles = clientModel.index?.size ?: 0
                         ActionButton(
                             onClick = onDownload,
                             enabled = hasDownloadDirectory,
-                            text = if (selected.isEmpty() || allSelected) {
+                            text = if (selectedKeys.isEmpty() || allSelected) {
                                 "Download everything ($numFiles files, ${
                                     formatSize(
                                         totalSize,
@@ -254,11 +188,16 @@ fun PreTransferScreen(
                                     )
                                 })"
                             } else {
-                                val selectedSize = selected.sumOf { item -> item.fileSize.value() }
+                                // Look up selected items from current index
+                                val selectedItems = clientModel.index?.filter { item ->
+                                    selectedKeys.contains(item.root to item.path)
+                                } ?: emptyList()
+                                val selectedSize =
+                                    selectedItems.sumOf { item -> item.fileSize.value() }
                                 val selectedEstimated =
-                                    selected.any { item -> item.fileSize !is FileSizeModel.Actual }
+                                    selectedItems.any { item -> item.fileSize !is FileSizeModel.Actual }
 
-                                "Download selected (${selected.size} files, ${
+                                "Download selected (${selectedKeys.size} files, ${
                                     formatSize(
                                         selectedSize,
                                         estimated = selectedEstimated,
@@ -278,6 +217,7 @@ fun PreTransferScreen(
         ) {
             BreadcrumbBar(
                 navigationStack = navigationStack,
+                currentNode = currentNode,
                 deviceName = clientModel.name,
                 onNavigateToRoot = { navigationStack.clear() },
                 onNavigateToIndex = { index ->
@@ -286,8 +226,8 @@ fun PreTransferScreen(
                         navigationStack.removeAt(navigationStack.lastIndex)
                     }
                 },
-                checkboxState = checkboxState,
-                onCheckboxClick = onCheckboxClick,
+                checkboxRowState = selectionManager.getNodeState(currentNode),
+                onCheckboxClick = { selectionManager.handleSelectNode(currentNode) },
                 currentFolderSize = currentFolderSize,
                 currentFolderSizeEstimated = currentFolderSizeEstimated,
             )
@@ -297,46 +237,12 @@ fun PreTransferScreen(
                     items = currentChildren,
                     key = { node -> node.part }
                 ) { node ->
-                    val isSelected: (IndexItemModel) -> Boolean =
-                        { item -> selected.contains(item) }
-                    val onSelect: (IndexItemModel, Boolean) -> Unit = { item, shouldSelect ->
-                        if (shouldSelect) {
-                            selected.add(item)
-                        } else {
-                            selected.remove(item)
-                        }
-                    }
-
-                    val rowState = getNodeState(node, isSelected)
-
-                    val onSelectThis = node.leaf?.let {
-                        {
-                            // Toggle selected item
-                            onSelect(it, !isSelected(it))
-                        }
-                    } ?: run {
-                        {
-                            // Set children based on current state
-                            when (rowState) {
-                                RowState.Selected, RowState.DownloadedOrSelected, RowState.Indeterminate -> {
-                                    onSelectRecursive(node, onSelect, false)
-                                }
-
-                                RowState.None, RowState.DownloadedOrNone -> {
-                                    onSelectRecursive(node, onSelect, true)
-                                }
-
-                                RowState.Downloaded, null -> {}
-                            }
-                        }
-                    }
-
                     FileRow(
                         node = node,
-                        rowState = rowState,
-                        onSelect = onSelectThis,
+                        rowState = selectionManager.getNodeState(node),
+                        onSelect = { selectionManager.handleSelectNode(node) },
                         onNavigate = if (node.leaf == null) {
-                            { navigationStack.add(node) }
+                            { navigationStack.add(node.part) }
                         } else null,
                     )
                 }
@@ -377,11 +283,12 @@ private fun ActionButton(
 
 @Composable
 private fun BreadcrumbBar(
-    navigationStack: SnapshotStateList<TreeNode>,
+    navigationStack: SnapshotStateList<String>,
+    currentNode: TreeNode,
     deviceName: String,
     onNavigateToRoot: () -> Unit,
     onNavigateToIndex: (Int) -> Unit,
-    checkboxState: ToggleableState,
+    checkboxRowState: RowState,
     onCheckboxClick: () -> Unit,
     currentFolderSize: ULong,
     currentFolderSizeEstimated: Boolean,
@@ -401,9 +308,11 @@ private fun BreadcrumbBar(
             .background(MaterialTheme.colorScheme.primaryContainer),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TriStateCheckbox(
-            state = checkboxState,
-            onClick = onCheckboxClick
+        RowStateCheckbox(
+            node = currentNode,
+            // DisabledOrNone means nothing is actually selected; show unchecked at top level
+            rowState = if (checkboxRowState == RowState.DisabledOrNone) RowState.None else checkboxRowState,
+            onClick = onCheckboxClick,
         )
 
         Row(
@@ -430,7 +339,7 @@ private fun BreadcrumbBar(
                 )
 
                 // Path crumbs
-                navigationStack.forEachIndexed { index, node ->
+                navigationStack.forEachIndexed { index, part ->
                     Icon(
                         painter = painterResource(Res.drawable.chevron_forward_24px),
                         contentDescription = null,
@@ -438,7 +347,7 @@ private fun BreadcrumbBar(
                         modifier = Modifier.padding(horizontal = 2.dp).requiredSize(18.dp)
                     )
                     Text(
-                        text = node.part,
+                        text = part,
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.Bold,
@@ -471,7 +380,7 @@ private fun BreadcrumbBar(
 @Composable
 internal fun FileRow(
     node: TreeNode,
-    rowState: RowState?,
+    rowState: RowState,
     onSelect: () -> Unit,
     onNavigate: (() -> Unit)?,
 ) {
@@ -492,25 +401,11 @@ internal fun FileRow(
             ),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (rowState == RowState.Downloaded) {
-            DownloadedCheckbox()
-        } else {
-            val toggleableState = when (rowState) {
-                RowState.None -> ToggleableState.Off
-                RowState.Selected -> ToggleableState.On
-                RowState.Downloaded -> ToggleableState.On
-                RowState.DownloadedOrNone -> ToggleableState.Indeterminate
-                RowState.DownloadedOrSelected -> ToggleableState.On
-                RowState.Indeterminate -> ToggleableState.Indeterminate
-                null -> ToggleableState.Off
-            }
-
-            TriStateCheckbox(
-                state = toggleableState,
-                enabled = rowState != null,
-                onClick = onSelect,
-            )
-        }
+        RowStateCheckbox(
+            node = node,
+            rowState = rowState,
+            onClick = onSelect,
+        )
 
         Row(
             modifier = Modifier.fillMaxSize().padding(end = 8.dp),
@@ -536,12 +431,10 @@ internal fun FileRow(
 
 /**
  * Builds the graph of `TreeNodes` from the index.
- *
- * Returns a list of top-level nodes.
  */
 internal fun buildTree(
     index: List<IndexItemModel>,
-): List<TreeNode> {
+): TreeNode {
     val roots = mutableListOf<TreeNode>()
 
     // add nodes to tree
@@ -594,11 +487,14 @@ internal fun buildTree(
         topLevel = topLevel[0].children
     }
 
-    return topLevel
+    // sort top level nodes
+    topLevel.sortWith(compareBy<TreeNode> { it.leaf != null }.thenBy { it.part })
+
+    return TreeNode(part = "", children = topLevel)
 }
 
 /**
- * Collapses the children of a `TreeNode` recursively.
+ * Collapses the children of a `TreeNode` recursively and sorts them.
  */
 internal fun collapseNodeChildren(node: TreeNode) {
     // recursively collapse children first
@@ -606,13 +502,16 @@ internal fun collapseNodeChildren(node: TreeNode) {
         collapseNodeChildren(child)
     }
 
+    // sort children: folders first, then alphabetically
+    node.children.sortWith(compareBy<TreeNode> { it.leaf != null }.thenBy { it.part })
+
     // duplicate list so we can safely iterate while modifying
     val oldChildren = node.children.toList()
 
     for (child in oldChildren) {
         // can't collapse leaves
         if (child.leaf != null) {
-            continue;
+            continue
         }
 
         // only collapse if there's exactly one child and it's a folder
@@ -697,138 +596,62 @@ internal enum class RowState {
     Selected,
 
     /**
-     * All descendants are downloaded.
+     * All descendants are disabled (downloaded or failed).
      */
-    Downloaded,
+    Disabled,
 
     /**
-     * All descendants are downloaded or unselected.
+     * All descendants are disabled (downloaded or failed) or unselected.
      */
-    DownloadedOrNone,
+    DisabledOrNone,
 
     /**
-     * All descendants are downloaded or selected.
+     * All descendants are disabled (downloaded or failed) or selected.
      */
-    DownloadedOrSelected,
+    DisabledOrSelected,
 
     /**
      * Some descendants are selected and some are unselected.
      *
-     * Some descendants may also be downloaded.
+     * Some descendants may also be disabled (downloaded or failed).
      */
     Indeterminate,
 }
 
 /**
- * Gets the `RowState` of a node in the file tree.
- *
- * We need to know more than just Indeterminate to correctly
- * select/unselect indeterminate rows with mixed descendants.
- *
- * If the node is a leaf (file), then:
- *  - If it is downloaded, the state is Downloaded
- *  - If it is selected, the state is Selected
- *  - Otherwise, the state is None
- * If the node is a branch, then:
- *  - If it has no children, it is null
- *  - If all children are Downloaded, it is Downloaded
- *  - If all children are Selected, it is Selected
- *  - If all children are None, it is None
- *  - If all children are DownloadedOrNone, Downloaded, or None, it is DownloadedOrNone
- *  - If all children are DownloadedOrSelected, Downloaded, or Selected, it is DownloadedOrSelected
- *  - Otherwise, it is Indeterminate
+ * Renders the appropriate checkbox for a given [RowState]:
+ * - [RowState.Disabled]: a non-interactive [DisabledIconCheckbox]; uses [exclamation_24px] for
+ *   [IndexItemDownloadStatusModel.FAILED] leaves, [arrow_downward_24px] otherwise
+ * - All other states: a [TriStateCheckbox]
  */
-internal fun getNodeState(
+@Composable
+internal fun RowStateCheckbox(
     node: TreeNode,
-    isSelected: (IndexItemModel) -> Boolean,
-): RowState? {
-    return node.leaf?.let {
-        // leaf node
-        if (it.downloaded) {
-            RowState.Downloaded
-        } else if (isSelected(it)) {
-            RowState.Selected
-        } else {
-            RowState.None
-        }
-    } ?: run {
-        // internal node
-        if (node.children.isEmpty()) {
-            return null
-        }
-
-        var total = 0
-        var countNone = 0
-        var countSelected = 0
-        var countDownloaded = 0
-        var countDownloadedOrNone = 0
-        var countDownloadedOrSelected = 0
-
-        node.children.forEach { child ->
-            val state = getNodeState(child, isSelected)
-            when (state) {
-                RowState.None -> {
-                    total += 1
-                    countNone += 1
-                }
-
-                RowState.Selected -> {
-                    total += 1
-                    countSelected += 1
-                }
-
-                RowState.Downloaded -> {
-                    total += 1
-                    countDownloaded += 1
-                }
-
-                RowState.DownloadedOrNone -> {
-                    total += 1
-                    countDownloadedOrNone += 1
-                }
-
-                RowState.DownloadedOrSelected -> {
-                    total += 1
-                    countDownloadedOrSelected += 1
-                }
-
-                RowState.Indeterminate, null -> {}
-            }
-        }
-
-        if (countNone == total) {
-            RowState.None
-        } else if (countSelected == total) {
-            RowState.Selected
-        } else if (countDownloaded == total) {
-            RowState.Downloaded
-        } else if (countSelected == 0 && countDownloadedOrSelected == 0) {
-            RowState.DownloadedOrNone
-        } else if (countNone == 0 && countDownloadedOrNone == 0) {
-            RowState.DownloadedOrSelected
-        } else {
-            RowState.Indeterminate
-        }
-    }
-}
-
-/**
- * Calls `onSelect` on all leaf nodes including and below `node` with the value of `shouldSelect`.
- */
-internal fun onSelectRecursive(
-    node: TreeNode,
-    onSelect: (IndexItemModel, Boolean) -> Unit,
-    shouldSelect: Boolean,
+    rowState: RowState,
+    onClick: () -> Unit,
 ) {
-    node.leaf?.let {
-        onSelect(it, shouldSelect)
-    }
-
-    node.children.forEach {
-        onSelectRecursive(it, onSelect, shouldSelect)
+    if (rowState == RowState.Disabled) {
+        val painter = if (node.leaf?.downloadStatus == IndexItemDownloadStatusModel.FAILED) {
+            painterResource(Res.drawable.exclamation_24px)
+        } else {
+            painterResource(Res.drawable.arrow_downward_24px)
+        }
+        DisabledIconCheckbox(painter = painter)
+    } else {
+        val toggleableState = when (rowState) {
+            RowState.None -> ToggleableState.Off
+            RowState.Selected -> ToggleableState.On
+            RowState.DisabledOrNone -> ToggleableState.Indeterminate
+            RowState.DisabledOrSelected -> ToggleableState.On
+            RowState.Indeterminate -> ToggleableState.Indeterminate
+            RowState.Disabled -> ToggleableState.Off
+        }
+        TriStateCheckbox(
+            state = toggleableState,
+            onClick = onClick,
+        )
     }
 }
-
 
 private val CheckboxStateLayerSize = 40.dp
 private val CheckboxDefaultPadding = 2.dp
@@ -837,18 +660,15 @@ private val StrokeWidth = 2.dp
 private val RadiusSize = 2.dp
 
 /**
- * Extracted M3 checkbox component with the check replaced by a down arrow.
- * Doesn't animate.
+ * Extracted M3 checkbox component with the check replaced by a given icon.
+ * Disabled and non-interactive. Doesn't animate.
  */
 @Composable
-internal fun DownloadedCheckbox() {
-    val state = ToggleableState.On
-    val enabled = false
-
+internal fun DisabledIconCheckbox(painter: Painter) {
     val toggleableModifier = Modifier.triStateToggleable(
-        state = state,
+        state = ToggleableState.On,
         onClick = {},
-        enabled = enabled,
+        enabled = false,
         role = Role.Checkbox,
         interactionSource = null,
         indication = ripple(
@@ -858,11 +678,8 @@ internal fun DownloadedCheckbox() {
     )
 
     val colors = CheckboxDefaults.colors()
-    val checkColor = colors.checkedCheckmarkColor
     val boxColor = colors.disabledCheckedBoxColor
     val borderColor = colors.disabledBorderColor
-
-    val arrowPainter = painterResource(Res.drawable.arrow_downward_24px)
 
     Canvas(
         modifier = Modifier
@@ -880,7 +697,7 @@ internal fun DownloadedCheckbox() {
             strokeWidth = strokeWidthPx
         )
 
-        with(arrowPainter) {
+        with(painter) {
             draw(size)
         }
     }
@@ -920,6 +737,181 @@ private fun DrawScope.drawBox(
     }
 }
 
+/**
+ * Manages selection state for PreTransferScreen.
+ *
+ * Automatically preselects InProgress items when the index changes, but only once per item.
+ * If the user manually deselects an InProgress item, it won't be re-preselected on refresh.
+ */
+internal class SelectionManager {
+    private val _selectedKeys = mutableStateSetOf<Pair<String, String>>()
+    private val _preselectedKeys = mutableStateSetOf<Pair<String, String>>()
+    private val _stateCache = mutableMapOf<TreeNode, RowState>()
+
+    val selectedKeys: Set<Pair<String, String>> get() = _selectedKeys
+
+    fun onIndexChanged(index: List<IndexItemModel>) {
+        val toPreselect = index
+            .filter { it.downloadStatus == IndexItemDownloadStatusModel.IN_PROGRESS }
+            .map { it.root to it.path }
+            .filterNot { _preselectedKeys.contains(it) }
+
+        _selectedKeys.addAll(toPreselect)
+        _preselectedKeys.addAll(toPreselect)
+        _stateCache.clear()
+    }
+
+    /**
+     * Sets the selected state of an item.
+     */
+    fun setSelected(item: IndexItemModel, selected: Boolean) {
+        val key = item.root to item.path
+        if (selected) {
+            _selectedKeys.add(key)
+        } else {
+            _selectedKeys.remove(key)
+        }
+        _stateCache.clear()
+    }
+
+    /**
+     * Sets the selected state of an item and its descendants.
+     */
+    fun setSelectedRecursive(node: TreeNode, selected: Boolean) {
+        node.leaf?.let { setSelected(it, selected) }
+        node.children.forEach { setSelectedRecursive(it, selected) }
+    }
+
+    /**
+     * Gets whether an item is selected.
+     */
+    fun isSelected(item: IndexItemModel): Boolean {
+        return _selectedKeys.contains(item.root to item.path)
+    }
+
+    /**
+     * Handles selecting/deselecting a node based on its current state.
+     * For leaf nodes, toggles selection. For branch nodes, recursively selects/deselects.
+     */
+    fun handleSelectNode(node: TreeNode) {
+        node.leaf?.let { leaf ->
+            setSelected(leaf, !isSelected(leaf))
+        } ?: run {
+            val rowState = getNodeState(node)
+            when (rowState) {
+                RowState.Selected, RowState.DisabledOrSelected, RowState.Indeterminate -> {
+                    setSelectedRecursive(node, false)
+                }
+
+                RowState.None, RowState.DisabledOrNone -> {
+                    setSelectedRecursive(node, true)
+                }
+
+                RowState.Disabled -> {}
+            }
+        }
+    }
+
+    /**
+     * Gets the `RowState` of a node in the file tree.
+     *
+     * Uses an internal cache to avoid recomputing states for nodes.
+     * The cache is cleared when selection changes.
+     *
+     * We need to know more than just Indeterminate to correctly
+     * select/unselect indeterminate rows with mixed descendants.
+     *
+     * If the node is a leaf (file), then:
+     *  - If it is downloaded or failed, the state is Disabled
+     *  - If it is selected, the state is Selected
+     *  - Otherwise, the state is None
+     * If the node is a branch, then:
+     *  - If it has no children, it is None
+     *  - If all children are Disabled, it is Disabled
+     *  - If all children are Selected, it is Selected
+     *  - If all children are None, it is None
+     *  - If all children are DisabledOrNone, Disabled, or None, it is DisabledOrNone
+     *  - If all children are DisabledOrSelected, Disabled, or Selected, it is DisabledOrSelected
+     *  - Otherwise, it is Indeterminate
+     */
+    fun getNodeState(node: TreeNode): RowState {
+        _stateCache[node]?.let { return it }
+
+        val state = node.leaf?.let {
+            // leaf node
+            if (it.downloadStatus == IndexItemDownloadStatusModel.DOWNLOADED ||
+                it.downloadStatus == IndexItemDownloadStatusModel.FAILED
+            ) {
+                RowState.Disabled
+            } else if (isSelected(it)) {
+                RowState.Selected
+            } else {
+                RowState.None
+            }
+        } ?: run {
+            // internal node
+            if (node.children.isEmpty()) {
+                return RowState.None
+            }
+
+            var total = 0
+            var countNone = 0
+            var countSelected = 0
+            var countDisabled = 0
+            var countDisabledOrNone = 0
+            var countDisabledOrSelected = 0
+
+            node.children.forEach { child ->
+                val childState = getNodeState(child)
+                when (childState) {
+                    RowState.None -> {
+                        total += 1
+                        countNone += 1
+                    }
+
+                    RowState.Selected -> {
+                        total += 1
+                        countSelected += 1
+                    }
+
+                    RowState.Disabled -> {
+                        total += 1
+                        countDisabled += 1
+                    }
+
+                    RowState.DisabledOrNone -> {
+                        total += 1
+                        countDisabledOrNone += 1
+                    }
+
+                    RowState.DisabledOrSelected -> {
+                        total += 1
+                        countDisabledOrSelected += 1
+                    }
+
+                    RowState.Indeterminate -> {}
+                }
+            }
+
+            if (countNone == total) {
+                RowState.None
+            } else if (countSelected == total) {
+                RowState.Selected
+            } else if (countDisabled == total) {
+                RowState.Disabled
+            } else if (countSelected == 0 && countDisabledOrSelected == 0) {
+                RowState.DisabledOrNone
+            } else if (countNone == 0 && countDisabledOrNone == 0) {
+                RowState.DisabledOrSelected
+            } else {
+                RowState.Indeterminate
+            }
+        }
+
+        _stateCache[node] = state
+        return state
+    }
+}
 
 internal data class TreeNode(
     val part: String,

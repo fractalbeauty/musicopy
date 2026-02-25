@@ -220,6 +220,8 @@ pub enum NodeCommand {
     CloseClient(NodeId),
     CloseServer(NodeId),
 
+    RefreshClientIndex(NodeId),
+
     DownloadAll {
         client: NodeId,
     },
@@ -544,6 +546,13 @@ impl Node {
                                 log::error!("CloseServer: no server found with node_id: {node_id}");
                             }
                         },
+
+                        NodeCommand::RefreshClientIndex(node_id) => {
+                            self.update_model(NodeModelUpdate::UpdateClient {
+                                node_id,
+                                update: ClientModelUpdate::UpdateIndex,
+                            });
+                        }
 
                         NodeCommand::DownloadAll { client } => {
                             // check that download directory is set before downloading

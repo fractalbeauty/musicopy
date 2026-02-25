@@ -174,7 +174,7 @@ fun App(
             composable<Home> {
                 HomeScreen(
                     appSettings = appSettings,
-                    
+
                     snackbarHost = snackbarHost,
                     onShowNodeStatus = onShowNodeStatus,
 
@@ -199,7 +199,8 @@ fun App(
                 //
                 // If we have, we're returning from a deeper screen and we shouldn't auto-launch the
                 // QR scanner, since it feels weird for it to appear after a back gesture.
-                val hasSubmitted = backStackEntry.savedStateHandle.get<Boolean>("hasSubmitted") ?: false
+                val hasSubmitted =
+                    backStackEntry.savedStateHandle.get<Boolean>("hasSubmitted") ?: false
 
                 ConnectQRScreen(
                     snackbarHost = snackbarHost,
@@ -360,12 +361,14 @@ fun App(
                         onShowNodeStatus = onShowNodeStatus,
 
                         clientModel = clientModel,
-                        onCancel = {
-                            // pop back to pretransfer
+                        onBack = {
+                            // refresh index and return to pretransfer
+                            coreInstance.instance.refreshClientIndex(nodeId)
                             navController.popBackStack(PreTransfer(nodeId), inclusive = false)
                         },
                         onTransferMore = {
-                            // pop back to pretransfer
+                            // refresh index and return to pretransfer
+                            coreInstance.instance.refreshClientIndex(nodeId)
                             navController.popBackStack(PreTransfer(nodeId), inclusive = false)
                         },
                         onDone = {
@@ -378,7 +381,7 @@ fun App(
             composable<Disconnected> { backStackEntry ->
                 val route: Disconnected = backStackEntry.toRoute()
                 val nodeId = route.nodeId
-                
+
                 val clientModel = nodeModel.clients.values.find { x -> x.nodeId == nodeId }
                 val name = clientModel?.name ?: "Unknown"
 

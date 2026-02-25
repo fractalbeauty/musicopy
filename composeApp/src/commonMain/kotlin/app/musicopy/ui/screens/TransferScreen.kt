@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.musicopy.BackHandler
 import app.musicopy.formatFloat
 import app.musicopy.isAndroid
 import app.musicopy.mockClientModel
@@ -76,7 +77,7 @@ fun TransferScreen(
     onShowNodeStatus: () -> Unit,
 
     clientModel: ClientModel,
-    onCancel: () -> Unit,
+    onBack: () -> Unit,
     onTransferMore: () -> Unit,
     onDone: () -> Unit,
 ) {
@@ -97,17 +98,21 @@ fun TransferScreen(
                 job.progress !is TransferJobProgressModel.Failed
     }
 
+    BackHandler(enabled = true) {
+        onBack()
+    }
+
     Scaffold(
         topBar = {
             TopBar(
                 title = "Transferring ${clientModel.transferJobs.size} files",
                 onShowNodeStatus = onShowNodeStatus,
-                onBack = onCancel
+                onBack = onBack
             )
         },
         bottomBar = {
             val isSettled = waitingJobs.isEmpty() && inProgressJobs.isEmpty()
-            
+
             AnimatedVisibility(
                 visible = isSettled,
                 enter = slideInVertically { height -> height } + fadeIn(),
@@ -441,7 +446,7 @@ fun TransferScreenSandbox() {
         onShowNodeStatus = {},
 
         clientModel = mockClientModel(),
-        onCancel = {},
+        onBack = {},
         onTransferMore = {},
         onDone = {},
     )
@@ -478,7 +483,7 @@ fun TransferScreenFinishedSandbox() {
         onShowNodeStatus = {},
 
         clientModel = clientModel,
-        onCancel = { finished = !finished },
+        onBack = { finished = !finished },
         onTransferMore = {},
         onDone = {},
     )
