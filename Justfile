@@ -7,11 +7,11 @@ test:
   just test-rust
   just test-gradle
 
-test-rust:
-  cargo nextest run --package musicopy
+test-rust *FLAGS:
+  cargo nextest run --package musicopy {{FLAGS}}
 
-test-gradle:
-  ./gradlew desktopTest --info
+test-gradle *FLAGS:
+  ./gradlew desktopTest {{FLAGS}}
 
 test-gradle-report:
   xdg-open ./composeApp/build/reports/tests/desktopTest/index.html
