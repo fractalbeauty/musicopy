@@ -13,6 +13,10 @@ mod connect {
         // core 1: connect to core 2
         core_1.wait_for_relay().await;
         core_2.wait_for_relay().await;
+
+        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
         core_1
             .core
             .connect(&core_2.node_id_str())
@@ -41,6 +45,9 @@ mod connect {
 
         core_1.wait_for_relay().await;
         core_2.wait_for_relay().await;
+
+        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
         // core 1: connect to core 2
         core_1
@@ -75,6 +82,9 @@ mod connect {
 
         core_1.wait_for_relay().await;
         core_2.wait_for_relay().await;
+
+        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
         // core 1: connect to core 2
         core_1
@@ -116,6 +126,9 @@ mod connect {
         core_1.wait_for_relay().await;
         core_2.wait_for_relay().await;
 
+        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
         // core 1: connect to core 2
         core_1
             .core
@@ -156,6 +169,10 @@ mod connect {
         // core 1: connect to core 2
         core_1.wait_for_relay().await;
         core_2.wait_for_relay().await;
+
+        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
         core_1
             .core
             .connect(&core_2.node_id_str())
@@ -190,6 +207,9 @@ mod connect {
 
         core_1.wait_for_relay().await;
         core_2.wait_for_relay().await;
+
+        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
         // core 1: connect to core 2
         core_1
@@ -267,6 +287,10 @@ mod connect {
         // core 1: connect to core 2
         core_1.wait_for_relay().await;
         core_2.wait_for_relay().await;
+
+        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
         core_1
             .core
             .connect(&core_2.node_id_str())
@@ -295,6 +319,10 @@ mod connect {
             // core 1: connect to core 2
             core_1.wait_for_relay().await;
             core_2.wait_for_relay().await;
+
+            // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
             core_1
                 .core
                 .connect(&core_2.node_id_str())
@@ -326,6 +354,10 @@ mod connect {
             // core 1: connect to core 2
             core_1.wait_for_relay().await;
             core_2.wait_for_relay().await;
+
+            // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
             core_1
                 .core
                 .connect(&core_2.node_id_str())
@@ -360,6 +392,10 @@ mod connect {
         // core 1: connect to core 2
         core_1.wait_for_relay().await;
         core_2.wait_for_relay().await;
+
+        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
         core_1
             .core
             .connect(&core_2.node_id_str())
@@ -404,6 +440,10 @@ mod connect {
         // core 1: connect to core 2
         core_1.wait_for_relay().await;
         core_2.wait_for_relay().await;
+
+        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
         core_1
             .core
             .connect(&core_2.node_id_str())
@@ -699,6 +739,10 @@ mod transfer {
         // core 1: connect to core 2
         core_1.wait_for_relay().await;
         core_2.wait_for_relay().await;
+
+        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
         core_1
             .core
             .connect(&core_2.node_id_str())
