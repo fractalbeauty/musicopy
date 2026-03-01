@@ -6,7 +6,7 @@ use anyhow::Context;
 use musicopy::{
     Core, CoreOptions,
     library::{LibraryModel, transcode::TranscodePolicy},
-    node::{ClientStateModel, DownloadPartialItemModel, NodeModel, ServerStateModel},
+    node::{ClientStateModel, DownloadRequestModel, NodeModel, ServerStateModel},
 };
 use ratatui::{
     DefaultTerminal,
@@ -369,17 +369,32 @@ impl<'a> App<'a> {
                     anyhow::bail!("client number must be greater than 0");
                 }
 
-                let node_id = self
+                let client_model = self
                     .node_model
                     .clients
                     .values()
                     .filter(|c| matches!(c.state, ClientStateModel::Accepted))
                     .nth(client_num - 1)
-                    .ok_or_else(|| anyhow::anyhow!("client number out of range"))?
-                    .node_id
-                    .clone();
+                    .ok_or_else(|| anyhow::anyhow!("client number out of range"))?;
 
-                app_log!("downloading from client: {}", client_num);
+                let node_id = client_model.node_id.clone();
+                let download_requests = client_model
+                    .index
+                    .as_ref()
+                    .ok_or(anyhow::anyhow!("client index not available"))?
+                    .iter()
+                    .map(|item| DownloadRequestModel {
+                        node_id: node_id.clone(),
+                        root: item.root.clone(),
+                        path: item.path.clone(),
+                    })
+                    .collect::<Vec<_>>();
+
+                app_log!(
+                    "downloading all {} items from client: {}",
+                    download_requests.len(),
+                    client_num
+                );
 
                 let core = self.core.clone();
                 tokio::spawn(async move {
@@ -388,7 +403,7 @@ impl<'a> App<'a> {
                         return;
                     }
 
-                    if let Err(e) = core.download_all(&node_id) {
+                    if let Err(e) = core.set_downloads(&node_id, download_requests) {
                         app_log!("error downloading from client {}: {e:#}", client_num);
                     }
                 });
@@ -416,8 +431,7 @@ impl<'a> App<'a> {
                     .ok_or_else(|| anyhow::anyhow!("client number out of range"))?;
 
                 let node_id = client_model.node_id.to_string();
-
-                let items = client_model
+                let download_requests = client_model
                     .index
                     .as_ref()
                     .ok_or(anyhow::anyhow!("client index not available"))?
@@ -425,7 +439,7 @@ impl<'a> App<'a> {
                     .enumerate()
                     .flat_map(|(i, item)| {
                         if i % 3 == 0 {
-                            Some(DownloadPartialItemModel {
+                            Some(DownloadRequestModel {
                                 node_id: node_id.clone(),
                                 root: item.root.clone(),
                                 path: item.path.clone(),
@@ -437,8 +451,8 @@ impl<'a> App<'a> {
                     .collect::<Vec<_>>();
 
                 app_log!(
-                    "downloading {} items randomly from client: {}",
-                    items.len(),
+                    "downloading {} random items from client: {}",
+                    download_requests.len(),
                     client_num
                 );
 
@@ -449,10 +463,20 @@ impl<'a> App<'a> {
                         return;
                     }
 
-                    if let Err(e) = core.download_partial(&node_id, items) {
+                    if let Err(e) = core.set_downloads(&node_id, download_requests) {
                         app_log!("error downloading from client {}: {e:#}", client_num);
                     }
                 });
+            }
+
+            "p" | "pause" => {
+                app_log!("pausing all downloads");
+
+                for client in self.node_model.clients.values() {
+                    if matches!(client.state, ClientStateModel::Accepted) {
+                        self.core.pause_downloads(&client.node_id)?;
+                    }
+                }
             }
 
             "tp" => {

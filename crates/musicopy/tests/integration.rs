@@ -703,7 +703,7 @@ mod library {
 mod transfer {
     use crate::common::{LibraryFixture, TestCore, TestNodeIdExt};
     use musicopy::node::{
-        DownloadPartialItemModel, IndexItemDownloadStatusModel, TransferJobProgressModel,
+        DownloadRequestModel, IndexItemDownloadStatusModel, TransferJobProgressModel,
     };
 
     /// Prepares two TestCores for transfer tests.
@@ -778,7 +778,7 @@ mod transfer {
     /// items for convenience.
     async fn prepare_with_index(
         fixture: LibraryFixture,
-    ) -> (TestCore, TestCore, Vec<DownloadPartialItemModel>) {
+    ) -> (TestCore, TestCore, Vec<DownloadRequestModel>) {
         let (core_1, core_2) = prepare(fixture).await;
 
         // wait for index with correct number of items
@@ -797,7 +797,7 @@ mod transfer {
             .index
             .unwrap()
             .into_iter()
-            .map(|item| DownloadPartialItemModel {
+            .map(|item| DownloadRequestModel {
                 node_id: item.node_id.clone(),
                 root: item.root.clone(),
                 path: item.path.clone(),
@@ -832,11 +832,18 @@ mod transfer {
             assert!(item.download_status.is_none());
         }
 
-        // core 1: download all
+        // core 1: download file
         core_1
             .core
-            .download_all(&core_2.node_id_str())
-            .expect("should download all");
+            .set_downloads(
+                &core_2.node_id_str(),
+                vec![DownloadRequestModel {
+                    node_id: core_2.node_id_str(),
+                    root: "foo".into(),
+                    path: "test.mp3".into(),
+                }],
+            )
+            .expect("should set downloads");
 
         // should have transfer jobs
         core_1

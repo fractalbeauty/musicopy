@@ -15,7 +15,7 @@ use crate::{
         hash::HashCache,
         transcode::{TranscodePolicy, TranscodeStatusCache},
     },
-    node::{DownloadPartialItemModel, Node, NodeCommand, NodeModel},
+    node::{DownloadRequestModel, Node, NodeCommand, NodeModel},
 };
 use anyhow::Context;
 use iroh::{NodeAddr, NodeId, SecretKey};
@@ -387,25 +387,15 @@ impl Core {
         Ok(())
     }
 
-    pub fn download_all(&self, node_id: &str) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
-
-        self.node
-            .send(NodeCommand::DownloadAll { client: node_id })
-            .context("failed to send to node thread")?;
-
-        Ok(())
-    }
-
-    pub fn download_partial(
+    pub fn set_downloads(
         &self,
         node_id: &str,
-        items: Vec<DownloadPartialItemModel>,
+        items: Vec<DownloadRequestModel>,
     ) -> Result<(), CoreError> {
         let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
 
         self.node
-            .send(NodeCommand::DownloadPartial {
+            .send(NodeCommand::SetDownloads {
                 client: node_id,
                 items,
             })
@@ -419,23 +409,6 @@ impl Core {
 
         self.node
             .send(NodeCommand::PauseDownloads { client: node_id })
-            .context("failed to send to node thread")?;
-
-        Ok(())
-    }
-
-    pub fn set_downloads(
-        &self,
-        node_id: &str,
-        items: Vec<DownloadPartialItemModel>,
-    ) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
-
-        self.node
-            .send(NodeCommand::SetDownloads {
-                client: node_id,
-                items,
-            })
             .context("failed to send to node thread")?;
 
         Ok(())

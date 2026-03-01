@@ -202,7 +202,7 @@ pub struct NodeModel {
 
 /// Model of an item selected to be downloaded.
 #[derive(Debug, Clone, uniffi::Record)]
-pub struct DownloadPartialItemModel {
+pub struct DownloadRequestModel {
     pub node_id: String,
     pub root: String,
     pub path: String,
@@ -226,17 +226,9 @@ pub enum NodeCommand {
 
     RefreshClientIndex(NodeId),
 
-    DownloadAll {
-        client: NodeId,
-    },
-    DownloadPartial {
-        client: NodeId,
-        items: Vec<DownloadPartialItemModel>,
-    },
-
     SetDownloads {
         client: NodeId,
-        items: Vec<DownloadPartialItemModel>,
+        items: Vec<DownloadRequestModel>,
     },
     PauseDownloads {
         client: NodeId,
@@ -571,43 +563,6 @@ impl Node {
                                 node_id,
                                 update: ClientModelUpdate::UpdateIndex,
                             });
-                        }
-
-                        NodeCommand::DownloadAll { client } => {
-                            // check that download directory is set before downloading
-                            {
-                                let download_directory = self.download_directory.lock().unwrap();
-                                if download_directory.is_none() {
-                                    log::error!("DownloadAll: download directory not set");
-                                    continue;
-                                }
-                            };
-
-                            // send command to target client
-                            let clients = self.clients.lock().unwrap();
-                            if let Some(client_handle) = clients.get(&client) {
-                                client_handle.tx.send(ClientCommand::DownloadAll).expect("failed to send ClientCommand::DownloadAll");
-                            } else {
-                                log::error!("DownloadAll: no client found with node_id: {client}");
-                            }
-                        },
-                        NodeCommand::DownloadPartial { client, items } => {
-                            // check that download directory is set before downloading
-                            {
-                                let download_directory = self.download_directory.lock().unwrap();
-                                if download_directory.is_none() {
-                                    log::error!("DownloadPartial: download directory not set");
-                                    continue;
-                                }
-                            };
-
-                            // send command to target client
-                            let clients = self.clients.lock().unwrap();
-                            if let Some(client_handle) = clients.get(&client) {
-                                client_handle.tx.send(ClientCommand::DownloadPartial { items }).expect("failed to send ClientCommand::DownloadPartial");
-                            } else {
-                                log::error!("DownloadPartial: no client found with node_id: {client}");
-                            }
                         }
 
                         NodeCommand::SetDownloads { client, items } => {
@@ -2262,15 +2217,8 @@ enum ClientTransferJobProgress {
 enum ClientCommand {
     Close,
 
-    DownloadAll,
-    DownloadPartial {
-        items: Vec<DownloadPartialItemModel>,
-    },
-
+    SetDownloads { items: Vec<DownloadRequestModel> },
     PauseDownloads,
-    SetDownloads {
-        items: Vec<DownloadPartialItemModel>,
-    },
 }
 
 #[derive(Debug, Clone)]
@@ -2641,17 +2589,11 @@ impl Client {
                             return Ok(());
                         }
 
-                        ClientCommand::DownloadAll => {
-                            log::warn!("unexpected DownloadAll command in waiting loop");
-                        }
-                        ClientCommand::DownloadPartial { .. } => {
-                            log::warn!("unexpected DownloadPartial command in waiting loop");
+                        ClientCommand::SetDownloads { .. } => {
+                            log::warn!("unexpected SetDownloads command in waiting loop");
                         }
                         ClientCommand::PauseDownloads => {
                             log::warn!("unexpected PauseDownloads command in waiting loop");
-                        }
-                        ClientCommand::SetDownloads { .. } => {
-                            log::warn!("unexpected SetDownloads command in waiting loop");
                         }
                     }
                 }
@@ -2714,131 +2656,6 @@ impl Client {
                             break;
                         }
 
-                        ClientCommand::DownloadAll => {
-                            // get index
-                            let index = {
-                                let index = self.index.lock().unwrap();
-                                index.clone()
-                            };
-                            let Some(index) = index else {
-                                log::error!("DownloadAll: no index available, cannot download");
-                                continue;
-                            };
-
-                            // get download directory
-                            let download_directory = {
-                                let download_directory = self.download_directory.lock().unwrap();
-                                download_directory.clone()
-                            };
-
-                            // create jobs and download request items
-                            let download_requests = {
-                                let db = self.db.lock().unwrap();
-                                index.into_iter().flat_map(|file| {
-                                    // check if file is downloaded to the current download directory
-                                    let downloaded = download_directory.as_ref().is_some_and(|download_directory| {
-                                        db.exists_file_by_node_root_path_localtree(
-                                            file.node_id, &file.root, &file.path, download_directory,
-                                        )
-                                        .unwrap_or(false)
-                                    });
-                                    if downloaded {
-                                        return None;
-                                    }
-
-                                    let job_id = self.next_job_id.fetch_add(1, Ordering::Relaxed);
-
-                                    self.jobs.insert(job_id, ClientTransferJob {
-                                        progress: ClientTransferJobProgress::Requested,
-                                        file_node_id: file.node_id,
-                                        file_root: file.root.clone(),
-                                        file_path: file.path.clone(),
-                                    });
-
-                                    Some(DownloadItem {
-                                        job_id,
-
-                                        node_id: file.node_id,
-                                        root: file.root,
-                                        path: file.path,
-                                    })
-                                }).collect::<Vec<_>>()
-                            };
-
-                            // send download request
-                            send.send(ClientMessage::Download(download_requests))
-                                .await
-                                .expect("failed to send Download message");
-
-                            // update model
-                            self.event_tx.send(NodeEvent::ClientChanged {
-                                node_id: remote_node_id,
-                                update: ClientModelUpdate::UpdateTransferJobs,
-                            }).expect("failed to send ClientModelUpdate::UpdateTransferJobs");
-                        }
-                        ClientCommand::DownloadPartial { items } => {
-                            // get index
-                            let index = {
-                                let index = self.index.lock().unwrap();
-                                index.clone()
-                            };
-                            let Some(index) = index else {
-                                log::error!("DownloadPartial: no index available, cannot download");
-                                continue;
-                            };
-
-                            // create jobs and download request items
-                            let download_requests = items.into_iter().flat_map(|item| {
-                                let Ok(file_node_id) = item.node_id.parse() else {
-                                    log::warn!("DownloadPartial: invalid node ID");
-                                    return None;
-                                };
-
-                                // find item in index
-                                let Some(_index_item) = index.iter().find(|i| i.node_id == file_node_id && i.root == item.root && i.path == item.path) else {
-                                    log::warn!("DownloadPartial: item not found in index: {item:?}");
-                                    return None;
-                                };
-
-                                let job_id = self.next_job_id.fetch_add(1, Ordering::Relaxed);
-
-                                self.jobs.insert(job_id, ClientTransferJob {
-                                    progress: ClientTransferJobProgress::Requested,
-                                    file_node_id,
-                                    file_root: item.root.clone(),
-                                    file_path: item.path.clone(),
-                                });
-
-                                Some(DownloadItem {
-                                    job_id,
-
-                                    node_id: file_node_id,
-                                    root: item.root,
-                                    path: item.path,
-                                })
-                            }).collect::<Vec<_>>();
-
-                            // send download request
-                            send.send(ClientMessage::Download(download_requests))
-                                .await
-                                .expect("failed to send Download message");
-
-                            // update model
-                            self.event_tx.send(NodeEvent::ClientChanged {
-                                node_id: remote_node_id,
-                                update: ClientModelUpdate::UpdateTransferJobs,
-                            }).expect("failed to send ClientModelUpdate::UpdateTransferJobs");
-                        }
-
-                        ClientCommand::PauseDownloads => {
-                            log::info!("pausing downloads");
-                            self.paused.store(true, Ordering::Relaxed);
-                            self.event_tx.send(NodeEvent::ClientChanged {
-                                node_id: remote_node_id,
-                                update: ClientModelUpdate::UpdateTransferJobs,
-                            }).expect("failed to send ClientModelUpdate::UpdateTransferJobs");
-                        }
-
                         ClientCommand::SetDownloads { items } => {
                             log::info!("setting downloads: {} items", items.len());
 
@@ -2893,41 +2710,62 @@ impl Client {
                                 })
                                 .collect();
 
+                            // get download directory
+                            let download_directory = {
+                                let download_directory = self.download_directory.lock().unwrap();
+                                download_directory.clone()
+                            };
+
                             // create jobs for new items
-                            let download_requests = items.into_iter().flat_map(|item| {
-                                let Ok(file_node_id) = item.node_id.parse() else {
-                                    log::warn!("SetDownloads: invalid node ID");
-                                    return None;
-                                };
+                            let download_requests = {
+                                let db = self.db.lock().unwrap();
+                                items.into_iter().flat_map(|item| {
+                                    let Ok(file_node_id) = item.node_id.parse() else {
+                                        log::warn!("SetDownloads: invalid node ID");
+                                        return None;
+                                    };
 
-                                // skip if job already exists for this (root, path)
-                                if existing_keys.contains(&(item.root.clone(), item.path.clone())) {
-                                    return None;
-                                }
+                                    // skip if job already exists for this (root, path)
+                                    if existing_keys.contains(&(item.root.clone(), item.path.clone())) {
+                                        return None;
+                                    }
 
-                                // find item in index
-                                let Some(_index_item) = index.iter().find(|i| {
-                                    i.node_id == file_node_id && i.root == item.root && i.path == item.path
-                                }) else {
-                                    log::warn!("SetDownloads: item not found in index: {item:?}");
-                                    return None;
-                                };
+                                    // find item in index
+                                    let Some(_index_item) = index.iter().find(|i| {
+                                        i.node_id == file_node_id && i.root == item.root && i.path == item.path
+                                    }) else {
+                                        log::warn!("SetDownloads: item not found in index: {item:?}");
+                                        return None;
+                                    };
 
-                                let job_id = self.next_job_id.fetch_add(1, Ordering::Relaxed);
-                                self.jobs.insert(job_id, ClientTransferJob {
-                                    progress: ClientTransferJobProgress::Requested,
-                                    file_node_id,
-                                    file_root: item.root.clone(),
-                                    file_path: item.path.clone(),
-                                });
+                                    // check if file is downloaded to the current download directory
+                                    let downloaded = download_directory.as_ref().is_some_and(|download_directory| {
+                                        db.exists_file_by_node_root_path_localtree(
+                                            file_node_id, &item.root, &item.path, download_directory,
+                                        )
+                                        .unwrap_or(false)
+                                    });
+                                    if downloaded {
+                                        // TODO: maybe add a finished job instead
+                                        return None;
+                                    }
 
-                                Some(DownloadItem {
-                                    job_id,
-                                    node_id: file_node_id,
-                                    root: item.root,
-                                    path: item.path,
-                                })
-                            }).collect::<Vec<_>>();
+                                    let job_id = self.next_job_id.fetch_add(1, Ordering::Relaxed);
+                                    self.jobs.insert(job_id, ClientTransferJob {
+                                        progress: ClientTransferJobProgress::Requested,
+                                        file_node_id,
+                                        file_root: item.root.clone(),
+                                        file_path: item.path.clone(),
+                                    });
+
+                                    Some(DownloadItem {
+                                        job_id,
+                                        node_id: file_node_id,
+                                        root: item.root,
+                                        path: item.path,
+                                    })
+                                }).collect::<Vec<_>>()
+                            };
 
                             // send download request for new jobs
                             if !download_requests.is_empty() {
@@ -2945,6 +2783,23 @@ impl Client {
                                 node_id: remote_node_id,
                                 update: ClientModelUpdate::UpdateTransferJobs,
                             }).expect("failed to send ClientModelUpdate::UpdateTransferJobs");
+                            self.event_tx.send(NodeEvent::ClientChanged {
+                                node_id: remote_node_id,
+                                update: ClientModelUpdate::UpdateIndex,
+                            }).expect("failed to send ClientModelUpdate::UpdateIndex");
+                        }
+
+                        ClientCommand::PauseDownloads => {
+                            log::info!("pausing downloads");
+                            self.paused.store(true, Ordering::Relaxed);
+                            self.event_tx.send(NodeEvent::ClientChanged {
+                                node_id: remote_node_id,
+                                update: ClientModelUpdate::UpdateTransferJobs,
+                            }).expect("failed to send ClientModelUpdate::UpdateTransferJobs");
+                            self.event_tx.send(NodeEvent::ClientChanged {
+                                node_id: remote_node_id,
+                                update: ClientModelUpdate::UpdateIndex,
+                            }).expect("failed to send ClientModelUpdate::UpdateIndex");
                         }
                     }
                 }
