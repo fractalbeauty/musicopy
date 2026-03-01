@@ -1,27 +1,47 @@
 use iroh::NodeId;
 use musicopy::{
-    Core, CoreOptions, EventHandler, ProjectDirsOptions,
+    Core, CoreOptions, EventHandler, ProjectDirsOptions, TestHooks,
     library::{LibraryModel, transcode::TranscodePolicy},
     node::{ClientModel, ClientStateModel, NodeModel, ServerModel, ServerStateModel},
 };
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
-pub fn fixture_path(fixture: &str) -> PathBuf {
-    let manifest_dir = env!("CARGO_MANIFEST_DIR");
-
-    let mut p = PathBuf::from(manifest_dir);
-    p.push("tests/fixtures");
-    p.push(fixture);
-
-    assert!(p.exists(), "fixture path does not exist: {p:?}");
-
-    p
+#[derive(Debug, Clone, Copy)]
+pub enum LibraryFixture {
+    Minimal,
+    Multiple,
 }
 
-pub async fn wait_until(msg: &str, condition: impl Fn() -> bool) {
+impl LibraryFixture {
+    pub fn num_items(&self) -> usize {
+        match self {
+            Self::Minimal => 1,
+            Self::Multiple => 2,
+        }
+    }
+
+    pub fn path(&self) -> PathBuf {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+
+        let mut p = PathBuf::from(manifest_dir);
+        p.push("tests/fixtures");
+        match self {
+            Self::Minimal => p.push("minimal"),
+            Self::Multiple => p.push("multiple"),
+        }
+
+        assert!(p.exists(), "fixture path does not exist: {p:?}");
+
+        p
+    }
+}
+
+async fn wait_until(msg: &str, condition: impl Fn() -> bool, on_fail: impl Fn()) {
+    log::debug!("wait_until: waiting for condition: {}", msg);
     let start = std::time::Instant::now();
     while !condition() {
         if start.elapsed().as_secs_f64() > 5.0 {
+            on_fail();
             panic!("timed out waiting for condition: {msg}");
         }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -42,19 +62,26 @@ pub struct TestCore {
 
     pub instance_dir: PathBuf,
     pub cache_dir: PathBuf,
+    pub download_dir: PathBuf,
 
     pub event_handler: Arc<TestEventHandler>,
     pub core: Arc<Core>,
+    #[cfg(feature = "test-hooks")]
+    pub test_hooks: Arc<TestHooks>,
 }
 
 impl TestCore {
     pub async fn start(label: &str) -> Self {
+        let _ = env_logger::builder().is_test(true).try_init();
+
         let event_handler = Arc::new(TestEventHandler);
 
         let test_dir = testdir::testdir!();
         let instance_dir = test_dir.join(label);
         let data_dir = instance_dir.join("data");
         let cache_dir = instance_dir.join("cache");
+        let download_dir = instance_dir.join("downloads");
+
         let project_dirs = ProjectDirsOptions {
             data_dir: data_dir.to_string_lossy().to_string(),
             cache_dir: cache_dir.to_string_lossy().to_string(),
@@ -67,27 +94,42 @@ impl TestCore {
             transcode_policy: TranscodePolicy::IfRequested,
         };
 
-        let core = Core::start(event_handler.clone(), options)
-            .await
-            .expect("should start core");
+        #[cfg(feature = "test-hooks")]
+        let test_hooks = Arc::new(TestHooks::default());
+
+        let core = Core::start_inner(
+            event_handler.clone(),
+            options,
+            #[cfg(feature = "test-hooks")]
+            test_hooks.clone(),
+        )
+        .await
+        .expect("should start core");
 
         Self {
             label: label.to_string(),
 
             instance_dir,
             cache_dir,
+            download_dir,
 
             event_handler,
             core,
+            #[cfg(feature = "test-hooks")]
+            test_hooks,
         }
     }
 
     /// Wait until we have a home relay, so discovery and connections should work
     pub async fn wait_for_relay(&self) {
-        wait_until(&format!("{} has relay", self.label), || {
-            let model = self.core.get_node_model().expect("should get node model");
-            model.home_relay != "none"
-        })
+        wait_until(
+            &format!("{} has relay", self.label),
+            || {
+                let model = self.core.get_node_model().expect("should get node model");
+                model.home_relay != "none"
+            },
+            || {},
+        )
         .await;
     }
 
@@ -98,10 +140,19 @@ impl TestCore {
         condition: impl Fn(&NodeModel) -> bool,
     ) {
         let full_msg = format!("{} node model where {}", self.label, msg);
-        wait_until(&full_msg, || {
-            let model = self.core.get_node_model().expect("should get node model");
-            condition(&model)
-        })
+        wait_until(
+            &full_msg,
+            || {
+                let model = self.core.get_node_model().expect("should get node model");
+                condition(&model)
+            },
+            || {
+                log::warn!(
+                    "wait_for_node_model_condition: node model: {:?}",
+                    self.core.get_node_model(),
+                );
+            },
+        )
         .await;
     }
 
@@ -112,13 +163,22 @@ impl TestCore {
         condition: impl Fn(&LibraryModel) -> bool,
     ) {
         let full_msg = format!("{} library model where {}", self.label, msg);
-        wait_until(&full_msg, || {
-            let model = self
-                .core
-                .get_library_model()
-                .expect("should get library model");
-            condition(&model)
-        })
+        wait_until(
+            &full_msg,
+            || {
+                let model = self
+                    .core
+                    .get_library_model()
+                    .expect("should get library model");
+                condition(&model)
+            },
+            || {
+                log::warn!(
+                    "wait_for_library_model_condition: library model: {:?}",
+                    self.core.get_library_model(),
+                );
+            },
+        )
         .await;
     }
 
@@ -129,6 +189,12 @@ impl TestCore {
             || {
                 let model = self.core.get_node_model().expect("should get node model");
                 model.clients.contains_key(&other.node_id_str())
+            },
+            || {
+                log::warn!(
+                    "wait_for_client: node model: {:?}",
+                    self.core.get_node_model(),
+                );
             },
         )
         .await;
@@ -152,18 +218,27 @@ impl TestCore {
         self.wait_for_client(other.clone()).await;
 
         // wait for client with condition
-        wait_until(&full_msg, || {
-            let model = self.core.get_node_model().expect("should get node model");
-            if let Some(client) = model.clients.get(&other.node_id_str()) {
-                condition(client)
-            } else {
-                eprintln!(
-                    "wait_for_client_condition: {full_msg}: client for {} missing?",
-                    other.label()
+        wait_until(
+            &full_msg,
+            || {
+                let model = self.core.get_node_model().expect("should get node model");
+                if let Some(client) = model.clients.get(&other.node_id_str()) {
+                    condition(client)
+                } else {
+                    eprintln!(
+                        "wait_for_client_condition: {full_msg}: client for {} missing?",
+                        other.label()
+                    );
+                    false
+                }
+            },
+            || {
+                log::warn!(
+                    "wait_for_client_condition: node model: {:?}",
+                    self.core.get_node_model(),
                 );
-                false
-            }
-        })
+            },
+        )
         .await;
     }
 
@@ -199,6 +274,12 @@ impl TestCore {
                 let model = self.core.get_node_model().expect("should get node model");
                 model.servers.contains_key(&other.node_id_str())
             },
+            || {
+                log::warn!(
+                    "wait_for_server: node model: {:?}",
+                    self.core.get_node_model(),
+                );
+            },
         )
         .await;
     }
@@ -221,18 +302,27 @@ impl TestCore {
         self.wait_for_server(other.clone()).await;
 
         // wait for server with condition
-        wait_until(&full_msg, || {
-            let model = self.core.get_node_model().expect("should get node model");
-            if let Some(server) = model.servers.get(&other.node_id_str()) {
-                condition(server)
-            } else {
-                eprintln!(
-                    "wait_for_server_condition: {full_msg}: server for {} missing?",
-                    other.label()
+        wait_until(
+            &full_msg,
+            || {
+                let model = self.core.get_node_model().expect("should get node model");
+                if let Some(server) = model.servers.get(&other.node_id_str()) {
+                    condition(server)
+                } else {
+                    eprintln!(
+                        "wait_for_server_condition: {full_msg}: server for {} missing?",
+                        other.label()
+                    );
+                    false
+                }
+            },
+            || {
+                log::warn!(
+                    "wait_for_server_condition: node model: {:?}",
+                    self.core.get_node_model(),
                 );
-                false
-            }
-        })
+            },
+        )
         .await;
     }
 
@@ -290,6 +380,15 @@ impl TestCore {
         let bytes = hex::decode(&model.node_id).expect("should decode node id hex");
         NodeId::from_bytes(&bytes.try_into().expect("should have correct length"))
             .expect("should parse node id")
+    }
+
+    pub fn client_model(&self, other: impl TestNodeIdExt) -> ClientModel {
+        let model = self.core.get_node_model().expect("should get node model");
+        model
+            .clients
+            .get(&other.node_id_str())
+            .unwrap_or_else(|| panic!("client_model: client for {} missing?", other.label()))
+            .clone()
     }
 }
 

@@ -69,22 +69,16 @@ impl std::fmt::Debug for Core {
     }
 }
 
-#[uniffi::export]
 impl Core {
-    /// Starts the app core.
+    /// Inner implementation of [`Core::start`].
     ///
-    /// This is async, since components may require async initialization before
-    /// their handles are ready. The constructor itself runs on the UI's async
-    /// runtime, but the core spawns its own thread with a Tokio runtime for
-    /// actual app logic. The constructor only uses async to wait for component
-    /// handles to be ready, since they are spawned on the Tokio runtime and
-    /// sent back to the constructor using channels. The UI should wait for the
-    /// core before the initial render, so that it can have initial data ready
-    /// immediately.
-    #[uniffi::constructor]
-    pub async fn start(
+    /// This is exported but hidden from docs since it's mainly meant for use in integration tests
+    /// with TestHooks. The outer [`Core::start`] function should be used in most cases.
+    #[doc(hidden)]
+    pub async fn start_inner(
         event_handler: Arc<dyn EventHandler>,
         options: CoreOptions,
+        #[cfg(feature = "test-hooks")] test_hooks: Arc<TestHooks>,
     ) -> Result<Arc<Self>, CoreError> {
         if options.init_logging {
             #[cfg(target_os = "android")]
@@ -232,7 +226,9 @@ impl Core {
                                 secret_key,
                                 db,
                                 transcode_status_cache,
-                                hash_cache
+                                hash_cache,
+                                #[cfg(feature = "test-hooks")]
+                                test_hooks,
                             ),
                         );
 
@@ -313,6 +309,33 @@ impl Core {
 
         Ok(Arc::new(Self { db, library, node }))
     }
+}
+
+#[uniffi::export]
+impl Core {
+    /// Starts the app core.
+    ///
+    /// This is async, since components may require async initialization before
+    /// their handles are ready. The constructor itself runs on the UI's async
+    /// runtime, but the core spawns its own thread with a Tokio runtime for
+    /// actual app logic. The constructor only uses async to wait for component
+    /// handles to be ready, since they are spawned on the Tokio runtime and
+    /// sent back to the constructor using channels. The UI should wait for the
+    /// core before the initial render, so that it can have initial data ready
+    /// immediately.
+    #[uniffi::constructor]
+    pub async fn start(
+        event_handler: Arc<dyn EventHandler>,
+        options: CoreOptions,
+    ) -> Result<Arc<Self>, CoreError> {
+        Self::start_inner(
+            event_handler,
+            options,
+            #[cfg(feature = "test-hooks")]
+            Arc::new(TestHooks::default()),
+        )
+        .await
+    }
 
     pub fn shutdown(&self) -> Result<(), CoreError> {
         debug!("core: shutting down");
@@ -383,6 +406,33 @@ impl Core {
 
         self.node
             .send(NodeCommand::DownloadPartial {
+                client: node_id,
+                items,
+            })
+            .context("failed to send to node thread")?;
+
+        Ok(())
+    }
+
+    pub fn pause_downloads(&self, node_id: &str) -> Result<(), CoreError> {
+        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
+
+        self.node
+            .send(NodeCommand::PauseDownloads { client: node_id })
+            .context("failed to send to node thread")?;
+
+        Ok(())
+    }
+
+    pub fn set_downloads(
+        &self,
+        node_id: &str,
+        items: Vec<DownloadPartialItemModel>,
+    ) -> Result<(), CoreError> {
+        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
+
+        self.node
+            .send(NodeCommand::SetDownloads {
                 client: node_id,
                 items,
             })
@@ -558,6 +608,74 @@ impl Core {
             .send(NodeCommand::WriteTestFile(root))
             .context("failed to send to node thread")?;
         Ok(())
+    }
+}
+
+/// Hooks for integration tests.
+#[cfg(feature = "test-hooks")]
+#[derive(Debug)]
+pub struct TestHooks {
+    download_gate: Mutex<Option<Arc<tokio::sync::Semaphore>>>,
+}
+
+#[cfg(feature = "test-hooks")]
+impl TestHooks {
+    /// Creates a new TestHooks instance.
+    ///
+    /// Does nothing by default.
+    pub fn new() -> Self {
+        Self {
+            download_gate: Mutex::new(None),
+        }
+    }
+
+    /// Enables the download gate for controlling downloads.
+    ///
+    /// If this is used, downloads will wait until `add_download_permit` is called. Each download
+    /// permanently consumes a permit.
+    ///
+    /// Panics if called twice.
+    pub fn enable_download_gate(&self) {
+        let mut download_gate = self.download_gate.lock().unwrap();
+        if download_gate.is_some() {
+            panic!("Called TestHooks::enable_download_gate twice");
+        }
+        *download_gate = Some(Arc::new(tokio::sync::Semaphore::new(0)));
+    }
+
+    /// Waits for a download permit if the download gate is enabled.
+    pub async fn wait_for_download_permit(&self) {
+        let download_gate = self.download_gate.lock().unwrap().clone();
+        let Some(download_gate) = download_gate.as_ref() else {
+            return;
+        };
+
+        match download_gate.acquire().await {
+            Ok(permit) => {
+                permit.forget();
+            }
+            Err(_) => {
+                // Semaphore closed
+            }
+        };
+    }
+
+    /// Adds download permits if the download gate is enabled.
+    ///
+    /// Panics if called without enabling the download gate.
+    pub fn add_download_permits(&self, n: usize) {
+        let download_gate = self.download_gate.lock().unwrap();
+        let Some(download_gate) = download_gate.as_ref() else {
+            panic!("Called TestHooks::add_download_permits without enabling download gate");
+        };
+        download_gate.add_permits(n);
+    }
+}
+
+#[cfg(feature = "test-hooks")]
+impl Default for TestHooks {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

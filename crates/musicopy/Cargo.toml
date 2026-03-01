@@ -3,6 +3,9 @@ name = "musicopy"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+test-hooks = []
+
 [lib]
 crate-type = ["cdylib", "staticlib", "lib"]
 name = "musicopy"

@@ -8,7 +8,7 @@ test:
   just test-gradle
 
 test-rust *FLAGS:
-  cargo nextest run --package musicopy {{FLAGS}}
+  cargo nextest run --package musicopy --features musicopy/test-hooks {{FLAGS}}
 
 test-gradle *FLAGS:
   ./gradlew desktopTest {{FLAGS}}
@@ -17,7 +17,7 @@ test-gradle-report:
   xdg-open ./composeApp/build/reports/tests/desktopTest/index.html
 
 cov:
-  cargo llvm-cov --html nextest --package musicopy
+  cargo llvm-cov --html nextest --package musicopy --features musicopy/test-hooks
 
 cov-report:
   xdg-open ./target/llvm-cov/html/index.html

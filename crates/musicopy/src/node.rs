@@ -8,6 +8,8 @@
 //! A `Server` is an incoming connection from a client.
 //! Servers send files, primarily used in the desktop app.
 
+#[cfg(feature = "test-hooks")]
+use crate::TestHooks;
 use crate::{
     EventHandler,
     database::{Database, InsertFile},
@@ -37,13 +39,13 @@ use std::{
     pin::Pin,
     sync::{
         Arc, Mutex,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::{Duration, SystemTime},
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    sync::{mpsc, oneshot},
+    sync::{Notify, mpsc, oneshot},
 };
 use tokio_util::{
     bytes::Bytes,
@@ -199,7 +201,7 @@ pub struct NodeModel {
 }
 
 /// Model of an item selected to be downloaded.
-#[derive(Debug, uniffi::Record)]
+#[derive(Debug, Clone, uniffi::Record)]
 pub struct DownloadPartialItemModel {
     pub node_id: String,
     pub root: String,
@@ -230,6 +232,14 @@ pub enum NodeCommand {
     DownloadPartial {
         client: NodeId,
         items: Vec<DownloadPartialItemModel>,
+    },
+
+    SetDownloads {
+        client: NodeId,
+        items: Vec<DownloadPartialItemModel>,
+    },
+    PauseDownloads {
+        client: NodeId,
     },
 
     TrustNode(NodeId),
@@ -343,6 +353,9 @@ pub struct Node {
     download_directory: Arc<Mutex<Option<String>>>,
 
     model: Mutex<NodeModel>,
+
+    #[cfg(feature = "test-hooks")]
+    test_hooks: Arc<TestHooks>,
 }
 
 // stub debug implementation
@@ -370,6 +383,7 @@ impl Node {
         db: Arc<Mutex<Database>>,
         transcode_status_cache: TranscodeStatusCache,
         hash_cache: HashCache,
+        #[cfg(feature = "test-hooks")] test_hooks: Arc<TestHooks>,
     ) -> anyhow::Result<(Arc<Self>, NodeRun)> {
         let (command_tx, command_rx) = mpsc::unbounded_channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
@@ -426,6 +440,9 @@ impl Node {
             download_directory: Arc::new(Mutex::new(None)),
 
             model: Mutex::new(model),
+
+            #[cfg(feature = "test-hooks")]
+            test_hooks,
         });
 
         // initialize model
@@ -590,6 +607,32 @@ impl Node {
                                 client_handle.tx.send(ClientCommand::DownloadPartial { items }).expect("failed to send ClientCommand::DownloadPartial");
                             } else {
                                 log::error!("DownloadPartial: no client found with node_id: {client}");
+                            }
+                        }
+
+                        NodeCommand::SetDownloads { client, items } => {
+                            // check that download directory is set before downloading
+                            {
+                                let download_directory = self.download_directory.lock().unwrap();
+                                if download_directory.is_none() {
+                                    log::error!("SetDownloads: download directory not set");
+                                    continue;
+                                }
+                            };
+
+                            let clients = self.clients.lock().unwrap();
+                            if let Some(client_handle) = clients.get(&client) {
+                                client_handle.tx.send(ClientCommand::SetDownloads { items }).expect("failed to send ClientCommand::SetDownloads");
+                            } else {
+                                log::error!("SetDownloads: no client found with node_id: {client}");
+                            }
+                        }
+                        NodeCommand::PauseDownloads { client } => {
+                            let clients = self.clients.lock().unwrap();
+                            if let Some(client_handle) = clients.get(&client) {
+                                client_handle.tx.send(ClientCommand::PauseDownloads).expect("failed to send ClientCommand::PauseDownloads");
+                            } else {
+                                log::error!("PauseDownloads: no client found with node_id: {client}");
                             }
                         }
 
@@ -1062,7 +1105,9 @@ impl Node {
                                                 TransferJobProgressModel::Failed { .. } => {
                                                     Some(IndexItemDownloadStatusModel::Failed)
                                                 }
-                                                TransferJobProgressModel::Finished { .. } => None,
+                                                TransferJobProgressModel::Finished { .. } => {
+                                                    Some(IndexItemDownloadStatusModel::Downloaded)
+                                                }
                                             },
                                             None => None,
                                         }
@@ -1099,57 +1144,73 @@ impl Node {
                             return;
                         };
 
+                        let is_paused = client_handle.paused.load(Ordering::Relaxed);
+
                         let transfer_jobs = client_handle
                             .jobs
                             .iter()
                             .map(|entry| {
                                 let job = entry.value();
 
-                                let (progress, file_size) = match &job.progress {
-                                    ClientTransferJobProgress::Requested => {
-                                        (TransferJobProgressModel::Requested, None)
+                                let file_size = match &job.progress {
+                                    ClientTransferJobProgress::Requested
+                                    | ClientTransferJobProgress::Transcoding => None,
+
+                                    ClientTransferJobProgress::Ready { file_size }
+                                    | ClientTransferJobProgress::InProgress { file_size, .. }
+                                    | ClientTransferJobProgress::Finished { file_size, .. } => {
+                                        Some(*file_size)
                                     }
 
-                                    ClientTransferJobProgress::Transcoding => {
-                                        (TransferJobProgressModel::Transcoding, None)
+                                    ClientTransferJobProgress::Failed { .. } => None,
+                                };
+
+                                let progress = match (is_paused, &job.progress) {
+                                    // If paused, Requested/Transcoding/Ready are shown as Paused
+                                    (true, ClientTransferJobProgress::Requested)
+                                    | (true, ClientTransferJobProgress::Transcoding)
+                                    | (true, ClientTransferJobProgress::Ready { .. }) => {
+                                        TransferJobProgressModel::Paused
                                     }
 
-                                    ClientTransferJobProgress::Ready { file_size } => {
-                                        (TransferJobProgressModel::Ready, Some(*file_size))
+                                    // Otherwise, show actual progress
+                                    (false, ClientTransferJobProgress::Requested) => {
+                                        TransferJobProgressModel::Requested
+                                    }
+                                    (false, ClientTransferJobProgress::Transcoding) => {
+                                        TransferJobProgressModel::Transcoding
+                                    }
+                                    (false, ClientTransferJobProgress::Ready { .. }) => {
+                                        TransferJobProgressModel::Ready
                                     }
 
-                                    ClientTransferJobProgress::InProgress {
-                                        started_at,
-                                        file_size,
-                                        written,
-                                    } => (
-                                        TransferJobProgressModel::InProgress {
-                                            started_at: *started_at,
-                                            bytes: Arc::new(CounterModel::from(written)),
+                                    // InProgress jobs are always shown as InProgress
+                                    (
+                                        _,
+                                        ClientTransferJobProgress::InProgress {
+                                            started_at,
+                                            written,
+                                            ..
                                         },
-                                        Some(*file_size),
-                                    ),
+                                    ) => TransferJobProgressModel::InProgress {
+                                        started_at: *started_at,
+                                        bytes: Arc::new(CounterModel::from(written)),
+                                    },
 
-                                    ClientTransferJobProgress::Paused => {
-                                        (TransferJobProgressModel::Paused, None)
-                                    }
+                                    // Finished jobs are always shown as Finished
+                                    (
+                                        _,
+                                        ClientTransferJobProgress::Finished { finished_at, .. },
+                                    ) => TransferJobProgressModel::Finished {
+                                        finished_at: *finished_at,
+                                    },
 
-                                    ClientTransferJobProgress::Finished {
-                                        finished_at,
-                                        file_size,
-                                    } => (
-                                        TransferJobProgressModel::Finished {
-                                            finished_at: *finished_at,
-                                        },
-                                        Some(*file_size),
-                                    ),
-
-                                    ClientTransferJobProgress::Failed { error } => (
+                                    // Failed jobs are always shown as Failed
+                                    (_, ClientTransferJobProgress::Failed { error }) => {
                                         TransferJobProgressModel::Failed {
                                             error: error.clone(),
-                                        },
-                                        None,
-                                    ),
+                                        }
+                                    }
                                 };
 
                                 TransferJobModel {
@@ -1191,8 +1252,17 @@ impl Node {
         let db = self.db.clone();
         let event_tx = self.event_tx.clone();
         let download_directory = self.download_directory.clone();
+        #[cfg(feature = "test-hooks")]
+        let test_hooks = self.test_hooks.clone();
         tokio::spawn(async move {
-            let client = Client::new(db, event_tx.clone(), connection, download_directory);
+            let client = Client::new(
+                db,
+                event_tx.clone(),
+                connection,
+                download_directory,
+                #[cfg(feature = "test-hooks")]
+                test_hooks,
+            );
 
             let res = client.run().await;
             if let Err(e) = &res {
@@ -2182,8 +2252,6 @@ enum ClientTransferJobProgress {
         file_size: u64,
         written: Arc<AtomicU64>,
     },
-    /// The client has paused the download.
-    Paused,
     /// The client has finished downloading the file.
     Finished { finished_at: u64, file_size: u64 },
     /// The client failed to download the file.
@@ -2198,6 +2266,11 @@ enum ClientCommand {
     DownloadPartial {
         items: Vec<DownloadPartialItemModel>,
     },
+
+    PauseDownloads,
+    SetDownloads {
+        items: Vec<DownloadPartialItemModel>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -2206,6 +2279,7 @@ struct ClientHandle {
 
     index: Arc<Mutex<Option<Vec<IndexItem>>>>,
     jobs: Arc<DashMap<u64, ClientTransferJob>>,
+    paused: Arc<AtomicBool>,
 }
 
 struct Client {
@@ -2222,6 +2296,8 @@ struct Client {
 
     index: Arc<Mutex<Option<Vec<IndexItem>>>>,
     jobs: Arc<DashMap<u64, ClientTransferJob>>,
+    paused: Arc<AtomicBool>,
+    pause_notify: Arc<Notify>,
 }
 
 impl Client {
@@ -2230,8 +2306,11 @@ impl Client {
         event_tx: mpsc::UnboundedSender<NodeEvent>,
         connection: Connection,
         download_directory: Arc<Mutex<Option<String>>>,
+        #[cfg(feature = "test-hooks")] test_hooks: Arc<TestHooks>,
     ) -> Self {
         let jobs = Arc::new(DashMap::<u64, ClientTransferJob>::new());
+        let paused = Arc::new(AtomicBool::new(false));
+        let pause_notify = Arc::new(Notify::new());
 
         // spawn a task to handle ready jobs and spawn more tasks to download them
         // Client::run() receives ServerMessage::JobStatus messages. jobs marked Ready are sent to this channel
@@ -2242,11 +2321,32 @@ impl Client {
             let event_tx = event_tx.clone();
             let connection = connection.clone();
             let download_directory = download_directory.clone();
+            let paused = paused.clone();
+            let pause_notify = pause_notify.clone();
             async move {
                 // convert channel receiver of ready job IDs into a stream for use with buffer_unordered
-                let ready_stream = async_stream::stream! {
-                    while let Some(job_id) = ready_rx.recv().await {
-                        yield job_id;
+                let ready_stream = {
+                    let jobs = jobs.clone();
+                    async_stream::stream! {
+                        while let Some(job_id) = ready_rx.recv().await {
+                            // if compiled with test hooks, wait for a download permit
+                            #[cfg(feature = "test-hooks")]
+                            test_hooks.wait_for_download_permit().await;
+
+                            // if paused, wait for unpause before processing received item
+                            while paused.load(Ordering::Relaxed) {
+                                pause_notify.notified().await;
+                            }
+
+                            // check job exists: it may have been removed while paused
+                            if jobs.get(&job_id).is_none() {
+                                log::debug!("job {job_id} removed while paused, skipping");
+                                continue;
+                            }
+
+                            // once yielded, the job will start and can't be cancelled
+                            yield job_id;
+                        }
                     }
                 };
 
@@ -2439,6 +2539,8 @@ impl Client {
 
             index: Arc::new(Mutex::new(None)),
             jobs,
+            paused,
+            pause_notify,
         }
     }
 
@@ -2518,6 +2620,7 @@ impl Client {
 
             index: self.index.clone(),
             jobs: self.jobs.clone(),
+            paused: self.paused.clone(),
         };
         self.event_tx
             .send(NodeEvent::ClientOpened {
@@ -2543,6 +2646,12 @@ impl Client {
                         }
                         ClientCommand::DownloadPartial { .. } => {
                             log::warn!("unexpected DownloadPartial command in waiting loop");
+                        }
+                        ClientCommand::PauseDownloads => {
+                            log::warn!("unexpected PauseDownloads command in waiting loop");
+                        }
+                        ClientCommand::SetDownloads { .. } => {
+                            log::warn!("unexpected SetDownloads command in waiting loop");
                         }
                     }
                 }
@@ -2686,7 +2795,7 @@ impl Client {
                                 };
 
                                 // find item in index
-                                let Some(index_item) = index.iter().find(|i| i.node_id == file_node_id && i.root == item.root && i.path == item.path) else {
+                                let Some(_index_item) = index.iter().find(|i| i.node_id == file_node_id && i.root == item.root && i.path == item.path) else {
                                     log::warn!("DownloadPartial: item not found in index: {item:?}");
                                     return None;
                                 };
@@ -2713,6 +2822,123 @@ impl Client {
                             send.send(ClientMessage::Download(download_requests))
                                 .await
                                 .expect("failed to send Download message");
+
+                            // update model
+                            self.event_tx.send(NodeEvent::ClientChanged {
+                                node_id: remote_node_id,
+                                update: ClientModelUpdate::UpdateTransferJobs,
+                            }).expect("failed to send ClientModelUpdate::UpdateTransferJobs");
+                        }
+
+                        ClientCommand::PauseDownloads => {
+                            log::info!("pausing downloads");
+                            self.paused.store(true, Ordering::Relaxed);
+                            self.event_tx.send(NodeEvent::ClientChanged {
+                                node_id: remote_node_id,
+                                update: ClientModelUpdate::UpdateTransferJobs,
+                            }).expect("failed to send ClientModelUpdate::UpdateTransferJobs");
+                        }
+
+                        ClientCommand::SetDownloads { items } => {
+                            log::info!("setting downloads: {} items", items.len());
+
+                            // get index
+                            let index = {
+                                let index = self.index.lock().unwrap();
+                                index.clone()
+                            };
+                            let Some(index) = index else {
+                                log::error!("SetDownloads: no index available");
+                                continue;
+                            };
+
+                            // only remove jobs if paused
+                            let is_paused = self.paused.load(Ordering::Relaxed);
+                            if is_paused {
+                                // build set of requested keys
+                                let requested_keys: HashSet<(&str, &str)> = items.iter()
+                                    .map(|item| (item.root.as_str(), item.path.as_str()))
+                                    .collect();
+
+                                // remove jobs that aren't in the new set of requested items and aren't
+                                // already in progress, finished, or failed
+                                let jobs_to_remove: Vec<u64> = self.jobs.iter()
+                                    .filter(|entry| {
+                                        let job = entry.value();
+                                        let key = (job.file_root.as_str(), job.file_path.as_str());
+                                        let should_remove = !requested_keys.contains(&key);
+                                        let is_started = matches!(
+                                            job.progress,
+                                            ClientTransferJobProgress::InProgress { .. }
+                                            | ClientTransferJobProgress::Finished { .. }
+                                            | ClientTransferJobProgress::Failed { .. }
+                                        );
+                                        should_remove && !is_started
+                                    })
+                                    .map(|entry| *entry.key())
+                                    .collect();
+
+                                for job_id in jobs_to_remove {
+                                    if let Some((_, job)) = self.jobs.remove(&job_id) {
+                                        log::debug!("removed job {job_id}: {}/{}", job.file_root, job.file_path);
+                                    }
+                                }
+                            }
+
+                            // build set of existing jobs
+                            let existing_keys: HashSet<(String, String)> = self.jobs.iter()
+                                .map(|entry| {
+                                    let job = entry.value();
+                                    (job.file_root.clone(), job.file_path.clone())
+                                })
+                                .collect();
+
+                            // create jobs for new items
+                            let download_requests = items.into_iter().flat_map(|item| {
+                                let Ok(file_node_id) = item.node_id.parse() else {
+                                    log::warn!("SetDownloads: invalid node ID");
+                                    return None;
+                                };
+
+                                // skip if job already exists for this (root, path)
+                                if existing_keys.contains(&(item.root.clone(), item.path.clone())) {
+                                    return None;
+                                }
+
+                                // find item in index
+                                let Some(_index_item) = index.iter().find(|i| {
+                                    i.node_id == file_node_id && i.root == item.root && i.path == item.path
+                                }) else {
+                                    log::warn!("SetDownloads: item not found in index: {item:?}");
+                                    return None;
+                                };
+
+                                let job_id = self.next_job_id.fetch_add(1, Ordering::Relaxed);
+                                self.jobs.insert(job_id, ClientTransferJob {
+                                    progress: ClientTransferJobProgress::Requested,
+                                    file_node_id,
+                                    file_root: item.root.clone(),
+                                    file_path: item.path.clone(),
+                                });
+
+                                Some(DownloadItem {
+                                    job_id,
+                                    node_id: file_node_id,
+                                    root: item.root,
+                                    path: item.path,
+                                })
+                            }).collect::<Vec<_>>();
+
+                            // send download request for new jobs
+                            if !download_requests.is_empty() {
+                                send.send(ClientMessage::Download(download_requests))
+                                    .await
+                                    .expect("failed to send Download message");
+                            }
+
+                            // unpause
+                            self.paused.store(false, Ordering::Relaxed);
+                            self.pause_notify.notify_waiters();
 
                             // update model
                             self.event_tx.send(NodeEvent::ClientChanged {
