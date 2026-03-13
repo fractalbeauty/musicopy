@@ -327,7 +327,6 @@ impl<'a> App<'a> {
                 let mut count_transcoding = 0;
                 let mut count_ready = 0;
                 let mut count_inprogress = 0;
-                let mut count_paused = 0;
                 let mut count_finished = 0;
                 let mut count_failed = 0;
 
@@ -337,7 +336,6 @@ impl<'a> App<'a> {
                         TransferJobProgressModel::Transcoding => count_transcoding += 1,
                         TransferJobProgressModel::Ready => count_ready += 1,
                         TransferJobProgressModel::InProgress { .. } => count_inprogress += 1,
-                        TransferJobProgressModel::Paused { .. } => count_paused += 1,
                         TransferJobProgressModel::Finished { .. } => count_finished += 1,
                         TransferJobProgressModel::Failed { .. } => count_failed += 1,
                     }
@@ -353,8 +351,6 @@ impl<'a> App<'a> {
                     " ready / ".into(),
                     count_inprogress.to_string().green(),
                     " in progress / ".into(),
-                    count_paused.to_string().green(),
-                    " paused / ".into(),
                     count_finished.to_string().green(),
                     " finished / ".into(),
                     count_failed.to_string().green(),
@@ -428,7 +424,6 @@ impl<'a> App<'a> {
                 let mut count_transcoding = 0;
                 let mut count_ready = 0;
                 let mut count_inprogress = 0;
-                let mut count_paused = 0;
                 let mut count_finished = 0;
                 let mut count_failed = 0;
 
@@ -438,7 +433,6 @@ impl<'a> App<'a> {
                         TransferJobProgressModel::Transcoding => count_transcoding += 1,
                         TransferJobProgressModel::Ready => count_ready += 1,
                         TransferJobProgressModel::InProgress { .. } => count_inprogress += 1,
-                        TransferJobProgressModel::Paused { .. } => count_paused += 1,
                         TransferJobProgressModel::Finished { .. } => count_finished += 1,
                         TransferJobProgressModel::Failed { .. } => count_failed += 1,
                     }
@@ -456,12 +450,12 @@ impl<'a> App<'a> {
                     " ready / ".into(),
                     count_inprogress.to_string().green(),
                     " in progress / ".into(),
-                    count_paused.to_string().green(),
-                    " paused / ".into(),
                     count_finished.to_string().green(),
                     " finished / ".into(),
                     count_failed.to_string().green(),
-                    " failed".into(),
+                    " failed (paused: ".into(),
+                    client.paused.to_string().green(),
+                    ")".into(),
                 ])];
 
                 // add lines for in-progress jobs

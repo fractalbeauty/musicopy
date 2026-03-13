@@ -884,11 +884,13 @@ mod transfer {
     /// - 2nd job should still be Ready
     /// - 2nd index item should still be InProgress
     /// - Pause
+    /// - Paused should become true
     /// - 1st job should still be Finished
     /// - 1st index item should still be Downloaded
-    /// - 2nd job should become Paused
-    /// - 2nd index item should become Paused
+    /// - 2nd job should still be Ready
+    /// - 2nd index item should still be InProgress
     /// - Resume (using SetDownloads with the Paused item)
+    /// - Paused should become false
     /// - 2nd job should reach Finished
     /// - 2nd index item should reach Downloaded
     #[tokio::test]
@@ -999,6 +1001,11 @@ mod transfer {
             .pause_downloads(&core_2.node_id_str())
             .expect("should pause downloads");
 
+        // paused should become true
+        core_1
+            .wait_for_client_condition("paused is true", &core_2, |client| client.paused)
+            .await;
+
         // finished job should still be Finished
         core_1
             .wait_for_client_condition("finished job is still Finished", &core_2, |client| {
@@ -1038,26 +1045,26 @@ mod transfer {
             )
             .await;
 
-        // other job should become Paused
+        // other job should still be Ready
         core_1
-            .wait_for_client_condition("other job is Paused", &core_2, |client| {
+            .wait_for_client_condition("other job is Ready", &core_2, |client| {
                 matches!(
                     client
                         .transfer_jobs
                         .iter()
                         .find(|j| j.file_path != finished_job_path)
                         .map(|j| &j.progress),
-                    Some(TransferJobProgressModel::Paused)
+                    Some(TransferJobProgressModel::Ready)
                 )
             })
             .await;
-        // other index item should become Paused
+        // other index item should still be InProgress
         core_1
             .core
             .refresh_client_index(&core_2.node_id_str())
             .expect("should refresh client index");
         core_1
-            .wait_for_client_condition("other index item is Paused", &core_2, |client| {
+            .wait_for_client_condition("other index item is InProgress", &core_2, |client| {
                 client.index.as_ref().unwrap().len() == 2
                     && matches!(
                         client
@@ -1068,7 +1075,7 @@ mod transfer {
                             .find(|i| i.path != finished_job_path)
                             .unwrap()
                             .download_status,
-                        Some(IndexItemDownloadStatusModel::Paused)
+                        Some(IndexItemDownloadStatusModel::InProgress)
                     )
             })
             .await;
@@ -1082,6 +1089,11 @@ mod transfer {
             .core
             .set_downloads(&core_2.node_id_str(), vec![not_finished_download_item])
             .expect("should set downloads");
+
+        // paused should become false
+        core_1
+            .wait_for_client_condition("paused is false", &core_2, |client| !client.paused)
+            .await;
 
         // other job should be Ready
         core_1
@@ -1206,9 +1218,11 @@ mod transfer {
     /// - Request both items
     /// - Both jobs should be Ready
     /// - Pause downloads
-    /// - Both jobs should be Paused
+    /// - Paused should become true
+    /// - Both jobs should be Ready
     /// - Request both items again
-    /// - Both jobs should still be Paused (only 2 jobs)
+    /// - Paused should become false
+    /// - Both jobs should still be Ready (only 2 jobs)
     #[tokio::test]
     async fn set_same_downloads_while_paused() {
         let (core_1, core_2, download_items) = prepare_with_index(LibraryFixture::Multiple).await;
@@ -1237,14 +1251,19 @@ mod transfer {
             .pause_downloads(&core_2.node_id_str())
             .expect("should pause downloads");
 
-        // should have two Paused jobs
+        // paused should become true
         core_1
-            .wait_for_client_condition("has 2 Paused jobs", &core_2, |client| {
+            .wait_for_client_condition("paused is true", &core_2, |client| client.paused)
+            .await;
+
+        // should have two Ready jobs
+        core_1
+            .wait_for_client_condition("has 2 Ready jobs", &core_2, |client| {
                 client.transfer_jobs.len() == 2
                     && client
                         .transfer_jobs
                         .iter()
-                        .all(|j| matches!(j.progress, TransferJobProgressModel::Paused))
+                        .all(|j| matches!(j.progress, TransferJobProgressModel::Ready))
             })
             .await;
 
@@ -1254,14 +1273,19 @@ mod transfer {
             .set_downloads(&core_2.node_id_str(), download_items.clone())
             .expect("should set downloads");
 
-        // should still have two Paused jobs
+        // paused should become false
         core_1
-            .wait_for_client_condition("still has 2 Paused jobs", &core_2, |client| {
+            .wait_for_client_condition("paused is false", &core_2, |client| !client.paused)
+            .await;
+
+        // should still have two Ready jobs
+        core_1
+            .wait_for_client_condition("still has 2 Ready jobs", &core_2, |client| {
                 client.transfer_jobs.len() == 2
                     && client
                         .transfer_jobs
                         .iter()
-                        .all(|j| matches!(j.progress, TransferJobProgressModel::Paused))
+                        .all(|j| matches!(j.progress, TransferJobProgressModel::Ready))
             })
             .await;
     }
@@ -1392,8 +1416,10 @@ mod transfer {
     /// - Request first item
     /// - Should be one Ready job
     /// - Pause downloads
-    /// - Should be one Paused job
+    /// - Paused should become true
+    /// - Should be one Ready job
     /// - Request second item (should unpause)
+    /// - Paused should become false
     /// - Should be two Ready jobs
     /// - Allow both to download
     /// - Both jobs should reach Finished
@@ -1425,13 +1451,18 @@ mod transfer {
             .pause_downloads(&core_2.node_id_str())
             .expect("should pause downloads");
 
-        // should have one Paused job
+        // paused should become true
         core_1
-            .wait_for_client_condition("has 1 Paused job", &core_2, |client| {
+            .wait_for_client_condition("paused is true", &core_2, |client| client.paused)
+            .await;
+
+        // should have one Ready job
+        core_1
+            .wait_for_client_condition("has 1 Ready job", &core_2, |client| {
                 client.transfer_jobs.len() == 1
                     && matches!(
                         client.transfer_jobs.first().map(|j| &j.progress),
-                        Some(TransferJobProgressModel::Paused)
+                        Some(TransferJobProgressModel::Ready)
                     )
             })
             .await;
@@ -1441,6 +1472,11 @@ mod transfer {
             .core
             .set_downloads(&core_2.node_id_str(), download_items.clone())
             .expect("should set downloads");
+
+        // paused should become false
+        core_1
+            .wait_for_client_condition("paused is false", &core_2, |client| !client.paused)
+            .await;
 
         // should have two Ready jobs
         core_1
@@ -1606,8 +1642,10 @@ mod transfer {
     /// - Request both items
     /// - Should be two Ready jobs
     /// - Pause downloads
-    /// - Should be two Paused jobs
+    /// - Paused should become true
+    /// - Should be two Ready jobs
     /// - Request only first item (should unpause and remove second item)
+    /// - Paused should become false
     /// - Should be only one Ready job for the first item
     #[tokio::test]
     async fn remove_items_while_paused() {
@@ -1637,14 +1675,19 @@ mod transfer {
             .pause_downloads(&core_2.node_id_str())
             .expect("should pause downloads");
 
-        // should have two Paused jobs
+        // paused should become true
         core_1
-            .wait_for_client_condition("has 2 Paused jobs", &core_2, |client| {
+            .wait_for_client_condition("paused is true", &core_2, |client| client.paused)
+            .await;
+
+        // should have two Ready jobs
+        core_1
+            .wait_for_client_condition("has 2 Ready jobs", &core_2, |client| {
                 client.transfer_jobs.len() == 2
                     && client
                         .transfer_jobs
                         .iter()
-                        .all(|j| matches!(j.progress, TransferJobProgressModel::Paused))
+                        .all(|j| matches!(j.progress, TransferJobProgressModel::Ready))
             })
             .await;
 
@@ -1653,6 +1696,11 @@ mod transfer {
             .core
             .set_downloads(&core_2.node_id_str(), vec![download_items[0].clone()])
             .expect("should set downloads");
+
+        // paused should become false
+        core_1
+            .wait_for_client_condition("paused is false", &core_2, |client| !client.paused)
+            .await;
 
         // should be only one Ready job for the first item
         core_1

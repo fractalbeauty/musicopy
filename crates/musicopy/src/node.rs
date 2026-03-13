@@ -64,7 +64,6 @@ pub enum TransferJobProgressModel {
         /// Number of bytes written so far.
         bytes: Arc<CounterModel>,
     },
-    Paused,
     Finished {
         finished_at: u64,
     },
@@ -118,7 +117,6 @@ pub enum FileSizeModel {
 #[derive(Debug, Clone, uniffi::Enum)]
 pub enum IndexItemDownloadStatusModel {
     InProgress,
-    Paused,
     Downloaded,
     Failed,
 }
@@ -157,6 +155,7 @@ pub struct ClientModel {
 
     pub index: Option<Vec<IndexItemModel>>,
     pub transfer_jobs: Vec<TransferJobModel>,
+    pub paused: bool,
 }
 
 /// Model of a trusted node.
@@ -297,6 +296,7 @@ enum ClientModelUpdate {
     PollRemoteInfo,
     UpdateIndex,
     UpdateTransferJobs,
+    UpdatePaused,
     Close { error: Option<String> },
 }
 
@@ -967,6 +967,7 @@ impl Node {
 
                         index: None,
                         transfer_jobs: Vec::new(),
+                        paused: false,
                     },
                 );
 
@@ -1054,9 +1055,6 @@ impl Node {
                                                 | TransferJobProgressModel::InProgress { .. } => {
                                                     Some(IndexItemDownloadStatusModel::InProgress)
                                                 }
-                                                TransferJobProgressModel::Paused => {
-                                                    Some(IndexItemDownloadStatusModel::Paused)
-                                                }
                                                 TransferJobProgressModel::Failed { .. } => {
                                                     Some(IndexItemDownloadStatusModel::Failed)
                                                 }
@@ -1099,8 +1097,6 @@ impl Node {
                             return;
                         };
 
-                        let is_paused = client_handle.paused.load(Ordering::Relaxed);
-
                         let transfer_jobs = client_handle
                             .jobs
                             .iter()
@@ -1120,48 +1116,35 @@ impl Node {
                                     ClientTransferJobProgress::Failed { .. } => None,
                                 };
 
-                                let progress = match (is_paused, &job.progress) {
-                                    // If paused, Requested/Transcoding/Ready are shown as Paused
-                                    (true, ClientTransferJobProgress::Requested)
-                                    | (true, ClientTransferJobProgress::Transcoding)
-                                    | (true, ClientTransferJobProgress::Ready { .. }) => {
-                                        TransferJobProgressModel::Paused
-                                    }
-
-                                    // Otherwise, show actual progress
-                                    (false, ClientTransferJobProgress::Requested) => {
+                                let progress = match &job.progress {
+                                    ClientTransferJobProgress::Requested => {
                                         TransferJobProgressModel::Requested
                                     }
-                                    (false, ClientTransferJobProgress::Transcoding) => {
+                                    ClientTransferJobProgress::Transcoding => {
                                         TransferJobProgressModel::Transcoding
                                     }
-                                    (false, ClientTransferJobProgress::Ready { .. }) => {
+                                    ClientTransferJobProgress::Ready { .. } => {
                                         TransferJobProgressModel::Ready
                                     }
 
-                                    // InProgress jobs are always shown as InProgress
-                                    (
-                                        _,
-                                        ClientTransferJobProgress::InProgress {
-                                            started_at,
-                                            written,
-                                            ..
-                                        },
-                                    ) => TransferJobProgressModel::InProgress {
+                                    ClientTransferJobProgress::InProgress {
+                                        started_at,
+                                        written,
+                                        ..
+                                    } => TransferJobProgressModel::InProgress {
                                         started_at: *started_at,
                                         bytes: Arc::new(CounterModel::from(written)),
                                     },
 
                                     // Finished jobs are always shown as Finished
-                                    (
-                                        _,
-                                        ClientTransferJobProgress::Finished { finished_at, .. },
-                                    ) => TransferJobProgressModel::Finished {
-                                        finished_at: *finished_at,
-                                    },
+                                    ClientTransferJobProgress::Finished { finished_at, .. } => {
+                                        TransferJobProgressModel::Finished {
+                                            finished_at: *finished_at,
+                                        }
+                                    }
 
                                     // Failed jobs are always shown as Failed
-                                    (_, ClientTransferJobProgress::Failed { error }) => {
+                                    ClientTransferJobProgress::Failed { error } => {
                                         TransferJobProgressModel::Failed {
                                             error: error.clone(),
                                         }
@@ -1179,6 +1162,18 @@ impl Node {
                             .collect();
 
                         client.transfer_jobs = transfer_jobs;
+                    }
+                    ClientModelUpdate::UpdatePaused => {
+                        let client_handles = self.clients.lock().unwrap();
+                        let Some(client_handle) = client_handles.get(&node_id) else {
+                            log::warn!(
+                                "failed to apply ClientModelUpdate::UpdatePaused: no client handle found"
+                            );
+                            return;
+                        };
+
+                        let is_paused = client_handle.paused.load(Ordering::Relaxed);
+                        client.paused = is_paused;
                     }
                     ClientModelUpdate::Close { error } => {
                         client.state = ClientStateModel::Closed { error };
@@ -2787,6 +2782,10 @@ impl Client {
                                 node_id: remote_node_id,
                                 update: ClientModelUpdate::UpdateIndex,
                             }).expect("failed to send ClientModelUpdate::UpdateIndex");
+                            self.event_tx.send(NodeEvent::ClientChanged {
+                                node_id: remote_node_id,
+                                update: ClientModelUpdate::UpdatePaused,
+                            }).expect("failed to send ClientModelUpdate::UpdatePaused");
                         }
 
                         ClientCommand::PauseDownloads => {
@@ -2800,6 +2799,10 @@ impl Client {
                                 node_id: remote_node_id,
                                 update: ClientModelUpdate::UpdateIndex,
                             }).expect("failed to send ClientModelUpdate::UpdateIndex");
+                            self.event_tx.send(NodeEvent::ClientChanged {
+                                node_id: remote_node_id,
+                                update: ClientModelUpdate::UpdatePaused,
+                            }).expect("failed to send ClientModelUpdate::UpdatePaused");
                         }
                     }
                 }
