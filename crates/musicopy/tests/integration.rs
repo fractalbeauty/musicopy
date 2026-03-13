@@ -877,18 +877,18 @@ mod transfer {
     /// Test pausing downloads:
     /// - Request both items
     /// - Both jobs should reach Ready
-    /// - Both index items should reach InProgress
+    /// - Both index items should reach Waiting
     /// - TestHooks: allow first item
     /// - 1st job should reach Finished
     /// - 1st index item should reach Downloaded
     /// - 2nd job should still be Ready
-    /// - 2nd index item should still be InProgress
+    /// - 2nd index item should still be Waiting
     /// - Pause
     /// - Paused should become true
     /// - 1st job should still be Finished
     /// - 1st index item should still be Downloaded
     /// - 2nd job should still be Ready
-    /// - 2nd index item should still be InProgress
+    /// - 2nd index item should still be Waiting
     /// - Resume (using SetDownloads with the Paused item)
     /// - Paused should become false
     /// - 2nd job should reach Finished
@@ -914,18 +914,18 @@ mod transfer {
                         .all(|j| matches!(j.progress, TransferJobProgressModel::Ready))
             })
             .await;
-        // both index items should reach InProgress
+        // both index items should reach Waiting
         core_1
             .core
             .refresh_client_index(&core_2.node_id_str())
             .expect("should refresh client index");
         core_1
-            .wait_for_client_condition("both index items are InProgress", &core_2, |client| {
+            .wait_for_client_condition("both index items are Waiting", &core_2, |client| {
                 client.index.as_ref().unwrap().len() == 2
                     && client.index.as_ref().unwrap().iter().all(|item| {
                         matches!(
                             item.download_status,
-                            Some(IndexItemDownloadStatusModel::InProgress)
+                            Some(IndexItemDownloadStatusModel::Waiting)
                         )
                     })
             })
@@ -958,14 +958,14 @@ mod transfer {
             .find(|j| matches!(j.progress, TransferJobProgressModel::Finished { .. }))
             .map(|j| j.file_path.clone())
             .unwrap();
-        // finished index item should reach Downloaded, other should still be InProgress
+        // finished index item should reach Downloaded, other should still be Waiting
         core_1
             .core
             .refresh_client_index(&core_2.node_id_str())
             .expect("should refresh client index");
         core_1
             .wait_for_client_condition(
-                "finished index item is Downloaded, other index item is still InProgress",
+                "finished index item is Downloaded, other index item is still Waiting",
                 &core_2,
                 |client| {
                     client.index.as_ref().unwrap().len() == 2
@@ -989,7 +989,7 @@ mod transfer {
                                 .find(|i| i.path != finished_job_path)
                                 .unwrap()
                                 .download_status,
-                            Some(IndexItemDownloadStatusModel::InProgress)
+                            Some(IndexItemDownloadStatusModel::Waiting)
                         )
                 },
             )
@@ -1058,13 +1058,13 @@ mod transfer {
                 )
             })
             .await;
-        // other index item should still be InProgress
+        // other index item should still be Waiting
         core_1
             .core
             .refresh_client_index(&core_2.node_id_str())
             .expect("should refresh client index");
         core_1
-            .wait_for_client_condition("other index item is InProgress", &core_2, |client| {
+            .wait_for_client_condition("other index item is Waiting", &core_2, |client| {
                 client.index.as_ref().unwrap().len() == 2
                     && matches!(
                         client
@@ -1075,7 +1075,7 @@ mod transfer {
                             .find(|i| i.path != finished_job_path)
                             .unwrap()
                             .download_status,
-                        Some(IndexItemDownloadStatusModel::InProgress)
+                        Some(IndexItemDownloadStatusModel::Waiting)
                     )
             })
             .await;
@@ -1108,13 +1108,13 @@ mod transfer {
                 )
             })
             .await;
-        // other index item should be InProgress
+        // other index item should be Waiting
         core_1
             .core
             .refresh_client_index(&core_2.node_id_str())
             .expect("should refresh client index");
         core_1
-            .wait_for_client_condition("other index item is InProgress", &core_2, |client| {
+            .wait_for_client_condition("other index item is Waiting", &core_2, |client| {
                 client.index.as_ref().unwrap().len() == 2
                     && matches!(
                         client
@@ -1125,7 +1125,7 @@ mod transfer {
                             .find(|i| i.path != finished_job_path)
                             .unwrap()
                             .download_status,
-                        Some(IndexItemDownloadStatusModel::InProgress)
+                        Some(IndexItemDownloadStatusModel::Waiting)
                     )
             })
             .await;

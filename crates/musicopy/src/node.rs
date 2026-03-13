@@ -116,6 +116,7 @@ pub enum FileSizeModel {
 /// Model of the download status of an item in a client's index.
 #[derive(Debug, Clone, uniffi::Enum)]
 pub enum IndexItemDownloadStatusModel {
+    Waiting,
     InProgress,
     Downloaded,
     Failed,
@@ -1051,8 +1052,10 @@ impl Node {
                                             Some(job) => match &job.progress {
                                                 TransferJobProgressModel::Requested
                                                 | TransferJobProgressModel::Transcoding
-                                                | TransferJobProgressModel::Ready
-                                                | TransferJobProgressModel::InProgress { .. } => {
+                                                | TransferJobProgressModel::Ready => {
+                                                    Some(IndexItemDownloadStatusModel::Waiting)
+                                                }
+                                                TransferJobProgressModel::InProgress { .. } => {
                                                     Some(IndexItemDownloadStatusModel::InProgress)
                                                 }
                                                 TransferJobProgressModel::Failed { .. } => {
@@ -2790,7 +2793,12 @@ impl Client {
 
                         ClientCommand::PauseDownloads => {
                             log::info!("pausing downloads");
+
+                            // pause
                             self.paused.store(true, Ordering::Relaxed);
+                            self.pause_notify.notify_waiters();
+
+                            // update model
                             self.event_tx.send(NodeEvent::ClientChanged {
                                 node_id: remote_node_id,
                                 update: ClientModelUpdate::UpdateTransferJobs,
