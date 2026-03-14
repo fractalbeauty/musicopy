@@ -65,7 +65,6 @@ import app.musicopy.ui.components.TopBar
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.arrow_downward_24px
 import musicopy_root.musicopy.generated.resources.check_24px
-import musicopy_root.musicopy.generated.resources.check_circle_24px
 import musicopy_root.musicopy.generated.resources.chevron_forward_24px
 import musicopy_root.musicopy.generated.resources.exclamation_24px
 import musicopy_root.musicopy.generated.resources.more_horiz_24px
@@ -196,7 +195,7 @@ fun PreTransferScreen(
                         if (missingDownloadDirectory) {
                             ActionButton(
                                 onClick = onPickDownloadDirectory,
-                                text = "Choose download directory"
+                                leftText = "Choose download directory"
                             )
                         } else if (hasSelectedKeys) {
                             // Look up selected items from current index
@@ -208,18 +207,20 @@ fun PreTransferScreen(
                             val selectedEstimated =
                                 selectedItems.any { item -> item.fileSize !is FileSizeModel.Actual }
 
-                            val text = "Download selected (${selectedKeys.size} files, ${
+                            val verb = if (hasJobs) "Resume" else "Download"
+                            val summary = "${selectedKeys.size} files, ${
                                 formatSize(
                                     selectedSize,
                                     estimated = selectedEstimated,
                                     decimals = 0
                                 )
-                            })"
+                            }"
 
                             ActionButton(
                                 onClick = onDownload,
                                 enabled = hasDownloadDirectory,
-                                text = text
+                                leftText = verb,
+                                rightText = summary
                             )
                         }
                     }
@@ -286,7 +287,8 @@ fun PreTransferScreen(
 private fun ActionButton(
     onClick: () -> Unit,
     enabled: Boolean = true,
-    text: String,
+    leftText: String,
+    rightText: String? = null,
 ) {
     Button(
         onClick = onClick,
@@ -301,8 +303,12 @@ private fun ActionButton(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = text,
+                text = leftText,
+                modifier = Modifier.weight(1f)
             )
+            rightText?.let {
+                Text(text = it)
+            }
 
             Icon(
                 painter = painterResource(Res.drawable.chevron_forward_24px),
