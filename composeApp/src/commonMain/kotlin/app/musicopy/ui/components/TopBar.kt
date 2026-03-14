@@ -27,6 +27,7 @@ fun TopBar(
     title: String,
     onShowNodeStatus: () -> Unit,
     onBack: (() -> Unit)? = null,
+    extraActions: @Composable () -> Unit = {},
 ) {
     val colors = TopAppBarDefaults.topAppBarColors(
         containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -42,6 +43,8 @@ fun TopBar(
     }
 
     val actions = @Composable {
+        extraActions()
+
         var expanded by remember { mutableStateOf(false) }
 
         IconButton(onClick = { expanded = !expanded }) {

@@ -127,7 +127,6 @@ fun App(
                 connectingTo = null
             }
         }
-        Unit
     }
 
     val leaveClientScreen = { nodeId: String ->
@@ -308,18 +307,9 @@ fun App(
                                 directoryPicker.pickDownloadDirectory()
                             }
                         },
-                        onDownloadAll = {
+                        onSetDownloads = { items ->
                             downloadDirectory?.let { downloadDirectory ->
-                                coreInstance.instance.downloadAll(nodeId)
-                                navController.navigate(Transfer(nodeId = nodeId))
-                            } ?: run {
-                                // TODO toast?
-                                println("download directory is null")
-                            }
-                        },
-                        onDownloadPartial = { items ->
-                            downloadDirectory?.let { downloadDirectory ->
-                                coreInstance.instance.downloadPartial(
+                                coreInstance.instance.setDownloads(
                                     nodeId,
                                     items,
                                 )
@@ -328,6 +318,9 @@ fun App(
                                 // TODO toast?
                                 println("download directory is null")
                             }
+                        },
+                        onNavigateToTransfer = {
+                            navController.navigate(Transfer(nodeId = nodeId))
                         },
                         onCancel = {
                             leaveClientScreen(nodeId)
@@ -364,6 +357,11 @@ fun App(
                         onBack = {
                             // refresh index and return to pretransfer
                             coreInstance.instance.refreshClientIndex(nodeId)
+                            navController.popBackStack(PreTransfer(nodeId), inclusive = false)
+                        },
+                        onPause = {
+                            // pause downloads and return to pretransfer
+                            coreInstance.instance.pauseDownloads(nodeId)
                             navController.popBackStack(PreTransfer(nodeId), inclusive = false)
                         },
                         onTransferMore = {

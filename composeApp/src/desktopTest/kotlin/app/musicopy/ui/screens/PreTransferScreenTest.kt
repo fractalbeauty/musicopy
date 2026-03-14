@@ -170,68 +170,92 @@ class PreTransferScreenTest : FunSpec({
     }
 
     context("SelectionManager") {
-        test("preselects Paused items") {
+        test("preselects Waiting items when paused") {
+            val paused = true
             val manager = SelectionManager()
 
-            // A and B are paused, so they should be preselected
-            manager.onIndexChanged(
+            // A and B are waiting, so they should be preselected
+            manager.updateSelection(
                 listOf(
-                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.PAUSED),
-                    makeIndexItem("library", "/b", IndexItemDownloadStatusModel.PAUSED),
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.WAITING),
+                    makeIndexItem("library", "/b", IndexItemDownloadStatusModel.WAITING),
                     makeIndexItem("library", "/c", IndexItemDownloadStatusModel.DOWNLOADED),
                     makeIndexItem("library", "/d", null),
-                )
+                ),
+                paused
             )
 
             manager.selectedKeys shouldBe setOf("library" to "/a", "library" to "/b")
         }
 
-        test("preselects new Paused items after refresh") {
+        test("does not preselect Waiting items when not paused") {
+            val paused = false
+            val manager = SelectionManager()
+
+            manager.updateSelection(
+                listOf(
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.WAITING),
+                    makeIndexItem("library", "/b", IndexItemDownloadStatusModel.WAITING),
+                    makeIndexItem("library", "/c", IndexItemDownloadStatusModel.DOWNLOADED),
+                    makeIndexItem("library", "/d", null),
+                ),
+                paused
+            )
+
+            manager.selectedKeys shouldBe emptySet()
+        }
+
+        test("preselects new Waiting items after refresh when paused") {
+            val paused = true
             val manager = SelectionManager()
 
             // A is initially preselected
-            manager.onIndexChanged(
+            manager.updateSelection(
                 listOf(
-                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.PAUSED),
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.WAITING),
                     makeIndexItem("library", "/b", null),
-                )
+                ),
+                paused
             )
 
-            // Refresh changes status of B to Paused
-            manager.onIndexChanged(
+            // Refresh changes status of B to Waiting
+            manager.updateSelection(
                 listOf(
-                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.PAUSED),
-                    makeIndexItem("library", "/b", IndexItemDownloadStatusModel.PAUSED),
-                )
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.WAITING),
+                    makeIndexItem("library", "/b", IndexItemDownloadStatusModel.WAITING),
+                ),
+                paused
             )
 
             // Both should be selected
             manager.selectedKeys shouldBe setOf("library" to "/a", "library" to "/b")
         }
 
-        test("doesn't re-preselect manually deselected Paused items") {
+        test("doesn't re-preselect manually deselected Waiting items") {
             val manager = SelectionManager()
 
-            manager.onIndexChanged(
+            val paused = true
+
+            manager.updateSelection(
                 listOf(
-                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.PAUSED)
-                )
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.WAITING)
+                ),
+                paused
             )
 
             // User manually deselects A
             manager.setSelected(
-                makeIndexItem(
-                    "library",
-                    "/a",
-                    IndexItemDownloadStatusModel.PAUSED
-                ), false
+                makeIndexItem("library", "/a", IndexItemDownloadStatusModel.WAITING),
+                false,
+                paused
             )
 
-            // Refresh with same item still Paused
-            manager.onIndexChanged(
+            // Refresh with same item still Waiting
+            manager.updateSelection(
                 listOf(
-                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.PAUSED)
-                )
+                    makeIndexItem("library", "/a", IndexItemDownloadStatusModel.WAITING)
+                ),
+                paused
             )
 
             // A should not be selected

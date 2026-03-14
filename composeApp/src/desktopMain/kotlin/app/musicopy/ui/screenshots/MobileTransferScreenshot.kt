@@ -16,7 +16,8 @@ fun MobileTransferScreenshot() {
         connectionType = "direct",
         latencyMs = 42u,
         index = emptyList(),
-        transferJobs = screenshotTransferJobs
+        transferJobs = screenshotTransferJobs,
+        paused = false,
     )
 
     TransferScreen(
@@ -25,6 +26,7 @@ fun MobileTransferScreenshot() {
 
         clientModel = clientModel,
         onBack = {},
+        onPause = {},
         onTransferMore = {},
         onDone = {},
     )

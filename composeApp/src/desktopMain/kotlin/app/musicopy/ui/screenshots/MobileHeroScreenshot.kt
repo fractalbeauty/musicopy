@@ -57,6 +57,7 @@ fun MobileHeroScreenshot() {
 
         clientModel = clientModel,
         onBack = {},
+        onPause = {},
         onTransferMore = {},
         onDone = {},
     )

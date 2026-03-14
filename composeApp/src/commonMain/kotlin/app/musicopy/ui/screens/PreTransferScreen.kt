@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,8 +25,10 @@ import androidx.compose.foundation.selection.triStateToggleable
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -67,10 +70,11 @@ import musicopy_root.musicopy.generated.resources.exclamation_24px
 import musicopy_root.musicopy.generated.resources.more_horiz_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.ClientModel
-import uniffi.musicopy.DownloadPartialItemModel
+import uniffi.musicopy.DownloadRequestModel
 import uniffi.musicopy.FileSizeModel
 import uniffi.musicopy.IndexItemDownloadStatusModel
 import uniffi.musicopy.IndexItemModel
+import uniffi.musicopy.TransferJobProgressModel
 import kotlin.math.floor
 import kotlin.math.max
 
@@ -82,14 +86,14 @@ fun PreTransferScreen(
     clientModel: ClientModel,
     hasDownloadDirectory: Boolean,
     onPickDownloadDirectory: () -> Unit,
-    onDownloadAll: () -> Unit,
-    onDownloadPartial: (List<DownloadPartialItemModel>) -> Unit,
+    onSetDownloads: (List<DownloadRequestModel>) -> Unit,
+    onNavigateToTransfer: () -> Unit,
     onCancel: () -> Unit,
 ) {
     val selectionManager = remember { SelectionManager() }
-    LaunchedEffect(clientModel.index) {
+    LaunchedEffect(clientModel.index, clientModel.paused) {
         clientModel.index?.let { index ->
-            selectionManager.onIndexChanged(index)
+            selectionManager.updateSelection(index, clientModel.paused)
         }
     }
 
@@ -102,11 +106,6 @@ fun PreTransferScreen(
     val nodeSizes = remember(root) {
         buildNodeSizes(listOf(root))
     }
-
-    // Total size from root node
-    val rootSizeModel = nodeSizes.getOrElse(root) { FileSizeModel.Unknown }
-    val totalSize = rootSizeModel.value()
-    val totalSizeEstimated = rootSizeModel !is FileSizeModel.Actual
 
     // Navigation stack for breadcrumb navigation
     val navigationStack = remember { mutableStateListOf<String>() }
@@ -132,21 +131,19 @@ fun PreTransferScreen(
     val currentFolderSize = folderSizeModel.value()
     val currentFolderSizeEstimated = folderSizeModel !is FileSizeModel.Actual
 
-    val onDownload = {
-        val selectedKeys = selectionManager.selectedKeys
-        val allSelected = selectedKeys.size == clientModel.index?.size
+    val hasActiveJobs = clientModel.transferJobs.any { job ->
+        job.progress !is TransferJobProgressModel.Finished &&
+                job.progress !is TransferJobProgressModel.Failed
+    }
 
-        if (selectedKeys.isEmpty() || allSelected) {
-            onDownloadAll()
-        } else {
-            onDownloadPartial(selectedKeys.map { (root, path) ->
-                DownloadPartialItemModel(
-                    nodeId = clientModel.nodeId,
-                    root = root,
-                    path = path
-                )
-            })
-        }
+    val onDownload = {
+        onSetDownloads(selectionManager.selectedKeys.map { (root, path) ->
+            DownloadRequestModel(
+                nodeId = clientModel.nodeId,
+                root = root,
+                path = path
+            )
+        })
     }
 
     Scaffold(
@@ -160,53 +157,61 @@ fun PreTransferScreen(
                     } else {
                         onCancel()
                     }
+                },
+                extraActions = {
+                    if (hasActiveJobs && !clientModel.paused) {
+                        IconButton(onClick = onNavigateToTransfer) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 3.dp,
+                            )
+                        }
+                    }
                 }
             )
         },
         bottomBar = {
-            BottomAppBar {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(8.dp),
-                ) {
-                    if (!hasDownloadDirectory) {
-                        ActionButton(
-                            onClick = onPickDownloadDirectory,
-                            text = "Choose download directory"
-                        )
-                    } else {
-                        val selectedKeys = selectionManager.selectedKeys
-                        val allSelected = selectedKeys.size == clientModel.index?.size
-                        val numFiles = clientModel.index?.size ?: 0
-                        ActionButton(
-                            onClick = onDownload,
-                            enabled = hasDownloadDirectory,
-                            text = if (selectedKeys.isEmpty() || allSelected) {
-                                "Download everything ($numFiles files, ${
-                                    formatSize(
-                                        totalSize,
-                                        estimated = totalSizeEstimated,
-                                        decimals = 0
-                                    )
-                                })"
-                            } else {
-                                // Look up selected items from current index
-                                val selectedItems = clientModel.index?.filter { item ->
-                                    selectedKeys.contains(item.root to item.path)
-                                } ?: emptyList()
-                                val selectedSize =
-                                    selectedItems.sumOf { item -> item.fileSize.value() }
-                                val selectedEstimated =
-                                    selectedItems.any { item -> item.fileSize !is FileSizeModel.Actual }
+            val selectedKeys = selectionManager.selectedKeys
 
-                                "Download selected (${selectedKeys.size} files, ${
-                                    formatSize(
-                                        selectedSize,
-                                        estimated = selectedEstimated,
-                                        decimals = 0
-                                    )
-                                })"
-                            }
-                        )
+            val missingDownloadDirectory = !hasDownloadDirectory
+            val hasSelectedKeys = selectedKeys.isNotEmpty()
+
+            val showBottomBar = missingDownloadDirectory || hasSelectedKeys
+
+            if (showBottomBar) {
+                BottomAppBar {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    ) {
+                        if (missingDownloadDirectory) {
+                            ActionButton(
+                                onClick = onPickDownloadDirectory,
+                                text = "Choose download directory"
+                            )
+                        } else if (hasSelectedKeys) {
+                            // Look up selected items from current index
+                            val selectedItems = clientModel.index?.filter { item ->
+                                selectedKeys.contains(item.root to item.path)
+                            } ?: emptyList()
+                            val selectedSize =
+                                selectedItems.sumOf { item -> item.fileSize.value() }
+                            val selectedEstimated =
+                                selectedItems.any { item -> item.fileSize !is FileSizeModel.Actual }
+
+                            val text = "Download selected (${selectedKeys.size} files, ${
+                                formatSize(
+                                    selectedSize,
+                                    estimated = selectedEstimated,
+                                    decimals = 0
+                                )
+                            })"
+
+                            ActionButton(
+                                onClick = onDownload,
+                                enabled = hasDownloadDirectory,
+                                text = text
+                            )
+                        }
                     }
                 }
             }
@@ -227,10 +232,16 @@ fun PreTransferScreen(
                         navigationStack.removeAt(navigationStack.lastIndex)
                     }
                 },
-                checkboxRowState = selectionManager.getNodeState(currentNode),
-                onCheckboxClick = { selectionManager.handleSelectNode(currentNode) },
+                checkboxRowState = selectionManager.getNodeState(currentNode, clientModel.paused),
+                onCheckboxClick = {
+                    selectionManager.handleSelectNode(
+                        currentNode,
+                        clientModel.paused
+                    )
+                },
                 currentFolderSize = currentFolderSize,
                 currentFolderSizeEstimated = currentFolderSizeEstimated,
+                paused = clientModel.paused
             )
 
             LazyColumn(state = currentScrollState) {
@@ -240,8 +251,9 @@ fun PreTransferScreen(
                 ) { node ->
                     FileRow(
                         node = node,
-                        rowState = selectionManager.getNodeState(node),
-                        onSelect = { selectionManager.handleSelectNode(node) },
+                        rowState = selectionManager.getNodeState(node, clientModel.paused),
+                        paused = clientModel.paused,
+                        onSelect = { selectionManager.handleSelectNode(node, clientModel.paused) },
                         onNavigate = if (node.leaf == null) {
                             { navigationStack.add(node.part) }
                         } else null,
@@ -293,6 +305,7 @@ private fun BreadcrumbBar(
     onCheckboxClick: () -> Unit,
     currentFolderSize: ULong,
     currentFolderSizeEstimated: Boolean,
+    paused: Boolean,
 ) {
     val scrollState = rememberScrollState()
 
@@ -313,6 +326,7 @@ private fun BreadcrumbBar(
             node = currentNode,
             // DisabledOrNone means nothing is actually selected; show unchecked at top level
             rowState = if (checkboxRowState == RowState.DisabledOrNone) RowState.None else checkboxRowState,
+            paused = paused,
             onClick = onCheckboxClick,
         )
 
@@ -382,16 +396,42 @@ private fun BreadcrumbBar(
 internal fun FileRow(
     node: TreeNode,
     rowState: RowState,
+    paused: Boolean,
     onSelect: () -> Unit,
     onNavigate: (() -> Unit)?,
 ) {
     val isFolder = node.leaf == null
+
+    val isSelectable = if (node.leaf != null) {
+        when (node.leaf.downloadStatus) {
+            // always selectable
+            null -> {
+                true
+            }
+
+            // only selectable if paused
+            IndexItemDownloadStatusModel.WAITING -> {
+                paused
+            }
+
+            // not selectable
+            IndexItemDownloadStatusModel.IN_PROGRESS,
+            IndexItemDownloadStatusModel.DOWNLOADED,
+            IndexItemDownloadStatusModel.FAILED,
+                -> {
+                false
+            }
+        }
+    } else {
+        true
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
             .clickable(
+                enabled = isSelectable,
                 onClick = {
                     if (isFolder && onNavigate != null) {
                         onNavigate()
@@ -405,6 +445,7 @@ internal fun FileRow(
         RowStateCheckbox(
             node = node,
             rowState = rowState,
+            paused = paused,
             onClick = onSelect,
         )
 
@@ -597,24 +638,30 @@ internal enum class RowState {
     Selected,
 
     /**
-     * All descendants are disabled (in progress, downloaded, or failed).
+     * All descendants are disabled.
+     *
+     * An item is disabled if:
+     * - Waiting and not paused
+     * - InProgress
+     * - Downloaded
+     * - Failed
      */
     Disabled,
 
     /**
-     * All descendants are disabled (in progress, downloaded, or failed) or unselected.
+     * All descendants are disabled or unselected.
      */
     DisabledOrNone,
 
     /**
-     * All descendants are disabled (in progress, downloaded, or failed) or selected.
+     * All descendants are disabled or selected.
      */
     DisabledOrSelected,
 
     /**
      * Some descendants are selected and some are unselected.
      *
-     * Some descendants may also be disabled (in progress, downloaded, or failed).
+     * Some descendants may also be disabled.
      */
     Indeterminate,
 }
@@ -622,21 +669,33 @@ internal enum class RowState {
 /**
  * Renders the appropriate checkbox for a given [RowState]:
  * - [RowState.Disabled]: a non-interactive [DisabledIconCheckbox]; uses:
- *   - [exclamation_24px] for [IndexItemDownloadStatusModel.FAILED] leaves
- *   - [more_horiz_24px] for [IndexItemDownloadStatusModel.IN_PROGRESS] leaves
- *   - [arrow_downward_24px] for [IndexItemDownloadStatusModel.DOWNLOADED] leaves
+ *   - [IndexItemDownloadStatusModel.FAILED]: [exclamation_24px]
+ *   - [IndexItemDownloadStatusModel.WAITING] and not paused: [more_horiz_24px]
+ *   - [IndexItemDownloadStatusModel.IN_PROGRESS] and not paused: [more_horiz_24px]
+ *   - [IndexItemDownloadStatusModel.IN_PROGRESS] and paused: [arrow_downward_24px]
+ *   - [IndexItemDownloadStatusModel.DOWNLOADED]: [arrow_downward_24px]
  * - All other states: a [TriStateCheckbox]
  */
 @Composable
 internal fun RowStateCheckbox(
     node: TreeNode,
     rowState: RowState,
+    paused: Boolean,
     onClick: () -> Unit,
 ) {
     if (rowState == RowState.Disabled) {
         val painter = when (node.leaf?.downloadStatus) {
             IndexItemDownloadStatusModel.FAILED -> painterResource(Res.drawable.exclamation_24px)
-            IndexItemDownloadStatusModel.IN_PROGRESS -> painterResource(Res.drawable.more_horiz_24px)
+
+            IndexItemDownloadStatusModel.WAITING -> painterResource(Res.drawable.more_horiz_24px)
+
+            IndexItemDownloadStatusModel.IN_PROGRESS -> if (paused) {
+                // Already in progress and can't be cancelled, so just show as downloaded
+                painterResource(Res.drawable.arrow_downward_24px)
+            } else {
+                painterResource(Res.drawable.more_horiz_24px)
+            }
+
             else -> painterResource(Res.drawable.arrow_downward_24px)
         }
         DisabledIconCheckbox(painter = painter)
@@ -742,47 +801,71 @@ private fun DrawScope.drawBox(
 
 /**
  * Manages selection state for PreTransferScreen.
- *
- * Automatically preselects InProgress items when the index changes, but only once per item.
- * If the user manually deselects an InProgress item, it won't be re-preselected on refresh.
  */
 internal class SelectionManager {
     private val _selectedKeys = mutableStateSetOf<Pair<String, String>>()
     private val _preselectedKeys = mutableStateSetOf<Pair<String, String>>()
-    private val _stateCache = mutableMapOf<TreeNode, RowState>()
 
     val selectedKeys: Set<Pair<String, String>> get() = _selectedKeys
 
-    fun onIndexChanged(index: List<IndexItemModel>) {
-        val toPreselect = index
-            .filter { it.downloadStatus == IndexItemDownloadStatusModel.PAUSED }
-            .map { it.root to it.path }
-            .filterNot { _preselectedKeys.contains(it) }
+    /**
+     * Updates selection when the index changes:
+     * - Selects Waiting items once per item if paused
+     * - Deselects InProgress, Downloaded, and Failed items
+     *
+     * If the user manually deselects a Waiting item, it won't be re-preselected on refresh.
+     */
+    fun updateSelection(index: List<IndexItemModel>, paused: Boolean) {
+        if (paused) {
+            val toPreselect = index
+                .filter { it.downloadStatus == IndexItemDownloadStatusModel.WAITING }
+                .map { it.root to it.path }
+                .filterNot { _preselectedKeys.contains(it) }
 
-        _selectedKeys.addAll(toPreselect)
-        _preselectedKeys.addAll(toPreselect)
-        _stateCache.clear()
+            _selectedKeys.addAll(toPreselect)
+            _preselectedKeys.addAll(toPreselect)
+        }
+
+        val toDeselect = index
+            .filter {
+                it.downloadStatus == IndexItemDownloadStatusModel.IN_PROGRESS ||
+                        it.downloadStatus == IndexItemDownloadStatusModel.DOWNLOADED ||
+                        it.downloadStatus == IndexItemDownloadStatusModel.FAILED
+            }
+            .map { it.root to it.path }
+
+        _selectedKeys.removeAll(toDeselect)
+        _preselectedKeys.removeAll(toDeselect)
     }
 
     /**
      * Sets the selected state of an item.
      */
-    fun setSelected(item: IndexItemModel, selected: Boolean) {
+    fun setSelected(item: IndexItemModel, selected: Boolean, paused: Boolean) {
+        if (item.downloadStatus == IndexItemDownloadStatusModel.WAITING && !paused) {
+            return
+        }
+        if (item.downloadStatus == IndexItemDownloadStatusModel.IN_PROGRESS ||
+            item.downloadStatus == IndexItemDownloadStatusModel.DOWNLOADED ||
+            item.downloadStatus == IndexItemDownloadStatusModel.FAILED
+        ) {
+            return
+        }
+
         val key = item.root to item.path
         if (selected) {
             _selectedKeys.add(key)
         } else {
             _selectedKeys.remove(key)
         }
-        _stateCache.clear()
     }
 
     /**
      * Sets the selected state of an item and its descendants.
      */
-    fun setSelectedRecursive(node: TreeNode, selected: Boolean) {
-        node.leaf?.let { setSelected(it, selected) }
-        node.children.forEach { setSelectedRecursive(it, selected) }
+    fun setSelectedRecursive(node: TreeNode, selected: Boolean, paused: Boolean) {
+        node.leaf?.let { setSelected(it, selected, paused) }
+        node.children.forEach { setSelectedRecursive(it, selected, paused) }
     }
 
     /**
@@ -796,18 +879,18 @@ internal class SelectionManager {
      * Handles selecting/deselecting a node based on its current state.
      * For leaf nodes, toggles selection. For branch nodes, recursively selects/deselects.
      */
-    fun handleSelectNode(node: TreeNode) {
+    fun handleSelectNode(node: TreeNode, paused: Boolean) {
         node.leaf?.let { leaf ->
-            setSelected(leaf, !isSelected(leaf))
+            setSelected(leaf, !isSelected(leaf), paused)
         } ?: run {
-            val rowState = getNodeState(node)
+            val rowState = getNodeState(node, paused)
             when (rowState) {
                 RowState.Selected, RowState.DisabledOrSelected, RowState.Indeterminate -> {
-                    setSelectedRecursive(node, false)
+                    setSelectedRecursive(node, false, paused)
                 }
 
                 RowState.None, RowState.DisabledOrNone -> {
-                    setSelectedRecursive(node, true)
+                    setSelectedRecursive(node, true, paused)
                 }
 
                 RowState.Disabled -> {}
@@ -818,13 +901,11 @@ internal class SelectionManager {
     /**
      * Gets the `RowState` of a node in the file tree.
      *
-     * Uses an internal cache to avoid recomputing states for nodes.
-     * The cache is cleared when selection changes.
-     *
      * We need to know more than just Indeterminate to correctly
      * select/unselect indeterminate rows with mixed descendants.
      *
      * If the node is a leaf (file), then:
+     *  - If it is waiting and we are unpaused, the state is Disabled
      *  - If it is in progress, downloaded, or failed, the state is Disabled
      *  - If it is selected, the state is Selected
      *  - Otherwise, the state is None
@@ -837,12 +918,12 @@ internal class SelectionManager {
      *  - If all children are DisabledOrSelected, Disabled, or Selected, it is DisabledOrSelected
      *  - Otherwise, it is Indeterminate
      */
-    fun getNodeState(node: TreeNode): RowState {
-        _stateCache[node]?.let { return it }
-
+    fun getNodeState(node: TreeNode, paused: Boolean): RowState {
         val state = node.leaf?.let {
             // leaf node
-            if (it.downloadStatus == IndexItemDownloadStatusModel.DOWNLOADED ||
+            if (it.downloadStatus == IndexItemDownloadStatusModel.WAITING && !paused) {
+                RowState.Disabled
+            } else if (it.downloadStatus == IndexItemDownloadStatusModel.DOWNLOADED ||
                 it.downloadStatus == IndexItemDownloadStatusModel.FAILED ||
                 it.downloadStatus == IndexItemDownloadStatusModel.IN_PROGRESS
             ) {
@@ -858,44 +939,43 @@ internal class SelectionManager {
                 return RowState.None
             }
 
-            var total = 0
             var countNone = 0
             var countSelected = 0
             var countDisabled = 0
             var countDisabledOrNone = 0
             var countDisabledOrSelected = 0
+            var countIndeterminate = 0
 
             node.children.forEach { child ->
-                val childState = getNodeState(child)
+                val childState = getNodeState(child, paused)
                 when (childState) {
                     RowState.None -> {
-                        total += 1
                         countNone += 1
                     }
 
                     RowState.Selected -> {
-                        total += 1
                         countSelected += 1
                     }
 
                     RowState.Disabled -> {
-                        total += 1
                         countDisabled += 1
                     }
 
                     RowState.DisabledOrNone -> {
-                        total += 1
                         countDisabledOrNone += 1
                     }
 
                     RowState.DisabledOrSelected -> {
-                        total += 1
                         countDisabledOrSelected += 1
                     }
 
-                    RowState.Indeterminate -> {}
+                    RowState.Indeterminate -> {
+                        countIndeterminate += 1
+                    }
                 }
             }
+
+            val total = node.children.size
 
             if (countNone == total) {
                 RowState.None
@@ -903,16 +983,15 @@ internal class SelectionManager {
                 RowState.Selected
             } else if (countDisabled == total) {
                 RowState.Disabled
-            } else if (countSelected == 0 && countDisabledOrSelected == 0) {
+            } else if (countSelected == 0 && countDisabledOrSelected == 0 && countIndeterminate == 0) {
                 RowState.DisabledOrNone
-            } else if (countNone == 0 && countDisabledOrNone == 0) {
+            } else if (countNone == 0 && countDisabledOrNone == 0 && countIndeterminate == 0) {
                 RowState.DisabledOrSelected
             } else {
                 RowState.Indeterminate
             }
         }
 
-        _stateCache[node] = state
         return state
     }
 }
@@ -934,16 +1013,17 @@ fun FileSizeModel.value(): ULong {
 @Composable
 fun PreTransferScreenSandbox() {
     var hasDownloadDirectory by remember { mutableStateOf((false)) }
+    var clientModel by remember { mutableStateOf(mockClientModel()) }
 
     PreTransferScreen(
         snackbarHost = {},
         onShowNodeStatus = {},
 
-        clientModel = mockClientModel(),
+        clientModel = clientModel,
         hasDownloadDirectory = hasDownloadDirectory,
         onPickDownloadDirectory = { hasDownloadDirectory = true },
-        onDownloadAll = {},
-        onDownloadPartial = {},
+        onSetDownloads = { clientModel = clientModel.copy(paused = false) },
+        onNavigateToTransfer = { clientModel = clientModel.copy(paused = true) },
         onCancel = { hasDownloadDirectory = false }
     )
 }

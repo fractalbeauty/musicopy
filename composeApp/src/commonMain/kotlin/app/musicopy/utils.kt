@@ -143,6 +143,7 @@ fun mockClientModel(
             add(mockTransferJobModel(progress = mockTransferJobProgressModelFailed()))
         }
     },
+    paused: Boolean = false,
 ): ClientModel {
     val nodeId = mockNodeId()
 
@@ -256,7 +257,7 @@ fun mockClientModel(
                 nodeId = nodeId,
                 root = "six",
                 basePath = "",
-                downloadStatus = IndexItemDownloadStatusModel.DOWNLOADED
+                downloadStatus = IndexItemDownloadStatusModel.WAITING
             ),
             mockIndexItemModel(
                 nodeId = nodeId,
@@ -268,7 +269,7 @@ fun mockClientModel(
                 nodeId = nodeId,
                 root = "six",
                 basePath = "",
-                downloadStatus = IndexItemDownloadStatusModel.PAUSED
+                downloadStatus = IndexItemDownloadStatusModel.DOWNLOADED
             ),
             mockIndexItemModel(
                 nodeId = nodeId,
@@ -278,7 +279,8 @@ fun mockClientModel(
             ),
             mockIndexItemModel(nodeId = nodeId, root = "six", basePath = "", downloadStatus = null),
         ),
-        transferJobs = transferJobs
+        transferJobs = transferJobs,
+        paused = paused,
     )
 }
 

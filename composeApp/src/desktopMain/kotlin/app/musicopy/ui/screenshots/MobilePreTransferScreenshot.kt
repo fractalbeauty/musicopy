@@ -16,7 +16,8 @@ fun MobilePreTransferScreenshot() {
         connectionType = "direct",
         latencyMs = 42u,
         index = screenshotIndex,
-        transferJobs = emptyList()
+        transferJobs = emptyList(),
+        paused = false,
     )
 
     PreTransferScreen(
@@ -26,8 +27,8 @@ fun MobilePreTransferScreenshot() {
         clientModel = clientModel,
         hasDownloadDirectory = true,
         onPickDownloadDirectory = {},
-        onDownloadAll = {},
-        onDownloadPartial = {},
+        onSetDownloads = {},
+        onNavigateToTransfer = {},
         onCancel = {}
     )
 }

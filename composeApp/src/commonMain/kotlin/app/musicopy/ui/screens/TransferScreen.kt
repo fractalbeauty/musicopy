@@ -28,6 +28,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProgressIndicatorDefaults
@@ -65,7 +66,7 @@ import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.check_circle_24px
 import musicopy_root.musicopy.generated.resources.chevron_forward_24px
 import musicopy_root.musicopy.generated.resources.error_24px
-import musicopy_root.musicopy.generated.resources.pause_circle_24px
+import musicopy_root.musicopy.generated.resources.pause_24px
 import musicopy_root.musicopy.generated.resources.pending_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.ClientModel
@@ -79,6 +80,7 @@ fun TransferScreen(
 
     clientModel: ClientModel,
     onBack: () -> Unit,
+    onPause: () -> Unit,
     onTransferMore: () -> Unit,
     onDone: () -> Unit,
 ) {
@@ -103,17 +105,27 @@ fun TransferScreen(
         onBack()
     }
 
+    val isSettled = waitingJobs.isEmpty() && inProgressJobs.isEmpty()
+
     Scaffold(
         topBar = {
             TopBar(
                 title = "Transferring ${clientModel.transferJobs.size} files",
                 onShowNodeStatus = onShowNodeStatus,
-                onBack = onBack
+                onBack = onBack,
+                extraActions = {
+                    if (!isSettled && !clientModel.paused) {
+                        IconButton(onClick = onPause) {
+                            Icon(
+                                painter = painterResource(Res.drawable.pause_24px),
+                                contentDescription = "Pause downloads"
+                            )
+                        }
+                    }
+                }
             )
         },
         bottomBar = {
-            val isSettled = waitingJobs.isEmpty() && inProgressJobs.isEmpty()
-
             AnimatedVisibility(
                 visible = isSettled,
                 enter = slideInVertically { height -> height } + fadeIn(),
@@ -269,13 +281,6 @@ fun TransferJob(job: TransferJobModel) {
                         )
                     }
 
-                    is TransferJobProgressModel.Paused -> {
-                        Icon(
-                            painter = painterResource(Res.drawable.pause_circle_24px),
-                            contentDescription = null,
-                        )
-                    }
-
                     is TransferJobProgressModel.Finished -> {
                         Icon(
                             painter = painterResource(Res.drawable.check_circle_24px),
@@ -396,10 +401,6 @@ internal fun formatJobSubtitle(job: TransferJobModel): String {
             } ?: "Waiting..."
         }
 
-        is TransferJobProgressModel.Paused -> {
-            "Paused"
-        }
-
         is TransferJobProgressModel.Finished -> {
             job.fileSize?.let {
                 val totalMB = it.toFloat() / 1_000_000f
@@ -459,6 +460,7 @@ fun TransferScreenSandbox() {
 
         clientModel = mockClientModel(),
         onBack = {},
+        onPause = {},
         onTransferMore = {},
         onDone = {},
     )
@@ -496,6 +498,7 @@ fun TransferScreenFinishedSandbox() {
 
         clientModel = clientModel,
         onBack = { finished = !finished },
+        onPause = {},
         onTransferMore = {},
         onDone = {},
     )
