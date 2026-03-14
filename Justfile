@@ -11,6 +11,8 @@ test-rust *FLAGS:
   cargo nextest run --package musicopy --features musicopy/test-hooks {{FLAGS}}
 
 test-gradle *FLAGS:
+  # Build UniFFI bindings using the host target
+  GOBLEY_UNIFFI_TARGET=`rustc -vV | grep 'host:' | cut -d' ' -f2` \
   ./gradlew desktopTest {{FLAGS}}
 
 test-gradle-report:
