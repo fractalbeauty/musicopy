@@ -53,7 +53,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
@@ -232,7 +231,10 @@ fun PreTransferScreen(
                         navigationStack.removeAt(navigationStack.lastIndex)
                     }
                 },
-                checkboxRowState = selectionManager.getNodeState(currentNode, clientModel.paused),
+                checkboxRowState = selectionManager.getNodeState(
+                    currentNode,
+                    clientModel.paused
+                ),
                 onCheckboxClick = {
                     selectionManager.handleSelectNode(
                         currentNode,
@@ -253,7 +255,12 @@ fun PreTransferScreen(
                         node = node,
                         rowState = selectionManager.getNodeState(node, clientModel.paused),
                         paused = clientModel.paused,
-                        onSelect = { selectionManager.handleSelectNode(node, clientModel.paused) },
+                        onSelect = {
+                            selectionManager.handleSelectNode(
+                                node,
+                                clientModel.paused
+                            )
+                        },
                         onNavigate = if (node.leaf == null) {
                             { navigationStack.add(node.part) }
                         } else null,
@@ -301,7 +308,7 @@ private fun BreadcrumbBar(
     deviceName: String,
     onNavigateToRoot: () -> Unit,
     onNavigateToIndex: (Int) -> Unit,
-    checkboxRowState: RowState,
+    checkboxRowState: Pair<RowToggleState, RowDisabledState>,
     onCheckboxClick: () -> Unit,
     currentFolderSize: ULong,
     currentFolderSizeEstimated: Boolean,
@@ -323,10 +330,7 @@ private fun BreadcrumbBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RowStateCheckbox(
-            node = currentNode,
-            // DisabledOrNone means nothing is actually selected; show unchecked at top level
-            rowState = if (checkboxRowState == RowState.DisabledOrNone) RowState.None else checkboxRowState,
-            paused = paused,
+            rowState = checkboxRowState,
             onClick = onCheckboxClick,
         )
 
@@ -395,7 +399,7 @@ private fun BreadcrumbBar(
 @Composable
 internal fun FileRow(
     node: TreeNode,
-    rowState: RowState,
+    rowState: Pair<RowToggleState, RowDisabledState>,
     paused: Boolean,
     onSelect: () -> Unit,
     onNavigate: (() -> Unit)?,
@@ -443,9 +447,7 @@ internal fun FileRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         RowStateCheckbox(
-            node = node,
             rowState = rowState,
-            paused = paused,
             onClick = onSelect,
         )
 
@@ -626,7 +628,11 @@ internal fun buildNodeSizes(
     return map
 }
 
-internal enum class RowState {
+/**
+ * The toggle state for a row. This determines whether a checkbox is disabled and what happens when
+ * it's recursively toggled.
+ */
+internal enum class RowToggleState {
     /**
      * All descendants are unselected.
      */
@@ -667,46 +673,60 @@ internal enum class RowState {
 }
 
 /**
- * Renders the appropriate checkbox for a given [RowState]:
- * - [RowState.Disabled]: a non-interactive [DisabledIconCheckbox]; uses:
- *   - [IndexItemDownloadStatusModel.FAILED]: [exclamation_24px]
- *   - [IndexItemDownloadStatusModel.WAITING] and not paused: [more_horiz_24px]
- *   - [IndexItemDownloadStatusModel.IN_PROGRESS] and not paused: [more_horiz_24px]
- *   - [IndexItemDownloadStatusModel.IN_PROGRESS] and paused: [arrow_downward_24px]
- *   - [IndexItemDownloadStatusModel.DOWNLOADED]: [arrow_downward_24px]
- * - All other states: a [TriStateCheckbox]
+ * Which disabled icon to show for a row.
+ */
+internal enum class RowDisabledState {
+    /**
+     * All descendants are effectively Waiting.
+     *
+     * An item is effectively Waiting if:
+     * - Leaf and status is Waiting (only disabled when not paused)
+     * - Leaf and status is InProgress and not paused
+     * - Folder and all children are effectively Waiting or effectively Downloaded
+     */
+    Waiting,
+
+    /**
+     * All descendants are effectively Downloaded.
+     *
+     * An item is effectively Downloaded if:
+     * - Leaf and status is Downloaded
+     * - Leaf and status is InProgress and paused (already started, can't be cancelled even if paused)
+     * - Folder and all children are effectively Downloaded.
+     */
+    Downloaded,
+
+    /**
+     * All descendants are Failed.
+     *
+     * An item is failed if it's a leaf and its status is Failed.
+     */
+    Failed,
+
+    /**
+     * Descendants have a mix of disabled states.
+     */
+    Indeterminate
+}
+
+/**
+ * Renders the appropriate checkbox for a given [RowToggleState] and [RowDisabledState].
  */
 @Composable
 internal fun RowStateCheckbox(
-    node: TreeNode,
-    rowState: RowState,
-    paused: Boolean,
+    rowState: Pair<RowToggleState, RowDisabledState>,
     onClick: () -> Unit,
 ) {
-    if (rowState == RowState.Disabled) {
-        val painter = when (node.leaf?.downloadStatus) {
-            IndexItemDownloadStatusModel.FAILED -> painterResource(Res.drawable.exclamation_24px)
-
-            IndexItemDownloadStatusModel.WAITING -> painterResource(Res.drawable.more_horiz_24px)
-
-            IndexItemDownloadStatusModel.IN_PROGRESS -> if (paused) {
-                // Already in progress and can't be cancelled, so just show as downloaded
-                painterResource(Res.drawable.arrow_downward_24px)
-            } else {
-                painterResource(Res.drawable.more_horiz_24px)
-            }
-
-            else -> painterResource(Res.drawable.arrow_downward_24px)
-        }
-        DisabledIconCheckbox(painter = painter)
+    if (rowState.first == RowToggleState.Disabled) {
+        DisabledIconCheckbox(rowDisabledState = rowState.second)
     } else {
-        val toggleableState = when (rowState) {
-            RowState.None -> ToggleableState.Off
-            RowState.Selected -> ToggleableState.On
-            RowState.DisabledOrNone -> ToggleableState.Indeterminate
-            RowState.DisabledOrSelected -> ToggleableState.On
-            RowState.Indeterminate -> ToggleableState.Indeterminate
-            RowState.Disabled -> ToggleableState.Off
+        val toggleableState = when (rowState.first) {
+            RowToggleState.None -> ToggleableState.Off
+            RowToggleState.Selected -> ToggleableState.On
+            RowToggleState.DisabledOrNone -> ToggleableState.Indeterminate
+            RowToggleState.DisabledOrSelected -> ToggleableState.On
+            RowToggleState.Indeterminate -> ToggleableState.Indeterminate
+            RowToggleState.Disabled -> ToggleableState.Off
         }
         TriStateCheckbox(
             state = toggleableState,
@@ -726,7 +746,19 @@ private val RadiusSize = 2.dp
  * Disabled and non-interactive. Doesn't animate.
  */
 @Composable
-internal fun DisabledIconCheckbox(painter: Painter) {
+internal fun DisabledIconCheckbox(rowDisabledState: RowDisabledState) {
+    val painter = when (rowDisabledState) {
+        RowDisabledState.Waiting -> painterResource(Res.drawable.more_horiz_24px)
+        RowDisabledState.Downloaded -> painterResource(Res.drawable.arrow_downward_24px)
+        RowDisabledState.Failed -> painterResource(Res.drawable.exclamation_24px)
+        RowDisabledState.Indeterminate -> {
+            // defer to normal checkbox implementation for rendering
+            TriStateCheckbox(state = ToggleableState.Indeterminate, enabled = false, onClick = {})
+            return
+        }
+
+    }
+
     val toggleableModifier = Modifier.triStateToggleable(
         state = ToggleableState.On,
         onClick = {},
@@ -883,26 +915,26 @@ internal class SelectionManager {
         node.leaf?.let { leaf ->
             setSelected(leaf, !isSelected(leaf), paused)
         } ?: run {
-            val rowState = getNodeState(node, paused)
-            when (rowState) {
-                RowState.Selected, RowState.DisabledOrSelected, RowState.Indeterminate -> {
+            val rowToggleState = getNodeState(node, paused).first
+            when (rowToggleState) {
+                RowToggleState.Selected, RowToggleState.DisabledOrSelected, RowToggleState.Indeterminate -> {
                     setSelectedRecursive(node, false, paused)
                 }
 
-                RowState.None, RowState.DisabledOrNone -> {
+                RowToggleState.None, RowToggleState.DisabledOrNone -> {
                     setSelectedRecursive(node, true, paused)
                 }
 
-                RowState.Disabled -> {}
+                RowToggleState.Disabled -> {}
             }
         }
     }
 
     /**
-     * Gets the `RowState` of a node in the file tree.
+     * Gets the [RowToggleState] and [RowDisabledState] of a node in the file tree.
      *
-     * We need to know more than just Indeterminate to correctly
-     * select/unselect indeterminate rows with mixed descendants.
+     * We need to know more than just Indeterminate to correctly select/unselect indeterminate rows
+     * with mixed descendants.
      *
      * If the node is a leaf (file), then:
      *  - If it is waiting and we are unpaused, the state is Disabled
@@ -917,82 +949,126 @@ internal class SelectionManager {
      *  - If all children are DisabledOrNone, Disabled, or None, it is DisabledOrNone
      *  - If all children are DisabledOrSelected, Disabled, or Selected, it is DisabledOrSelected
      *  - Otherwise, it is Indeterminate
+     *
+     *  We also need to know the [RowDisabledState] to determine which checkbox to render for
+     *  disabled folders.
      */
-    fun getNodeState(node: TreeNode, paused: Boolean): RowState {
-        val state = node.leaf?.let {
+    fun getNodeState(node: TreeNode, paused: Boolean): Pair<RowToggleState, RowDisabledState> {
+        return node.leaf?.let {
             // leaf node
             if (it.downloadStatus == IndexItemDownloadStatusModel.WAITING && !paused) {
-                RowState.Disabled
-            } else if (it.downloadStatus == IndexItemDownloadStatusModel.DOWNLOADED ||
-                it.downloadStatus == IndexItemDownloadStatusModel.FAILED ||
-                it.downloadStatus == IndexItemDownloadStatusModel.IN_PROGRESS
+                RowToggleState.Disabled to RowDisabledState.Waiting
+            } else if (
+                it.downloadStatus == IndexItemDownloadStatusModel.IN_PROGRESS && !paused
             ) {
-                RowState.Disabled
+                RowToggleState.Disabled to RowDisabledState.Waiting
+            } else if (
+                it.downloadStatus == IndexItemDownloadStatusModel.IN_PROGRESS && paused
+            ) {
+                RowToggleState.Disabled to RowDisabledState.Downloaded
+            } else if (it.downloadStatus == IndexItemDownloadStatusModel.DOWNLOADED) {
+                RowToggleState.Disabled to RowDisabledState.Downloaded
+            } else if (
+                it.downloadStatus == IndexItemDownloadStatusModel.FAILED) {
+                RowToggleState.Disabled to RowDisabledState.Failed
             } else if (isSelected(it)) {
-                RowState.Selected
+                RowToggleState.Selected to RowDisabledState.Indeterminate
             } else {
-                RowState.None
+                RowToggleState.None to RowDisabledState.Indeterminate
             }
         } ?: run {
-            // internal node
+            // branch node
             if (node.children.isEmpty()) {
-                return RowState.None
+                return RowToggleState.None to RowDisabledState.Indeterminate
             }
 
-            var countNone = 0
-            var countSelected = 0
-            var countDisabled = 0
-            var countDisabledOrNone = 0
-            var countDisabledOrSelected = 0
-            var countIndeterminate = 0
+            var countToggleNone = 0
+            var countToggleSelected = 0
+            var countToggleDisabled = 0
+            var countToggleDisabledOrNone = 0
+            var countToggleDisabledOrSelected = 0
+            var countToggleIndeterminate = 0
+
+            var countDisabledWaiting = 0
+            var countDisabledDownloaded = 0
+            var countDisabledFailed = 0
 
             node.children.forEach { child ->
                 val childState = getNodeState(child, paused)
-                when (childState) {
-                    RowState.None -> {
-                        countNone += 1
+
+                when (childState.first) {
+                    RowToggleState.None -> {
+                        countToggleNone += 1
                     }
 
-                    RowState.Selected -> {
-                        countSelected += 1
+                    RowToggleState.Selected -> {
+                        countToggleSelected += 1
                     }
 
-                    RowState.Disabled -> {
-                        countDisabled += 1
+                    RowToggleState.Disabled -> {
+                        countToggleDisabled += 1
                     }
 
-                    RowState.DisabledOrNone -> {
-                        countDisabledOrNone += 1
+                    RowToggleState.DisabledOrNone -> {
+                        countToggleDisabledOrNone += 1
                     }
 
-                    RowState.DisabledOrSelected -> {
-                        countDisabledOrSelected += 1
+                    RowToggleState.DisabledOrSelected -> {
+                        countToggleDisabledOrSelected += 1
                     }
 
-                    RowState.Indeterminate -> {
-                        countIndeterminate += 1
+                    RowToggleState.Indeterminate -> {
+                        countToggleIndeterminate += 1
                     }
+                }
+
+                when (childState.second) {
+                    RowDisabledState.Waiting -> {
+                        countDisabledWaiting += 1
+                    }
+
+                    RowDisabledState.Downloaded -> {
+                        countDisabledDownloaded += 1
+                    }
+
+                    RowDisabledState.Failed -> {
+                        countDisabledFailed += 1
+                    }
+
+                    RowDisabledState.Indeterminate -> {}
                 }
             }
 
             val total = node.children.size
 
-            if (countNone == total) {
-                RowState.None
-            } else if (countSelected == total) {
-                RowState.Selected
-            } else if (countDisabled == total) {
-                RowState.Disabled
-            } else if (countSelected == 0 && countDisabledOrSelected == 0 && countIndeterminate == 0) {
-                RowState.DisabledOrNone
-            } else if (countNone == 0 && countDisabledOrNone == 0 && countIndeterminate == 0) {
-                RowState.DisabledOrSelected
+            val toggleState = if (countToggleNone == total) {
+                RowToggleState.None
+            } else if (countToggleSelected == total) {
+                RowToggleState.Selected
+            } else if (countToggleDisabled == total) {
+                RowToggleState.Disabled
+            } else if (countToggleSelected == 0 && countToggleDisabledOrSelected == 0 && countToggleIndeterminate == 0) {
+                RowToggleState.DisabledOrNone
+            } else if (countToggleNone == 0 && countToggleDisabledOrNone == 0 && countToggleIndeterminate == 0) {
+                RowToggleState.DisabledOrSelected
             } else {
-                RowState.Indeterminate
+                RowToggleState.Indeterminate
             }
-        }
 
-        return state
+            val disabledState = if (countDisabledWaiting == total) {
+                RowDisabledState.Waiting
+            } else if (countDisabledDownloaded == total) {
+                RowDisabledState.Downloaded
+            } else if (countDisabledFailed == total) {
+                RowDisabledState.Failed
+            } else if (countDisabledWaiting + countDisabledDownloaded == total) {
+                RowDisabledState.Waiting
+            } else {
+                RowDisabledState.Indeterminate
+            }
+
+            toggleState to disabledState
+        }
     }
 }
 

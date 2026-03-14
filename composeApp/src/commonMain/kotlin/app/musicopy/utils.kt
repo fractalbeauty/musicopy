@@ -278,6 +278,80 @@ fun mockClientModel(
                 downloadStatus = IndexItemDownloadStatusModel.FAILED
             ),
             mockIndexItemModel(nodeId = nodeId, root = "six", basePath = "", downloadStatus = null),
+
+            // download status folders
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "seven",
+                basePath = "/waiting",
+                downloadStatus = IndexItemDownloadStatusModel.WAITING
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "seven",
+                basePath = "/waiting",
+                downloadStatus = IndexItemDownloadStatusModel.WAITING
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "seven",
+                basePath = "/downloaded",
+                downloadStatus = IndexItemDownloadStatusModel.DOWNLOADED
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "seven",
+                basePath = "/downloaded",
+                downloadStatus = IndexItemDownloadStatusModel.DOWNLOADED
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "seven",
+                basePath = "/failed",
+                downloadStatus = IndexItemDownloadStatusModel.FAILED
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "seven",
+                basePath = "/failed",
+                downloadStatus = IndexItemDownloadStatusModel.FAILED
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "seven",
+                basePath = "/waiting_failed",
+                downloadStatus = IndexItemDownloadStatusModel.WAITING
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "seven",
+                basePath = "/waiting_failed",
+                downloadStatus = IndexItemDownloadStatusModel.FAILED
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "seven",
+                basePath = "/waiting_inprogress",
+                downloadStatus = IndexItemDownloadStatusModel.WAITING
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "seven",
+                basePath = "/waiting_inprogress",
+                downloadStatus = IndexItemDownloadStatusModel.IN_PROGRESS
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "seven",
+                basePath = "/inprogress_downloaded",
+                downloadStatus = IndexItemDownloadStatusModel.IN_PROGRESS
+            ),
+            mockIndexItemModel(
+                nodeId = nodeId,
+                root = "seven",
+                basePath = "/inprogress_downloaded",
+                downloadStatus = IndexItemDownloadStatusModel.DOWNLOADED
+            ),
         ),
         transferJobs = transferJobs,
         paused = paused,
