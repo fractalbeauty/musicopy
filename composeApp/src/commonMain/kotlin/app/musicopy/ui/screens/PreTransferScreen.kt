@@ -64,6 +64,8 @@ import app.musicopy.mockClientModel
 import app.musicopy.ui.components.TopBar
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.arrow_downward_24px
+import musicopy_root.musicopy.generated.resources.check_24px
+import musicopy_root.musicopy.generated.resources.check_circle_24px
 import musicopy_root.musicopy.generated.resources.chevron_forward_24px
 import musicopy_root.musicopy.generated.resources.exclamation_24px
 import musicopy_root.musicopy.generated.resources.more_horiz_24px
@@ -130,6 +132,7 @@ fun PreTransferScreen(
     val currentFolderSize = folderSizeModel.value()
     val currentFolderSizeEstimated = folderSizeModel !is FileSizeModel.Actual
 
+    val hasJobs = clientModel.transferJobs.isNotEmpty()
     val hasActiveJobs = clientModel.transferJobs.any { job ->
         job.progress !is TransferJobProgressModel.Finished &&
                 job.progress !is TransferJobProgressModel.Failed
@@ -163,6 +166,14 @@ fun PreTransferScreen(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
                                 strokeWidth = 3.dp,
+                            )
+                        }
+                    }
+                    if (!hasActiveJobs && hasJobs) {
+                        IconButton(onClick = onNavigateToTransfer) {
+                            Icon(
+                                painter = painterResource(Res.drawable.check_24px),
+                                contentDescription = null,
                             )
                         }
                     }
