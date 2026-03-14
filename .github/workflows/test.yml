@@ -10,6 +10,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Set up Just
+        uses: extractions/setup-just@v3
+        with:
+          just-version: 1.46.0
+      
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Set up Rust
         run: |
@@ -25,4 +39,4 @@ jobs:
         uses: taiki-e/install-action@nextest
       
       - name: Run tests
-        run: cargo nextest run
+        run: just test
