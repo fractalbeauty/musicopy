@@ -1670,9 +1670,11 @@ impl Server {
 
         // send Index message
         let mut index = self.get_index()?;
-        send.send(ServerMessage::Index(index.clone()))
-            .await
-            .expect("failed to send Index message");
+        send.send(ServerMessage::Index(
+            index.iter().map(|(_, item)| item.clone()).collect(),
+        ))
+        .await
+        .expect("failed to send Index message");
 
         // update name and connected_at for trusted nodes
         {
@@ -2075,14 +2077,13 @@ impl Server {
                 _ = index_update_interval.tick() => {
                     let mut updates = Vec::new();
 
-                    for item in index.iter_mut() {
+                    for (local_path, item) in index.iter_mut() {
                         // if the client doesn't have the actual file size
                         if !matches!(item.file_size, FileSize::Actual(_)) {
                             // check for actual size from transcode cache, then estimated size from database
-                            let path = PathBuf::from(&item.path);
                             let file_size = if let Some(actual_size) = self
                                 .hash_cache
-                                .get_cached_hash(&path)
+                                .get_cached_hash(local_path)
                                 .ok()
                                 .flatten()
                                 .and_then(|(hash_kind, hash)| self.transcode_status_cache.get(&hash_kind, hash))
@@ -2094,7 +2095,7 @@ impl Server {
                             } else {
                                 self
                                     .hash_cache
-                                    .get_cached_estimated_size(&path)
+                                    .get_cached_estimated_size(local_path)
                                     .ok()
                                     .flatten()
                                     .map(FileSize::Estimated)
@@ -2135,7 +2136,11 @@ impl Server {
         Ok(())
     }
 
-    fn get_index(&self) -> anyhow::Result<Vec<IndexItem>> {
+    /// Gets the index to send to the client.
+    ///
+    /// Also returns the local paths for the files, which are used to check for index updates
+    /// (i.e. file size updates). Local paths are not sent to the client.
+    fn get_index(&self) -> anyhow::Result<Vec<(PathBuf, IndexItem)>> {
         let files = {
             let db = self.db.lock().unwrap();
             db.get_files()?
@@ -2145,10 +2150,10 @@ impl Server {
             .into_iter()
             .map(|file| {
                 // check for actual size from transcode cache, then estimated size from database
-                let path = PathBuf::from(file.local_path);
+                let local_path = PathBuf::from(file.local_path);
                 let file_size = if let Some(actual_size) = self
                     .hash_cache
-                    .get_cached_hash(&path)
+                    .get_cached_hash(&local_path)
                     .ok()
                     .flatten()
                     .and_then(|(hash_kind, hash)| self.transcode_status_cache.get(&hash_kind, hash))
@@ -2159,7 +2164,7 @@ impl Server {
                     FileSize::Actual(actual_size)
                 } else if let Some(estimated_size) = self
                     .hash_cache
-                    .get_cached_estimated_size(&path)
+                    .get_cached_estimated_size(&local_path)
                     .ok()
                     .flatten()
                 {
@@ -2168,13 +2173,16 @@ impl Server {
                     FileSize::Unknown
                 };
 
-                IndexItem {
-                    node_id: file.node_id,
-                    root: file.root,
-                    path: file.path,
+                (
+                    local_path,
+                    IndexItem {
+                        node_id: file.node_id,
+                        root: file.root,
+                        path: file.path,
 
-                    file_size,
-                }
+                        file_size,
+                    },
+                )
             })
             .collect::<Vec<_>>();
 
