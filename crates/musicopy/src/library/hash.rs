@@ -16,13 +16,14 @@ use symphonia::core::{
 };
 use twox_hash::XxHash3_64;
 
-struct CacheKey {
+pub(crate) struct CacheKey<'a> {
     file_size: u64,
     modified_at: u64,
+    path: &'a Path,
 }
 
-impl CacheKey {
-    fn read_metadata(path: &Path) -> anyhow::Result<Self> {
+impl<'a> CacheKey<'a> {
+    fn read_metadata(path: &'a Path) -> anyhow::Result<Self> {
         let metadata = std::fs::metadata(path).context("failed to get file metadata")?;
 
         let modified_at = metadata
@@ -35,6 +36,7 @@ impl CacheKey {
         Ok(Self {
             file_size: metadata.len(),
             modified_at,
+            path,
         })
     }
 
@@ -57,18 +59,25 @@ impl HashCache {
         Self { db }
     }
 
-    /// Cheaply gets the cached hash of a file if it exists and is valid.
-    pub fn get_cached_hash(
-        &self,
-        path: &Path,
-    ) -> anyhow::Result<Option<(Cow<'static, str>, [u8; 16])>> {
-        // get file metadata
-        let key = CacheKey::read_metadata(path)?;
+    /// Gets the cache key for a file by reading its metadata (file size and modified time).
+    ///
+    /// This can be expensive, especially for network files.
+    pub(crate) fn read_cache_key<'a>(&self, path: &'a Path) -> anyhow::Result<CacheKey<'a>> {
+        CacheKey::read_metadata(path)
+    }
 
+    /// Gets the cached hash of a file if it exists and is still valid.
+    ///
+    /// This requires first reading the cache key with [`read_cache_key`](Self::read_cache_key),
+    /// which requires accessing the file and can be expensive.
+    pub(crate) fn get_cached_hash(
+        &self,
+        key: &CacheKey,
+    ) -> anyhow::Result<Option<(Cow<'static, str>, [u8; 16])>> {
         // check for cached hash
         let cached = {
             let db = self.db.lock().unwrap();
-            db.get_file_hash_by_path(path)?
+            db.get_file_hash_by_path(key.path)?
         };
 
         // check if cached hash matches current metadata
@@ -192,15 +201,15 @@ impl HashCache {
         Ok(all_hashes)
     }
 
-    /// Cheaply gets the estimated size of a file if it exists and is valid.
-    pub fn get_cached_estimated_size(&self, path: &Path) -> anyhow::Result<Option<u64>> {
-        // get file metadata
-        let key = CacheKey::read_metadata(path)?;
-
+    /// Gets the cached estimated size of a file if it exists and is still valid.
+    ///
+    /// This requires first reading the cache key with [`read_cache_key`](Self::read_cache_key),
+    /// which requires accessing the file and can be expensive.
+    pub(crate) fn get_cached_estimated_size(&self, key: &CacheKey) -> anyhow::Result<Option<u64>> {
         // check for cached size
         let cached = {
             let db = self.db.lock().unwrap();
-            db.get_file_size_by_path(path)?
+            db.get_file_size_by_path(key.path)?
         };
 
         // check if cached size matches current metadata
@@ -211,6 +220,22 @@ impl HashCache {
         }
 
         Ok(None)
+    }
+
+    /// Cheaply gets the cached estimated size of a file from cache without validating it.
+    ///
+    /// This does not require reading the cache key first, which requires accessing the file and can
+    /// be expensive. This should be used if using the stale size is allowable and needs to be fast.
+    /// Files are unlikely to be modified, and most modifications only change metadata which has
+    /// less effect on size than replacing the audio data, so this will often be correct anyway.
+    pub fn get_cached_estimated_size_unvalidated(
+        &self,
+        path: &Path,
+    ) -> anyhow::Result<Option<u64>> {
+        let db = self.db.lock().unwrap();
+        Ok(db
+            .get_file_size_by_path(path)?
+            .map(|cached| cached.estimated_size))
     }
 
     /// Prepares estimated sizes for multiple files.

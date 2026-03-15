@@ -587,7 +587,16 @@ impl TranscodePool {
                                 // get the cached hash without computing it. we need to be conservative here
                                 // since every scan could send all files again. if the hash is not cached, it's
                                 // definitely not transcoded, so it's safe to queue it
-                                let (hash_kind, hash) = match hash_cache.get_cached_hash(item) {
+                                let key = match hash_cache.read_cache_key(item) {
+                                    Ok(key) => key,
+                                    Err(_) => {
+                                        // This is probably unrecoverable, but we still queue it so
+                                        // it can reach the Failed state once processed.
+                                        log::warn!("TranscodePool: failed to read cache key for {}, assuming not cached", item.display());
+                                        return true;
+                                    },
+                                };
+                                let (hash_kind, hash) = match hash_cache.get_cached_hash(&key) {
                                     Ok(Some((hash_kind, hash))) => (hash_kind, hash),
 
                                     Ok(None) => {
