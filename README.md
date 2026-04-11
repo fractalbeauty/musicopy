@@ -5,9 +5,12 @@ Transfer music from desktop to mobile.
 Highlights:
 - Connect by scanning a QR code, powered by [Iroh](https://www.iroh.computer/)
 - Transcode files automatically before transfer
+- Available on Windows, MacOS, Linux, iOS, and Android
 - Built with Compose Multiplatform and Rust
 
-More information: [musicopy.app](https://musicopy.app).
+Download: [musicopy.app/download](https://musicopy.app/download/)
+
+More information: [musicopy.app](https://musicopy.app)
 
 <p>
   <img src="https://musicopy.app/static/hero_desktop.png" height="300" alt="Screenshot of desktop app">
