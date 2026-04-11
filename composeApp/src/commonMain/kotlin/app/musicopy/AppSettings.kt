@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.map
 import uniffi.musicopy.TranscodePolicy
 
 const val DOWNLOAD_DIRECTORY_KEY = "downloadDirectory"
+const val DOWNLOAD_DIRECTORY_NAME_KEY = "downloadDirectoryName"
 const val TRANSCODE_POLICY_KEY = "transcodePolicy"
 const val DETAILED_ERRORS_KEY = "detailedErrors"
 
@@ -45,6 +46,19 @@ class AppSettings private constructor(private val settings: ObservableSettings) 
 
     val downloadDirectoryFlow: Flow<String?>
         get() = settings.getStringOrNullFlow(DOWNLOAD_DIRECTORY_KEY)
+
+    var downloadDirectoryName: String?
+        get() = settings.getStringOrNull(DOWNLOAD_DIRECTORY_NAME_KEY)
+        set(value) {
+            value?.let {
+                settings.putString(DOWNLOAD_DIRECTORY_NAME_KEY, value)
+            } ?: run {
+                settings.remove(DOWNLOAD_DIRECTORY_NAME_KEY)
+            }
+        }
+
+    val downloadDirectoryNameFlow: Flow<String?>
+        get() = settings.getStringOrNullFlow(DOWNLOAD_DIRECTORY_NAME_KEY)
 
     var transcodePolicy: TranscodePolicy
         get() = deserializeTranscodePolicy(settings.getStringOrNull(TRANSCODE_POLICY_KEY))

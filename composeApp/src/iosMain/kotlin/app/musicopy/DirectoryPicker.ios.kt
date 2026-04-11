@@ -4,17 +4,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.uikit.LocalUIViewController
 import kotlinx.cinterop.ExperimentalForeignApi
-import platform.Foundation.NSDataBase64EncodingOptions
-import platform.Foundation.NSLog
 import platform.Foundation.NSURL
-import platform.Foundation.NSURLBookmarkCreationMinimalBookmark
 import platform.Foundation.NSURLBookmarkCreationWithSecurityScope
 import platform.Foundation.base64EncodedStringWithOptions
-import platform.Foundation.base64Encoding
 import platform.UIKit.UIDocumentPickerDelegateProtocol
 import platform.UIKit.UIDocumentPickerViewController
-import platform.UniformTypeIdentifiers.UTType
-import platform.UniformTypeIdentifiers.UTTypeDirectory
 import platform.UniformTypeIdentifiers.UTTypeFolder
 import platform.darwin.NSObject
 import uniffi.musicopy.logError
@@ -65,7 +59,19 @@ actual fun rememberDirectoryPicker(
 
                 val bookmarkString = bookmarkData.base64EncodedStringWithOptions(0uL)
                 appSettings.downloadDirectory = bookmarkString
-                // TODO: display something nicer
+
+                // Build a display name from the filesystem path by removing:
+                // - components with '~' (e.g. "com~apple~CloudDocs")
+                // - 36-char components (app group container UUIDs)
+                // and taking the last 2 meaningful components
+                val path = url.path ?: ""
+                val meaningfulComponents = path.split('/').filter { component ->
+                    component.isNotEmpty() && !component.contains('~') && component.length != 36
+                }
+                val folderName =
+                    meaningfulComponents.takeLast(2).joinToString("/").takeIf { it.isNotEmpty() }
+                        ?: "Selected folder"
+                appSettings.downloadDirectoryName = folderName
             }
         }
     }

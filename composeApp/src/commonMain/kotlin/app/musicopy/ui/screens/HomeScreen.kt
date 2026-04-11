@@ -92,6 +92,9 @@ fun HomeScreen(
                 val downloadDirectory by appSettings.downloadDirectoryFlow.collectAsState(
                     null
                 )
+                val downloadDirectoryName by appSettings.downloadDirectoryNameFlow.collectAsState(
+                    null
+                )
 
                 DetailBox(
                     actionLabel = if (downloadDirectory == null) {
@@ -102,7 +105,7 @@ fun HomeScreen(
                     onAction = onPickDownloadDirectory,
                 ) {
                     downloadDirectory?.let { downloadDirectory ->
-                        DetailItem("Download Folder", downloadDirectory)
+                        DetailItem("Download Folder", downloadDirectoryName ?: downloadDirectory)
                     } ?: run {
                         DetailItem("Download Folder", "Not selected")
                     }

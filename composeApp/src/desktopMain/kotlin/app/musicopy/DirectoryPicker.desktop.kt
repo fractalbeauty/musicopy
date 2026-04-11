@@ -10,6 +10,7 @@ actual class DirectoryPicker internal constructor(private val appSettings: AppSe
         try {
             val pickedPath = pickFolder()
             appSettings.downloadDirectory = pickedPath
+            appSettings.downloadDirectoryName = pickedPath
         } catch (e: CoreException) {
             // TODO: toast?
             println("Error: $e")

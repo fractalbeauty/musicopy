@@ -38,8 +38,16 @@ class AppLifecycleObserver(
                         Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 contentResolver.takePersistableUriPermission(uri, modeFlags)
 
-                // store
+                // store uri
                 appSettings.downloadDirectory = uri.toString()
+                
+                // Extract display name for selected folder:
+                // content://.../primary%3ADownload%2FMusicopy --> Download/Musicopy
+                val folderName = uri.lastPathSegment
+                    ?.substringAfter(':')
+                    ?.takeIf { it.isNotEmpty() }
+                    ?: "Selected folder"
+                appSettings.downloadDirectoryName = folderName
             }
     }
 }
