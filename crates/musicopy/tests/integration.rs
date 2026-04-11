@@ -1868,24 +1868,20 @@ mod stats {
         (core_1, core_2, download_items)
     }
 
-    /// `launches` is incremented to 1 on the first startup.
+    /// `launches` is incremented to 1 on the first startup and remains after reset
     #[tokio::test]
     async fn launches() {
         let core = TestCore::start("core").await;
 
-        core.wait_for_stats_condition("launches == 1", |s| s.launches == 1)
+        core.wait_for_stats_condition("launches is 1", |s| s.launches == 1)
             .await;
-    }
-
-    /// `launches` is not reset by `reset_database()`.
-    #[tokio::test]
-    async fn launches_survives_reset() {
-        let core = TestCore::start("core").await;
 
         core.core.reset_database().expect("should reset database");
 
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
         let stats = core.core.get_stats_model().expect("should get stats");
-        assert_eq!(stats.launches, 1);
+        assert_eq!(stats.launches, 1, "launches should remain 1 after reset");
     }
 
     /// After a single file transfer, file, byte, and session counters are updated correctly on both
