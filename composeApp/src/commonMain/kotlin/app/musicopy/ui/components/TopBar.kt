@@ -19,6 +19,7 @@ import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.arrow_back_24px
 import musicopy_root.musicopy.generated.resources.more_vert_24px
 import musicopy_root.musicopy.generated.resources.network_node_24px
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,6 +29,7 @@ fun TopBar(
     onShowNodeStatus: () -> Unit,
     onBack: (() -> Unit)? = null,
     extraActions: @Composable () -> Unit = {},
+    extraMenuItems: @Composable (onDismiss: () -> Unit) -> Unit = {},
 ) {
     val colors = TopAppBarDefaults.topAppBarColors(
         containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -47,6 +49,10 @@ fun TopBar(
 
         var expanded by remember { mutableStateOf(false) }
 
+        val onDismiss = {
+            expanded = false
+        }
+
         IconButton(onClick = { expanded = !expanded }) {
             Icon(
                 painter = painterResource(Res.drawable.more_vert_24px),
@@ -55,7 +61,7 @@ fun TopBar(
         }
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = onDismiss
         ) {
             DropdownMenuItem(
                 leadingIcon = {
@@ -67,8 +73,13 @@ fun TopBar(
                 text = {
                     Text("Network stats", style = MaterialTheme.typography.labelLarge)
                 },
-                onClick = { onShowNodeStatus() }
+                onClick = {
+                    onDismiss()
+                    onShowNodeStatus()
+                }
             )
+
+            extraMenuItems(onDismiss)
         }
     }
 
@@ -93,4 +104,24 @@ fun TopBar(
             actions = { actions() },
         )
     }
+}
+
+@Composable
+fun TopBarMenuItem(
+    icon: DrawableResource,
+    text: String,
+    onClick: () -> Unit,
+) {
+    DropdownMenuItem(
+        leadingIcon = {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+            )
+        },
+        text = {
+            Text(text, style = MaterialTheme.typography.labelLarge)
+        },
+        onClick = onClick
+    )
 }

@@ -32,6 +32,8 @@ import app.musicopy.ui.screens.Home
 import app.musicopy.ui.screens.HomeScreen
 import app.musicopy.ui.screens.PreTransfer
 import app.musicopy.ui.screens.PreTransferScreen
+import app.musicopy.ui.screens.Settings
+import app.musicopy.ui.screens.SettingsScreen
 import app.musicopy.ui.screens.Transfer
 import app.musicopy.ui.screens.TransferScreen
 import app.musicopy.ui.screens.Waiting
@@ -72,11 +74,8 @@ fun App(
     val isConnecting = connectingTo !== null
 
     val showErrorSnackbar = fun(message: String, e: CoreException) {
-        // TODO: app setting
-        val detailed = true
-
         scope.launch {
-            if (detailed) {
+            if (appSettings.detailedErrors) {
                 snackbarHostState.showSnackbar(
                     message = message + "\n\nError: ${e.message()}",
                     duration = SnackbarDuration.Indefinite,
@@ -191,6 +190,26 @@ fun App(
                         navController.navigate(ConnectManually)
                     },
                     onConnectRecent = { nodeId -> onConnect(nodeId, false) },
+                    onShowSettings = {
+                        navController.navigate(Settings)
+                    }
+                )
+            }
+            composable<Settings> {
+                SettingsScreen(
+                    appSettings = appSettings,
+
+                    snackbarHost = snackbarHost,
+                    onShowNodeStatus = onShowNodeStatus,
+
+                    onClearData = {
+                        coreInstance.instance.resetCaches()
+                        coreInstance.instance.resetDatabase()
+                        appSettings.clearSettings()
+                    },
+                    onCancel = {
+                        navController.popBackStack(Home, inclusive = false)
+                    }
                 )
             }
             composable<ConnectQR> { backStackEntry ->

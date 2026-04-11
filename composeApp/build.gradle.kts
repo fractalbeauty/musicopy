@@ -118,6 +118,7 @@ kotlin {
             implementation(libs.multiplatform.settings.make.observable)
             implementation(libs.multiplatform.settings.coroutines)
             implementation(libs.multiplatform.settings.test)
+            implementation(libs.kotlinx.datetime)
         }
     }
 }

@@ -5,14 +5,18 @@ package app.musicopy
 import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.MapSettings
 import com.russhwolf.settings.ObservableSettings
+import com.russhwolf.settings.coroutines.getBooleanFlow
+import com.russhwolf.settings.coroutines.getBooleanStateFlow
 import com.russhwolf.settings.coroutines.getStringOrNullFlow
 import com.russhwolf.settings.observable.makeObservable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import uniffi.musicopy.TranscodePolicy
 
 const val DOWNLOAD_DIRECTORY_KEY = "downloadDirectory"
 const val TRANSCODE_POLICY_KEY = "transcodePolicy"
+const val DETAILED_ERRORS_KEY = "detailedErrors"
 
 class AppSettings private constructor(private val settings: ObservableSettings) {
     constructor(platformAppContext: PlatformAppContext) : this(
@@ -23,6 +27,10 @@ class AppSettings private constructor(private val settings: ObservableSettings) 
         fun createMock(): AppSettings {
             return AppSettings(settings = MapSettings())
         }
+    }
+
+    fun clearSettings() {
+        settings.clear()
     }
 
     var downloadDirectory: String?
@@ -47,6 +55,15 @@ class AppSettings private constructor(private val settings: ObservableSettings) 
     val transcodePolicyFlow: Flow<TranscodePolicy>
         get() = settings.getStringOrNullFlow(TRANSCODE_POLICY_KEY)
             .map { deserializeTranscodePolicy(it) }
+
+    var detailedErrors: Boolean
+        get() = settings.getBoolean(DETAILED_ERRORS_KEY, false)
+        set(value) {
+            settings.putBoolean(DETAILED_ERRORS_KEY, value)
+        }
+
+    val detailedErrorsFlow: Flow<Boolean>
+        get() = settings.getBooleanFlow(DETAILED_ERRORS_KEY, false)
 }
 
 internal fun deserializeTranscodePolicy(s: String?) = when (s) {

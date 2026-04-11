@@ -38,12 +38,14 @@ import app.musicopy.ui.components.DetailBox
 import app.musicopy.ui.components.DetailItem
 import app.musicopy.ui.components.SectionHeader
 import app.musicopy.ui.components.TopBar
+import app.musicopy.ui.components.TopBarMenuItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.arrow_forward_24px
 import musicopy_root.musicopy.generated.resources.input_24px
 import musicopy_root.musicopy.generated.resources.qr_code_scanner_24px
+import musicopy_root.musicopy.generated.resources.settings_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.RecentServerModel
 import kotlin.time.Duration.Companion.seconds
@@ -61,10 +63,24 @@ fun HomeScreen(
     onConnectQRButtonClicked: () -> Unit,
     onConnectManuallyButtonClicked: () -> Unit,
     onConnectRecent: (nodeId: String) -> Unit,
+    onShowSettings: () -> Unit,
 ) {
     Scaffold(
         topBar = {
-            TopBar(title = "Musicopy", onShowNodeStatus = onShowNodeStatus)
+            TopBar(
+                title = "Musicopy",
+                onShowNodeStatus = onShowNodeStatus,
+                extraMenuItems = { onDismiss ->
+                    TopBarMenuItem(
+                        icon = Res.drawable.settings_24px,
+                        text = "Settings",
+                        onClick = {
+                            onDismiss()
+                            onShowSettings()
+                        }
+                    )
+                }
+            )
         },
         snackbarHost = snackbarHost,
     ) { innerPadding ->
@@ -295,6 +311,7 @@ fun HomeScreenSandbox() {
         onConnectQRButtonClicked = {},
         onConnectManuallyButtonClicked = {},
         onConnectRecent = onConnectRecent,
+        onShowSettings = {},
     )
 }
 

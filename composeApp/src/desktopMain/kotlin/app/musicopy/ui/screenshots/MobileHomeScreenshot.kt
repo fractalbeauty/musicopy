@@ -41,5 +41,6 @@ fun MobileHomeScreenshot() {
         onConnectQRButtonClicked = {},
         onConnectManuallyButtonClicked = {},
         onConnectRecent = {},
+        onShowSettings = {},
     )
 }

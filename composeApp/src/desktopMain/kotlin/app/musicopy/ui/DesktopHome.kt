@@ -32,6 +32,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
+import app.musicopy.ui.components.aboutText
 import com.composables.core.Dialog
 import com.composables.core.DialogPanel
 import com.composables.core.DialogState
@@ -50,6 +51,7 @@ import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.LibraryModel
 import uniffi.musicopy.NodeModel
 import uniffi.musicopy.TranscodePolicy
+import kotlin.time.ExperimentalTime
 
 @Composable
 fun DesktopHome(
@@ -208,60 +210,7 @@ private fun AboutDialog(
                     )
 
                     Text(
-                        text = buildAnnotatedString {
-                            withUrl(
-                                "https://musicopy.app/manual",
-                            ) {
-                                append("User Manual")
-                            }
-                            append("  ⋅  ")
-                            withUrl(
-                                "https://github.com/fractalbeauty/musicopy",
-                            ) {
-                                append("Source")
-                            }
-                            appendLine()
-
-                            appendLine()
-
-                            val buildTime = Instant.fromEpochMilliseconds(BuildConfig.BUILD_TIME)
-                            val buildDate = buildTime.format(DateTimeComponents.Format {
-                                monthName(MonthNames.ENGLISH_FULL)
-                                char(' ')
-                                dayOfMonth()
-                                chars(", ")
-                                year()
-                            })
-                            appendLine("Version ${BuildConfig.APP_VERSION}, built on $buildDate.")
-
-                            appendLine()
-
-                            append(
-                                "Musicopy is available under the "
-                            )
-                            withUrl(
-                                "https://github.com/fractalbeauty/musicopy/blob/main/LICENSE",
-                            ) {
-                                append("GNU AGPL, version 3")
-                            }
-                            appendLine(".")
-
-                            appendLine()
-
-                            append("For more information, visit ")
-                            withUrl("https://musicopy.app") {
-                                append("musicopy.app")
-                            }
-                            appendLine(
-                                "."
-                            )
-
-                            append("For support, email ")
-                            withUrl("mailto:support@musicopy.app") {
-                                append("support@musicopy.app")
-                            }
-                            appendLine(".")
-                        },
+                        text = aboutText(),
                         style = MaterialTheme.typography.bodyMedium
                     )
 
@@ -278,25 +227,5 @@ private fun AboutDialog(
                 }
             }
         }
-    }
-}
-
-@Composable
-internal fun AnnotatedString.Builder.withUrl(
-    url: String,
-    content: AnnotatedString.Builder.() -> Unit,
-) {
-    withLink(
-        LinkAnnotation.Url(
-            url = url,
-            styles = TextLinkStyles(
-                style = SpanStyle(
-                    color = MaterialTheme.colorScheme.primary,
-                    textDecoration = TextDecoration.Underline
-                )
-            )
-        )
-    ) {
-        content()
     }
 }
