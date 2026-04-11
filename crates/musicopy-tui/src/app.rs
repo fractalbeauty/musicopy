@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::Context;
 use musicopy::{
-    Core, CoreOptions,
+    Core, CoreOptions, StatsModel,
     library::{LibraryModel, transcode::TranscodePolicy},
     node::{ClientStateModel, DownloadRequestModel, NodeModel, ServerStateModel},
 };
@@ -12,7 +12,7 @@ use ratatui::{
     DefaultTerminal,
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
 };
-use std::sync::Arc;
+use std::{sync::Arc, time::SystemTime};
 use tui_widgets::prompts::{State, Status, TextState};
 
 /// Application.
@@ -30,8 +30,10 @@ pub struct App<'a> {
 
     pub log_state: LogState,
     pub command_state: TextState<'a>,
+
     pub library_model: LibraryModel,
     pub node_model: NodeModel,
+    pub stats_model: StatsModel,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -39,6 +41,7 @@ pub enum AppScreen {
     #[default]
     Home,
     Log,
+    Stats,
     Help,
 }
 
@@ -60,9 +63,9 @@ pub enum AppEvent {
     ExitMode,
 
     Screen(AppScreen),
-
     LibraryModel(Box<LibraryModel>),
     NodeModel(Box<NodeModel>),
+    StatsModel(Box<StatsModel>),
 }
 
 macro_rules! app_log {
@@ -119,6 +122,7 @@ impl<'a> App<'a> {
 
         let library_model = core.get_library_model()?;
         let node_model = core.get_node_model()?;
+        let stats_model = core.get_stats_model()?;
 
         Ok(Self {
             running: true,
@@ -136,6 +140,7 @@ impl<'a> App<'a> {
 
             library_model,
             node_model,
+            stats_model,
         })
     }
 
@@ -174,6 +179,7 @@ impl<'a> App<'a> {
                 // change screens
                 (_, KeyCode::Char('1')) => self.events.send(AppEvent::Screen(AppScreen::Home)),
                 (_, KeyCode::Char('2')) => self.events.send(AppEvent::Screen(AppScreen::Log)),
+                (_, KeyCode::Char('3')) => self.events.send(AppEvent::Screen(AppScreen::Stats)),
                 (_, KeyCode::Char('?')) => self.events.send(AppEvent::Screen(AppScreen::Help)),
 
                 // esc or q to quit
@@ -258,6 +264,9 @@ impl<'a> App<'a> {
             }
             AppEvent::NodeModel(model) => {
                 self.node_model = *model;
+            }
+            AppEvent::StatsModel(model) => {
+                self.stats_model = *model;
             }
         }
         Ok(())
@@ -430,6 +439,12 @@ impl<'a> App<'a> {
                     .nth(client_num - 1)
                     .ok_or_else(|| anyhow::anyhow!("client number out of range"))?;
 
+                let fractions = 10;
+                let random_fraction = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)?
+                    .as_secs() as usize
+                    % fractions;
+
                 let node_id = client_model.node_id.to_string();
                 let download_requests = client_model
                     .index
@@ -438,7 +453,7 @@ impl<'a> App<'a> {
                     .iter()
                     .enumerate()
                     .flat_map(|(i, item)| {
-                        if i % 3 == 0 {
+                        if i % fractions == random_fraction {
                             Some(DownloadRequestModel {
                                 node_id: node_id.clone(),
                                 root: item.root.clone(),
@@ -528,5 +543,9 @@ impl musicopy::EventHandler for AppEventHandler {
 
     fn on_node_model_snapshot(&self, model: NodeModel) {
         app_send!(AppEvent::NodeModel(Box::new(model)));
+    }
+
+    fn on_stats_model_snapshot(&self, model: StatsModel) {
+        app_send!(AppEvent::StatsModel(Box::new(model)));
     }
 }

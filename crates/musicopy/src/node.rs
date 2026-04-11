@@ -283,6 +283,17 @@ enum NodeEvent {
         node_id: NodeId,
         error: Option<String>,
     },
+
+    ServerTransferCompleted {
+        node_id: NodeId,
+        bytes: u64,
+        is_first_transfer: bool,
+    },
+    ClientTransferCompleted {
+        node_id: NodeId,
+        bytes: u64,
+        is_first_transfer: bool,
+    },
 }
 
 /// An update to a server model.
@@ -506,6 +517,13 @@ impl Node {
             mut event_rx,
         } = run_token;
 
+        // Track launch
+        {
+            let db = self.db.lock().unwrap();
+            let _ = db.track_launch();
+        }
+        self.push_stats_model();
+
         loop {
             tokio::select! {
                 Some(command) = command_rx.recv() => {
@@ -726,6 +744,28 @@ impl Node {
                             }
 
                             self.update_model(NodeModelUpdate::UpdateClient { node_id, update: ClientModelUpdate::Close { error } });
+                        }
+
+                        NodeEvent::ServerTransferCompleted { node_id, bytes, is_first_transfer } => {
+                            {
+                                let db = self.db.lock().unwrap();
+                                let _ = db.track_server_transfer(1, bytes);
+                                if is_first_transfer {
+                                    let _ = db.track_server_session();
+                                }
+                            }
+                            self.push_stats_model();
+                        }
+
+                        NodeEvent::ClientTransferCompleted { node_id, bytes, is_first_transfer } => {
+                            {
+                                let db = self.db.lock().unwrap();
+                                let _ = db.track_client_transfer(1, bytes);
+                                if is_first_transfer {
+                                    let _ = db.track_client_session();
+                                }
+                            }
+                            self.push_stats_model();
                         }
                     }
                 }
@@ -1192,6 +1232,13 @@ impl Node {
 
                 self.event_handler.on_node_model_snapshot(model.clone());
             }
+        }
+    }
+
+    fn push_stats_model(&self) {
+        let db = self.db.lock().unwrap();
+        if let Ok(stats) = db.get_stats() {
+            self.event_handler.on_stats_model_snapshot(stats);
         }
     }
 
@@ -1821,6 +1868,10 @@ impl Server {
 
         let mut index_update_interval = tokio::time::interval(Duration::from_secs(1));
 
+        // Track whether the first transfer has completed, for counting sessions with >1 transfer.
+        // When tracking transferred files we indicate whether it's the first of this session.
+        let is_first_transfer = Arc::new(AtomicBool::new(true));
+
         // main loop
         loop {
             tokio::select! {
@@ -2002,6 +2053,7 @@ impl Server {
                         Ok((mut send, mut recv)) => {
                             let jobs = self.jobs.clone();
                             let event_tx = self.event_tx.clone();
+                            let is_first_transfer = is_first_transfer.clone();
                             tokio::spawn(async move {
                                 // receive transfer request with job id
                                 let transfer_req_len = recv.read_u32().await?;
@@ -2087,6 +2139,13 @@ impl Server {
                                     node_id: remote_node_id,
                                     update: ServerModelUpdate::UpdateTransferJobs,
                                 }).expect("failed to send ServerModelUpdate::UpdateTransferJobs");
+
+                                let is_first_transfer = is_first_transfer.swap(false, Ordering::SeqCst);
+                                let _ = event_tx.send(NodeEvent::ServerTransferCompleted {
+                                    node_id: remote_node_id,
+                                    bytes: file_size,
+                                    is_first_transfer,
+                                });
 
                                 Ok::<(), anyhow::Error>(())
                             });
@@ -2279,6 +2338,10 @@ impl Client {
         let paused = Arc::new(AtomicBool::new(false));
         let pause_notify = Arc::new(Notify::new());
 
+        // Track whether the first transfer has completed, for counting sessions with >1 transfer.
+        // When tracking transferred files we indicate whether it's the first of this session.
+        let is_first_transfer = Arc::new(AtomicBool::new(true));
+
         // spawn a task to handle ready jobs and spawn more tasks to download them
         // Client::run() receives ServerMessage::JobStatus messages. jobs marked Ready are sent to this channel
         let (ready_tx, mut ready_rx) = mpsc::unbounded_channel::<u64>();
@@ -2330,6 +2393,7 @@ impl Client {
                         let jobs = jobs.clone();
                         let event_tx = event_tx.clone();
                         let connection = connection.clone();
+                        let is_first_transfer = is_first_transfer.clone();
                         async move {
                             let remote_node_id = connection.remote_node_id()?;
 
@@ -2473,6 +2537,13 @@ impl Client {
                                     update: ClientModelUpdate::UpdateTransferJobs,
                                 })
                                 .expect("failed to send ClientModelUpdate::UpdateTransferJobs");
+
+                            let is_first_transfer = is_first_transfer.swap(false, Ordering::SeqCst);
+                            let _ = event_tx.send(NodeEvent::ClientTransferCompleted {
+                                node_id: remote_node_id,
+                                bytes: file_size,
+                                is_first_transfer,
+                            });
 
                             log::debug!("saved file to {local_path:?}");
 

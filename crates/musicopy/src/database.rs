@@ -176,6 +176,21 @@ impl Database {
             "ALTER TABLE recent_servers ADD COLUMN name TEXT NOT NULL DEFAULT 'unknown'",
             [],
         );
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS stats (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                launches INTEGER NOT NULL DEFAULT 0,
+                server_sessions INTEGER NOT NULL DEFAULT 0,
+                client_sessions INTEGER NOT NULL DEFAULT 0,
+                server_files INTEGER NOT NULL DEFAULT 0,
+                client_files INTEGER NOT NULL DEFAULT 0,
+                server_bytes INTEGER NOT NULL DEFAULT 0,
+                client_bytes INTEGER NOT NULL DEFAULT 0
+            )",
+            [],
+        )?;
+        self.conn
+            .execute("INSERT OR IGNORE INTO stats (id) VALUES (1)", [])?;
         Ok(())
     }
 
@@ -806,6 +821,64 @@ impl Database {
         })
         .expect("should bind parameters")
         .collect()
+    }
+
+    pub fn get_stats(&self) -> anyhow::Result<crate::StatsModel> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT launches, server_sessions, client_sessions, server_files, client_files, server_bytes, client_bytes FROM stats WHERE id = 1")
+            .expect("should prepare statement");
+
+        stmt.query_row([], |row| {
+            Ok(crate::StatsModel {
+                launches: row.get(0)?,
+                server_sessions: row.get(1)?,
+                client_sessions: row.get(2)?,
+                server_files: row.get(3)?,
+                client_files: row.get(4)?,
+                server_bytes: row.get(5)?,
+                client_bytes: row.get(6)?,
+            })
+        })
+        .context("failed to get stats")
+    }
+
+    pub fn track_launch(&self) -> anyhow::Result<()> {
+        self.conn
+            .execute("UPDATE stats SET launches = launches + 1 WHERE id = 1", [])?;
+        Ok(())
+    }
+
+    pub fn track_server_session(&self) -> anyhow::Result<()> {
+        self.conn.execute(
+            "UPDATE stats SET server_sessions = server_sessions + 1 WHERE id = 1",
+            [],
+        )?;
+        Ok(())
+    }
+
+    pub fn track_client_session(&self) -> anyhow::Result<()> {
+        self.conn.execute(
+            "UPDATE stats SET client_sessions = client_sessions + 1 WHERE id = 1",
+            [],
+        )?;
+        Ok(())
+    }
+
+    pub fn track_server_transfer(&self, files: u64, bytes: u64) -> anyhow::Result<()> {
+        self.conn.execute(
+            "UPDATE stats SET server_files = server_files + ?, server_bytes = server_bytes + ? WHERE id = 1",
+            [files, bytes],
+        )?;
+        Ok(())
+    }
+
+    pub fn track_client_transfer(&self, files: u64, bytes: u64) -> anyhow::Result<()> {
+        self.conn.execute(
+            "UPDATE stats SET client_files = client_files + ?, client_bytes = client_bytes + ? WHERE id = 1",
+            [files, bytes],
+        )?;
+        Ok(())
     }
 }
 

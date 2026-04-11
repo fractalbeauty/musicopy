@@ -61,9 +61,10 @@ impl<'a> App<'a> {
         let selected_tab_index = match self.screen {
             AppScreen::Home => 0,
             AppScreen::Log => 1,
-            AppScreen::Help => 2,
+            AppScreen::Stats => 2,
+            AppScreen::Help => 3,
         };
-        let titles = ["Home", "Log", "Help"]
+        let titles = ["Home", "Log", "Stats", "Help"]
             .into_iter()
             .enumerate()
             .map(|(i, s)| {
@@ -99,6 +100,9 @@ impl<'a> App<'a> {
             }
             AppScreen::Log => {
                 self.render_log_screen(frame, inner_area);
+            }
+            AppScreen::Stats => {
+                self.render_stats_screen(frame, inner_area);
             }
             AppScreen::Help => {
                 self.render_help_screen(frame, inner_area);
@@ -514,6 +518,61 @@ impl<'a> App<'a> {
         let status_text = Text::from(lines);
 
         Paragraph::new(status_text)
+            .block(block)
+            .render(area, frame.buffer_mut());
+    }
+
+    fn render_stats_screen(&mut self, frame: &mut Frame, area: Rect) {
+        let title = Line::from(" Stats ".bold());
+        let instructions = Line::from(vec![
+            " Command ".into(),
+            "<:>".blue().bold(),
+            " Quit ".into(),
+            "<q> ".blue().bold(),
+        ]);
+        let block = Block::bordered()
+            .title(title.centered())
+            .title_top(instructions.right_aligned())
+            .border_set(border::THICK);
+
+        let stats = &self.stats_model;
+
+        let lines = vec![
+            Line::from(vec![
+                "Launches: ".into(),
+                stats.launches.to_string().green(),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                "Client sessions: ".into(),
+                stats.client_sessions.to_string().green(),
+            ]),
+            Line::from(vec![
+                "Client files: ".into(),
+                stats.client_files.to_string().green(),
+            ]),
+            Line::from(vec![
+                "Client bytes: ".into(),
+                stats.client_bytes.to_string().green(),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                "Server sessions: ".into(),
+                stats.server_sessions.to_string().green(),
+            ]),
+            Line::from(vec![
+                "Server files: ".into(),
+                stats.server_files.to_string().green(),
+            ]),
+            Line::from(vec![
+                "Server bytes: ".into(),
+                stats.server_bytes.to_string().green(),
+            ]),
+        ];
+
+        let stats_text = Text::from(lines);
+
+        Paragraph::new(stats_text)
             .block(block)
             .render(area, frame.buffer_mut());
     }

@@ -6,6 +6,7 @@ import uniffi.musicopy.Core
 import uniffi.musicopy.EventHandler
 import uniffi.musicopy.LibraryModel
 import uniffi.musicopy.NodeModel
+import uniffi.musicopy.StatsModel
 
 class CoreInstance private constructor() : EventHandler {
     companion object {
@@ -17,6 +18,7 @@ class CoreInstance private constructor() : EventHandler {
             )
             instance._libraryState = MutableStateFlow(instance._instance.getLibraryModel())
             instance._nodeState = MutableStateFlow(instance._instance.getNodeModel())
+            instance._statsState = MutableStateFlow(runCatching { instance._instance.getStats() }.getOrNull())
             return instance
         }
     }
@@ -34,6 +36,10 @@ class CoreInstance private constructor() : EventHandler {
     val nodeState: StateFlow<NodeModel>
         get() = _nodeState
 
+    private lateinit var _statsState: MutableStateFlow<StatsModel?>
+    val statsState: StateFlow<StatsModel?>
+        get() = _statsState
+
     override fun onLibraryModelSnapshot(model: LibraryModel) {
         // TODO: this is a hack because Core.start calls the callback before CoreInstance finishes initializing
         if (::_libraryState.isInitialized) {
@@ -44,6 +50,12 @@ class CoreInstance private constructor() : EventHandler {
     override fun onNodeModelSnapshot(model: NodeModel) {
         if (::_nodeState.isInitialized) {
             _nodeState.value = model
+        }
+    }
+
+    override fun onStatsModelSnapshot(model: StatsModel) {
+        if (::_statsState.isInitialized) {
+            _statsState.value = model
         }
     }
 }

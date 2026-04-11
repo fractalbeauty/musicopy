@@ -28,11 +28,24 @@ use std::{
 
 uniffi::setup_scaffolding!();
 
+/// Lifetime usage stats.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct StatsModel {
+    pub launches: u64,
+    pub server_sessions: u64,
+    pub client_sessions: u64,
+    pub server_files: u64,
+    pub client_files: u64,
+    pub server_bytes: u64,
+    pub client_bytes: u64,
+}
+
 /// Foreign trait implemented in Compose for receiving events from the Rust core.
 #[uniffi::export(with_foreign)]
 pub trait EventHandler: Send + Sync {
     fn on_library_model_snapshot(&self, model: LibraryModel);
     fn on_node_model_snapshot(&self, model: NodeModel);
+    fn on_stats_model_snapshot(&self, model: StatsModel);
 }
 
 #[derive(Debug, uniffi::Record)]
@@ -357,6 +370,14 @@ impl Core {
 
     pub fn get_library_model(&self) -> Result<LibraryModel, CoreError> {
         Ok(self.library.get_model())
+    }
+
+    pub fn get_stats_model(&self) -> Result<StatsModel, CoreError> {
+        let db = self
+            .db
+            .lock()
+            .map_err(|_| core_error!("failed to lock database"))?;
+        db.get_stats().map_err(CoreError::from)
     }
 
     pub async fn connect(&self, node_id: &str) -> Result<(), CoreError> {
