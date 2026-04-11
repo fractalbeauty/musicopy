@@ -60,6 +60,8 @@ pub enum LibraryCommand {
     DeleteUnusedTranscodes,
     DeleteAllTranscodes,
 
+    RefreshModel,
+
     Stop,
 }
 
@@ -273,6 +275,11 @@ impl Library {
                             if let Err(e) = self.transcode_pool.send(TranscodeCommand::DeleteAll) {
                                 warn!("LibraryCommand::DeleteAllTranscodes: failed to send to transcode pool: {e:#}");
                             }
+                        }
+
+                        LibraryCommand::RefreshModel => {
+                            self.update_model(LibraryModelUpdate::UpdateLocalRoots);
+                            self.update_model(LibraryModelUpdate::UpdateTranscodesDirSize);
                         }
 
                         LibraryCommand::Stop => {

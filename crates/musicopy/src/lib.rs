@@ -562,6 +562,9 @@ impl Core {
 
         db.reset()?;
 
+        let _ = self.library.send(LibraryCommand::RefreshModel);
+        let _ = self.node.send(NodeCommand::RefreshModel);
+
         Ok(())
     }
 

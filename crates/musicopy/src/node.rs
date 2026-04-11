@@ -237,6 +237,8 @@ pub enum NodeCommand {
     TrustNode(NodeId),
     UntrustNode(NodeId),
 
+    RefreshModel,
+
     Stop,
 
     // unused, for debugging filesystem code
@@ -614,6 +616,11 @@ impl Node {
                             }
 
                             // update model
+                            self.update_model(NodeModelUpdate::UpdateTrustedNodes);
+                        }
+
+                        NodeCommand::RefreshModel => {
+                            self.update_model(NodeModelUpdate::UpdateRecentServers);
                             self.update_model(NodeModelUpdate::UpdateTrustedNodes);
                         }
 
