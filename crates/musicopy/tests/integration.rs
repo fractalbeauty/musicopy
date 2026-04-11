@@ -1780,3 +1780,299 @@ mod transfer {
             .await;
     }
 }
+
+mod stats {
+    use crate::common::{LibraryFixture, TestCore, TestNodeIdExt};
+    use musicopy::node::{DownloadRequestModel, TransferJobProgressModel};
+
+    /// Prepares two cores for a transfer: sets up the server library, connects, accepts, and waits
+    /// for the client to receive the index. Returns the download items.
+    async fn prepare(fixture: LibraryFixture) -> (TestCore, TestCore, Vec<DownloadRequestModel>) {
+        let core_1 = TestCore::start("core 1").await;
+        let core_2 = TestCore::start("core 2").await;
+
+        std::fs::create_dir_all(&core_1.download_dir).expect("should create download dir");
+        core_1
+            .core
+            .set_download_directory(&core_1.download_dir.to_string_lossy())
+            .expect("should set download directory");
+
+        core_2
+            .core
+            .add_library_root("foo".into(), fixture.path().to_string_lossy().to_string())
+            .expect("should add library root");
+
+        core_2
+            .wait_for_library_model_condition("model has root", |model| {
+                model.local_roots.len() == 1
+            })
+            .await;
+        core_2
+            .wait_for_library_model_condition("root has files", |model| {
+                model.local_roots.first().unwrap().num_files == fixture.num_items() as u64
+            })
+            .await;
+
+        core_1.wait_for_relay().await;
+        core_2.wait_for_relay().await;
+
+        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
+        prepare_connect_with_cores(fixture, core_1, core_2).await
+    }
+
+    async fn prepare_connect_with_cores(
+        fixture: LibraryFixture,
+        core_1: TestCore,
+        core_2: TestCore,
+    ) -> (TestCore, TestCore, Vec<DownloadRequestModel>) {
+        core_1
+            .core
+            .connect(&core_2.node_id_str())
+            .await
+            .expect("should connect");
+
+        core_1.wait_for_client_pending(&core_2).await;
+        core_2.wait_for_server_pending(&core_1).await;
+
+        core_2
+            .core
+            .accept_connection(&core_1.node_id_str())
+            .expect("should accept");
+
+        core_1.wait_for_client_accepted(&core_2).await;
+        core_2.wait_for_server_accepted(&core_1).await;
+
+        core_1
+            .wait_for_client_condition("index has items", &core_2, |client| {
+                client
+                    .index
+                    .as_ref()
+                    .is_some_and(|idx| idx.len() == fixture.num_items())
+            })
+            .await;
+
+        let download_items = core_1
+            .client_model(&core_2)
+            .index
+            .unwrap()
+            .into_iter()
+            .map(|item| DownloadRequestModel {
+                node_id: item.node_id.clone(),
+                root: item.root.clone(),
+                path: item.path.clone(),
+            })
+            .collect();
+
+        (core_1, core_2, download_items)
+    }
+
+    /// `launches` is incremented to 1 on the first startup.
+    #[tokio::test]
+    async fn launches() {
+        let core = TestCore::start("core").await;
+        let stats = core.core.get_stats_model().expect("should get stats");
+        assert_eq!(stats.launches, 1);
+    }
+
+    /// `launches` is not reset by `reset_database()`.
+    #[tokio::test]
+    async fn launches_survives_reset() {
+        let core = TestCore::start("core").await;
+
+        core.core.reset_database().expect("should reset database");
+
+        let stats = core.core.get_stats_model().expect("should get stats");
+        assert_eq!(stats.launches, 1);
+    }
+
+    /// After a single file transfer, file, byte, and session counters are updated correctly on both
+    /// the client and server sides, and byte counts match.
+    #[tokio::test]
+    async fn transfer_counters() {
+        let (core_1, core_2, download_items) = prepare(LibraryFixture::Minimal).await;
+
+        core_1
+            .core
+            .set_downloads(&core_2.node_id_str(), download_items)
+            .expect("should set downloads");
+
+        // Wait for client transfer to finish
+        core_1
+            .wait_for_client_condition("job is Finished", &core_2, |client| {
+                matches!(
+                    client.transfer_jobs.first().map(|j| &j.progress),
+                    Some(TransferJobProgressModel::Finished { .. })
+                )
+            })
+            .await;
+
+        // Wait for stats to update
+        core_1
+            .wait_for_stats_condition("client_files == 1", |s| s.client_files == 1)
+            .await;
+        core_2
+            .wait_for_stats_condition("server_files == 1", |s| s.server_files == 1)
+            .await;
+
+        let stats_1 = core_1.core.get_stats_model().expect("should get stats");
+        assert_eq!(stats_1.client_files, 1);
+        assert!(stats_1.client_bytes > 0, "client_bytes should be non-zero");
+        assert_eq!(stats_1.client_sessions, 1);
+        assert_eq!(stats_1.server_files, 0, "core 1 was client only");
+        assert_eq!(stats_1.server_sessions, 0, "core 1 was client only");
+
+        let stats_2 = core_2.core.get_stats_model().expect("should get stats");
+        assert_eq!(stats_2.server_files, 1);
+        assert!(stats_2.server_bytes > 0, "server_bytes should be non-zero");
+        assert_eq!(stats_2.server_sessions, 1);
+        assert_eq!(stats_2.client_files, 0, "core 2 was server only");
+        assert_eq!(stats_2.client_sessions, 0, "core 2 was server only");
+
+        assert_eq!(
+            stats_1.client_bytes, stats_2.server_bytes,
+            "client and server byte counts should match"
+        );
+    }
+
+    /// Transferring two files from the same peer counts as a single session.
+    #[tokio::test]
+    async fn session_counted_once_per_connection() {
+        let (core_1, core_2, download_items) = prepare(LibraryFixture::Multiple).await;
+
+        core_1
+            .core
+            .set_downloads(&core_2.node_id_str(), download_items)
+            .expect("should set downloads");
+
+        // Wait for both transfers to finish
+        core_1
+            .wait_for_client_condition("both jobs are Finished", &core_2, |client| {
+                client.transfer_jobs.len() == 2
+                    && client
+                        .transfer_jobs
+                        .iter()
+                        .all(|j| matches!(j.progress, TransferJobProgressModel::Finished { .. }))
+            })
+            .await;
+
+        // Wait for both file counters to reach 2
+        core_1
+            .wait_for_stats_condition("client_files == 2", |s| s.client_files == 2)
+            .await;
+        core_2
+            .wait_for_stats_condition("server_files == 2", |s| s.server_files == 2)
+            .await;
+
+        let stats_1 = core_1.core.get_stats_model().expect("should get stats");
+        assert_eq!(stats_1.client_files, 2);
+        assert_eq!(
+            stats_1.client_sessions, 1,
+            "session should be counted only once per peer regardless of file count"
+        );
+
+        let stats_2 = core_2.core.get_stats_model().expect("should get stats");
+        assert_eq!(stats_2.server_files, 2);
+        assert_eq!(
+            stats_2.server_sessions, 1,
+            "session should be counted only once per peer regardless of file count"
+        );
+    }
+
+    /// Two separate connections to the same peer in the same launch count as two sessions.
+    #[tokio::test]
+    async fn session_counted_once_per_connection_with_reconnect() {
+        let fixture = LibraryFixture::Multiple;
+        let (core_1, core_2, download_items) = prepare(fixture).await;
+
+        // Get first and second index items. Reused between connections to ensure we download a
+        // different file in the second connection.
+        let first_index_item = download_items.first().unwrap().clone();
+        let second_index_item = download_items
+            .iter()
+            .find(|i| i.path != first_index_item.path)
+            .unwrap()
+            .clone();
+
+        // Download first item
+        core_1
+            .core
+            .set_downloads(&core_2.node_id_str(), vec![first_index_item])
+            .expect("should set downloads");
+
+        // Wait for transfer to finish
+        core_1
+            .wait_for_client_condition("first job is Finished", &core_2, |client| {
+                matches!(
+                    client.transfer_jobs.first().map(|j| &j.progress),
+                    Some(TransferJobProgressModel::Finished { .. })
+                )
+            })
+            .await;
+
+        // Wait for stats to update
+        core_1
+            .wait_for_stats_condition("client_files == 1", |s| s.client_files == 1)
+            .await;
+        core_2
+            .wait_for_stats_condition("server_files == 1", |s| s.server_files == 1)
+            .await;
+
+        // Check sessions counted as 1
+        let stats_1 = core_1.core.get_stats_model().expect("should get stats");
+        assert_eq!(stats_1.client_sessions, 1);
+        let stats_2 = core_2.core.get_stats_model().expect("should get stats");
+        assert_eq!(stats_2.server_sessions, 1);
+
+        // Disconnect
+        core_1
+            .core
+            .close_client(&core_2.node_id_str())
+            .expect("should disconnect");
+        core_2
+            .core
+            .close_server(&core_1.node_id_str())
+            .expect("should disconnect");
+
+        // Reconnect
+        let (core_1, core_2, _) = prepare_connect_with_cores(fixture, core_1, core_2).await;
+
+        // Download second item
+        core_1
+            .core
+            .set_downloads(&core_2.node_id_str(), vec![second_index_item])
+            .expect("should set downloads");
+
+        // Wait for client transfer to finish again
+        core_1
+            .wait_for_client_condition("second job is Finished", &core_2, |client| {
+                client.transfer_jobs.len() == 1
+                    && matches!(
+                        client.transfer_jobs.first().map(|j| &j.progress),
+                        Some(TransferJobProgressModel::Finished { .. })
+                    )
+            })
+            .await;
+
+        // Wait for stats to update
+        core_1
+            .wait_for_stats_condition("client_files == 2", |s| s.client_files == 2)
+            .await;
+        core_2
+            .wait_for_stats_condition("server_files == 2", |s| s.server_files == 2)
+            .await;
+
+        // Check sessions counted as 2 after reconnect, since it's a new connection
+        let stats_1 = core_1.core.get_stats_model().expect("should get stats");
+        assert_eq!(
+            stats_1.client_sessions, 2,
+            "session should be counted again after reconnecting"
+        );
+        let stats_2 = core_2.core.get_stats_model().expect("should get stats");
+        assert_eq!(
+            stats_2.server_sessions, 2,
+            "session should be counted again after reconnecting"
+        );
+    }
+}

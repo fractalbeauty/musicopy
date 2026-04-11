@@ -1,6 +1,6 @@
 use iroh::NodeId;
 use musicopy::{
-    Core, CoreOptions, EventHandler, ProjectDirsOptions, TestHooks,
+    Core, CoreOptions, EventHandler, ProjectDirsOptions, StatsModel, TestHooks,
     library::{LibraryModel, transcode::TranscodePolicy},
     node::{ClientModel, ClientStateModel, NodeModel, ServerModel, ServerStateModel},
 };
@@ -54,6 +54,8 @@ impl EventHandler for TestEventHandler {
     fn on_library_model_snapshot(&self, _model: LibraryModel) {}
 
     fn on_node_model_snapshot(&self, _model: NodeModel) {}
+
+    fn on_stats_model_snapshot(&self, _model: StatsModel) {}
 }
 
 #[derive(Clone)]
@@ -122,8 +124,9 @@ impl TestCore {
 
     /// Wait until we have a home relay, so discovery and connections should work
     pub async fn wait_for_relay(&self) {
+        let full_msg = format!("{} has relay", self.label);
         wait_until(
-            &format!("{} has relay", self.label),
+            &full_msg,
             || {
                 let model = self.core.get_node_model().expect("should get node model");
                 model.home_relay != "none"
@@ -148,7 +151,7 @@ impl TestCore {
             },
             || {
                 log::warn!(
-                    "wait_for_node_model_condition: node model: {:?}",
+                    "wait_for_node_model_condition: {full_msg}: failed, node model: {:?}",
                     self.core.get_node_model(),
                 );
             },
@@ -174,7 +177,7 @@ impl TestCore {
             },
             || {
                 log::warn!(
-                    "wait_for_library_model_condition: library model: {:?}",
+                    "wait_for_library_model_condition: {full_msg}: failed, library model: {:?}",
                     self.core.get_library_model(),
                 );
             },
@@ -184,15 +187,16 @@ impl TestCore {
 
     /// Wait until we have a client with the given node id
     pub async fn wait_for_client(&self, other: impl TestNodeIdExt) {
+        let full_msg = format!("{} has client for {}", self.label, other.label());
         wait_until(
-            &format!("{} has client for {}", self.label, other.label()),
+            &full_msg,
             || {
                 let model = self.core.get_node_model().expect("should get node model");
                 model.clients.contains_key(&other.node_id_str())
             },
             || {
                 log::warn!(
-                    "wait_for_client: node model: {:?}",
+                    "wait_for_client: {full_msg}: failed, node model: {:?}",
                     self.core.get_node_model(),
                 );
             },
@@ -234,7 +238,7 @@ impl TestCore {
             },
             || {
                 log::warn!(
-                    "wait_for_client_condition: node model: {:?}",
+                    "wait_for_client_condition: {full_msg}: failed, node model: {:?}",
                     self.core.get_node_model(),
                 );
             },
@@ -268,15 +272,16 @@ impl TestCore {
 
     /// Wait until we have a server with the given node id
     pub async fn wait_for_server(&self, other: impl TestNodeIdExt) {
+        let full_msg = format!("{} has server for {}", self.label, other.label());
         wait_until(
-            &format!("{} has server for {}", self.label, other.label()),
+            &full_msg,
             || {
                 let model = self.core.get_node_model().expect("should get node model");
                 model.servers.contains_key(&other.node_id_str())
             },
             || {
                 log::warn!(
-                    "wait_for_server: node model: {:?}",
+                    "wait_for_server: {full_msg}: failed, node model: {:?}",
                     self.core.get_node_model(),
                 );
             },
@@ -318,7 +323,7 @@ impl TestCore {
             },
             || {
                 log::warn!(
-                    "wait_for_server_condition: node model: {:?}",
+                    "wait_for_server_condition: {full_msg}: failed, node model: {:?}",
                     self.core.get_node_model(),
                 );
             },
@@ -373,6 +378,29 @@ impl TestCore {
             );
         };
         assert!(condition(client), "{full_msg}");
+    }
+
+    /// Wait until the stats satisfy the given condition
+    pub async fn wait_for_stats_condition(
+        &self,
+        msg: &str,
+        condition: impl Fn(&StatsModel) -> bool,
+    ) {
+        let full_msg = format!("{} stats where {}", self.label, msg);
+        wait_until(
+            &full_msg,
+            || {
+                let stats = self.core.get_stats_model().expect("should get stats");
+                condition(&stats)
+            },
+            || {
+                log::warn!(
+                    "wait_for_stats_condition: {full_msg}: failed, stats: {:?}",
+                    self.core.get_stats_model(),
+                );
+            },
+        )
+        .await;
     }
 
     pub fn node_id(&self) -> NodeId {
