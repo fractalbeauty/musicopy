@@ -1872,8 +1872,9 @@ mod stats {
     #[tokio::test]
     async fn launches() {
         let core = TestCore::start("core").await;
-        let stats = core.core.get_stats_model().expect("should get stats");
-        assert_eq!(stats.launches, 1);
+
+        core.wait_for_stats_condition("launches == 1", |s| s.launches == 1)
+            .await;
     }
 
     /// `launches` is not reset by `reset_database()`.
