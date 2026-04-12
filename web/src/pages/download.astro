@@ -4,6 +4,7 @@ import FilledButtonLink from "../components/FilledButtonLink.astro";
 import Footer from "../components/Footer.astro";
 import Main from "../components/Main.astro";
 import Nav from "../components/Nav.astro";
+import Tile from "../components/Tile.astro";
 ---
 
 <BaseLayout title="Musicopy | Download">
@@ -13,7 +14,7 @@ import Nav from "../components/Nav.astro";
     <h1>Download</h1>
 
     <div class="tile-row">
-      <div class="tile desktop">
+      <Tile class="desktop">
         <h2>Desktop</h2>
 
         <FilledButtonLink
@@ -29,9 +30,9 @@ import Nav from "../components/Nav.astro";
         </FilledButtonLink>
 
         <span class="label">Available for Windows, MacOS, and Linux.</span>
-      </div>
+      </Tile>
 
-      <div class="tile mobile">
+      <Tile>
         <h2>Mobile</h2>
 
         <div class="center">
@@ -41,13 +42,13 @@ import Nav from "../components/Nav.astro";
             > if interested.</span
           >
         </div>
-      </div>
+      </Tile>
     </div>
 
     <br />
 
     <div class="tile-grid">
-      <div class="tile outlined span-2">
+      <Tile outlined class="span-2">
         <h2>Features</h2>
 
         <p>
@@ -64,9 +65,9 @@ import Nav from "../components/Nav.astro";
             >
           </span>
         </p>
-      </div>
+      </Tile>
 
-      <div class="tile outlined">
+      <Tile outlined>
         <h3>Demo</h3>
 
         <p>Try the mobile app without installing the desktop app.</p>
@@ -82,9 +83,9 @@ import Nav from "../components/Nav.astro";
             </div>
           </FilledButtonLink>
         </div>
-      </div>
+      </Tile>
 
-      <div class="tile outlined">
+      <Tile outlined>
         <h3>Source</h3>
 
         <p>
@@ -110,9 +111,9 @@ import Nav from "../components/Nav.astro";
             </div>
           </FilledButtonLink>
         </div>
-      </div>
+      </Tile>
 
-      <div class="tile outlined span-2">
+      <Tile outlined class="span-2">
         <h3>License</h3>
 
         <p>
@@ -131,7 +132,7 @@ import Nav from "../components/Nav.astro";
             </div>
           </FilledButtonLink>
         </div>
-      </div>
+      </Tile>
     </div>
   </Main>
 
@@ -141,6 +142,10 @@ import Nav from "../components/Nav.astro";
 </BaseLayout>
 
 <style>
+  .tile-row :global(.desktop) {
+    gap: 20px;
+  }
+
   .tile-row {
     display: flex;
     flex-direction: row;
@@ -154,32 +159,8 @@ import Nav from "../components/Nav.astro";
     gap: 20px;
     width: 100%;
   }
-  .tile-grid .span-2 {
+  .tile-grid :global(.span-2) {
     grid-column: span 2;
-  }
-
-  .tile {
-    flex: 1;
-    padding: 20px;
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--color-surface-container-high);
-    border: 1px solid var(--color-outline-variant);
-  }
-
-  .tile.outlined {
-    background-color: inherit;
-    border: 1px solid var(--color-outline-variant);
-  }
-
-  .tile.desktop {
-    gap: 20px;
-  }
-
-  .tile h2,
-  .tile h3 {
-    margin: 0;
   }
 
   .row {

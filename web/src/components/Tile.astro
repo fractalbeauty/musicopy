@@ -1,0 +1,35 @@
+---
+interface Props {
+  outlined?: boolean;
+  class?: string;
+}
+
+const { outlined, class: className } = Astro.props;
+---
+
+<div class:list={["tile", { outlined }, className]}>
+  <slot />
+</div>
+
+<style>
+  .tile {
+    flex: 1;
+    padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-surface-container-high);
+    border: 1px solid var(--color-outline-variant);
+  }
+
+  .tile.outlined {
+    background-color: inherit;
+    border: 1px solid var(--color-outline-variant);
+  }
+
+  .tile :global(h1),
+  .tile :global(h2),
+  .tile :global(h3) {
+    margin: 0;
+  }
+</style>

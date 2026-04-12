@@ -1,8 +1,10 @@
 ---
 import BaseLayout from "../components/BaseLayout.astro";
+import FilledButtonLink from "../components/FilledButtonLink.astro";
 import Footer from "../components/Footer.astro";
 import Main from "../components/Main.astro";
 import Nav from "../components/Nav.astro";
+import Tile from "../components/Tile.astro";
 ---
 
 <BaseLayout title="Musicopy | Purchase">
@@ -11,26 +13,142 @@ import Nav from "../components/Nav.astro";
   <Main>
     <h1>Purchase</h1>
 
-    <p>
-      The plan is to release Musicopy with a reasonably-priced lifetime license
-      and an unlimited free trial. This is intended to support the development
-      of Musicopy long-term. The license will not grant any additional features
-      or change the software besides removing the license purchase prompt.
-    </p>
+    <div class="tile-grid">
+      <Tile class="tile-license">
+        <h2>Lifetime License</h2>
 
-    <h2>Open Source</h2>
+        <span class="price">$10</span>
 
-    <p>
-      Musicopy is available under the <a
-        href="https://github.com/fractalbeauty/musicopy/blob/main/LICENSE"
-        >GNU AGPL, version 3</a
-      >. The source is available on <a
-        href="https://github.com/fractalbeauty/musicopy">GitHub</a
-      >.
-    </p>
+        <ul>
+          <li>Supports development ♥</li>
+          <li>Never expires, works offline</li>
+          <li>Activate on unlimited devices</li>
+          <li>Removes license popup</li>
+        </ul>
+
+        <div class="flex-1"></div>
+
+        <div class="cta">
+          <FilledButtonLink
+            href="https://buy.polar.sh/polar_cl_1OQpRPXl2yg4c2VhRJYTAaX0QG2oAKeYOfnJw0CmmGd"
+            size="lg"
+            outlined
+            extraAttributes={{
+              "data-polar-checkout": true,
+              "data-polar-checkout-theme": "light",
+            }}
+          >
+            <div class="row">
+              Purchase
+
+              <span class="material-symbols-outlined"> arrow_forward </span>
+            </div>
+          </FilledButtonLink>
+        </div>
+      </Tile>
+
+      <Tile outlined>
+        <h3>Trial</h3>
+
+        <p>Musicopy is free to try, with no restrictions.</p>
+
+        <div class="flex-1"></div>
+
+        <div class="cta cta-trial">
+          <FilledButtonLink href="/download" size="md" outlined>
+            <div class="row">
+              Download
+
+              <span class="material-symbols-outlined"> arrow_forward </span>
+            </div>
+          </FilledButtonLink>
+        </div>
+      </Tile>
+
+      <Tile outlined>
+        <h3>Source</h3>
+
+        <p>
+          Source code is available under the <a
+            href="https://github.com/fractalbeauty/musicopy/blob/main/LICENSE"
+            target="_blank">GNU AGPLv3</a
+          >.
+        </p>
+
+        <div class="flex-1"></div>
+
+        <div class="cta">
+          <FilledButtonLink
+            href="https://github.com/fractalbeauty/musicopy"
+            target="_blank"
+            size="md"
+            outlined
+          >
+            <div class="row">
+              View on GitHub
+
+              <span class="material-symbols-outlined"> arrow_forward </span>
+            </div>
+          </FilledButtonLink>
+        </div>
+      </Tile>
+    </div>
   </Main>
 
   <div class="flex-1"></div>
 
   <Footer />
 </BaseLayout>
+
+<!-- polar.sh embedded checkout script -->
+<script
+  defer
+  data-auto-init
+  src="https://cdn.jsdelivr.net/npm/@polar-sh/checkout@latest/dist/embed.global.js"
+></script>
+
+<style>
+  .tile-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 20px;
+  }
+  @media screen and (max-width: 800px) {
+    .tile-grid {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
+  :global(.tile-license) {
+    grid-row: span 2;
+    gap: 8px;
+  }
+
+  .price {
+    font-family: REM, sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-size: 80px;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 20px;
+    line-height: 1.5;
+    font-size: large;
+  }
+
+  .row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .tile-row {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+  }
+</style>
