@@ -61,7 +61,7 @@ body {
   margin: 0;
   background-color: var(--color-surface);
   color: var(--color-on-surface);
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 .flex-1 {
