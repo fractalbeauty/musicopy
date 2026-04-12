@@ -7,4 +7,7 @@ import { defineConfig } from "astro/config";
 export default defineConfig({
   site: "https://musicopy.app",
   integrations: [sitemap()],
+  redirects: {
+    "/pricing": "/license",
+  },
 });
