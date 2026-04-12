@@ -18,6 +18,7 @@ import uniffi.musicopy.LibraryRootModel
 import uniffi.musicopy.NodeModel
 import uniffi.musicopy.ServerModel
 import uniffi.musicopy.ServerStateModel
+import uniffi.musicopy.StatsModel
 import uniffi.musicopy.TranscodePolicy
 import uniffi.musicopy.TransferJobModel
 import uniffi.musicopy.TransferJobProgressModel
@@ -443,6 +444,31 @@ fun mockLibraryModel(
         transcodePolicy = TranscodePolicy.IF_REQUESTED
     )
 }
+
+fun mockStatsModelWithoutTransfers(): StatsModel {
+    return StatsModel(
+        launches = 0u,
+        serverSessions = 0u,
+        clientSessions = 0u,
+        serverFiles = 0u,
+        clientFiles = 0u,
+        serverBytes = 0u,
+        clientBytes = 0u
+    )
+}
+
+fun mockStatsModelWithTransfers(): StatsModel {
+    return StatsModel(
+        launches = 1u,
+        serverSessions = 1u,
+        clientSessions = 1u,
+        serverFiles = 1u,
+        clientFiles = 1u,
+        serverBytes = 3_000_000u,
+        clientBytes = 3_000_000u,
+    )
+}
+
 
 /**
  * Get the current system time in seconds

@@ -10,7 +10,10 @@ import uniffi.musicopy.StatsModel
 
 class CoreInstance private constructor() : EventHandler {
     companion object {
-        suspend fun start(platformAppContext: PlatformAppContext, appSettings: AppSettings): CoreInstance {
+        suspend fun start(
+            platformAppContext: PlatformAppContext,
+            appSettings: AppSettings,
+        ): CoreInstance {
             val instance = CoreInstance()
             instance._instance = Core.start(
                 eventHandler = instance,
@@ -18,7 +21,7 @@ class CoreInstance private constructor() : EventHandler {
             )
             instance._libraryState = MutableStateFlow(instance._instance.getLibraryModel())
             instance._nodeState = MutableStateFlow(instance._instance.getNodeModel())
-            instance._statsState = MutableStateFlow(runCatching { instance._instance.getStats() }.getOrNull())
+            instance._statsState = MutableStateFlow(instance._instance.getStatsModel())
             return instance
         }
     }
@@ -36,8 +39,8 @@ class CoreInstance private constructor() : EventHandler {
     val nodeState: StateFlow<NodeModel>
         get() = _nodeState
 
-    private lateinit var _statsState: MutableStateFlow<StatsModel?>
-    val statsState: StateFlow<StatsModel?>
+    private lateinit var _statsState: MutableStateFlow<StatsModel>
+    val statsState: StateFlow<StatsModel>
         get() = _statsState
 
     override fun onLibraryModelSnapshot(model: LibraryModel) {

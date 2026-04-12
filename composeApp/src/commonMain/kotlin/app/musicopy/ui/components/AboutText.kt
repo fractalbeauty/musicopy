@@ -40,7 +40,7 @@ fun aboutText(): AnnotatedString = buildAnnotatedString {
     val buildDate = buildTime.format(DateTimeComponents.Format {
         monthName(MonthNames.ENGLISH_FULL)
         char(' ')
-        dayOfMonth()
+        day()
         chars(", ")
         year()
     })

@@ -22,12 +22,15 @@ fun DesktopApp(
 ) {
     val libraryModel by coreInstance.libraryState.collectAsState()
     val nodeModel by coreInstance.nodeState.collectAsState()
+    val statsModel by coreInstance.statsState.collectAsState()
 
     Theme {
         Box(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
             DesktopHome(
+                appSettings = appSettings,
                 libraryModel = libraryModel,
                 nodeModel = nodeModel,
+                statsModel = statsModel,
                 showHints = true,
                 onAcceptAndTrust = { nodeId ->
                     coreInstance.instance.acceptConnectionAndTrust(

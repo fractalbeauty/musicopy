@@ -1,9 +1,11 @@
 package app.musicopy.ui.screenshots
 
 import androidx.compose.runtime.Composable
+import app.musicopy.AppSettings
 import app.musicopy.mockLibraryModel
 import app.musicopy.mockNodeModel
 import app.musicopy.mockServerModel
+import app.musicopy.mockStatsModelWithoutTransfers
 import app.musicopy.mockTransferJobModel
 import app.musicopy.mockTransferJobProgressModelFinished
 import app.musicopy.mockTransferJobProgressModelInProgress
@@ -48,10 +50,13 @@ fun DesktopHeroScreenshot() {
         ),
         transcoding = true,
     )
+    val statsModel = mockStatsModelWithoutTransfers()
 
     DesktopHome(
+        appSettings = AppSettings.createMock(),
         libraryModel = libraryModel,
         nodeModel = nodeModel,
+        statsModel = statsModel,
         showHints = false,
         onAcceptAndTrust = {},
         onAcceptOnce = {},

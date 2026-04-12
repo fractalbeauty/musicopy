@@ -7,6 +7,7 @@ import com.russhwolf.settings.MapSettings
 import com.russhwolf.settings.ObservableSettings
 import com.russhwolf.settings.coroutines.getBooleanFlow
 import com.russhwolf.settings.coroutines.getBooleanStateFlow
+import com.russhwolf.settings.coroutines.getLongOrNullFlow
 import com.russhwolf.settings.coroutines.getStringOrNullFlow
 import com.russhwolf.settings.observable.makeObservable
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +19,8 @@ const val DOWNLOAD_DIRECTORY_KEY = "downloadDirectory"
 const val DOWNLOAD_DIRECTORY_NAME_KEY = "downloadDirectoryName"
 const val TRANSCODE_POLICY_KEY = "transcodePolicy"
 const val DETAILED_ERRORS_KEY = "detailedErrors"
+const val LICENSE_KEY_KEY = "licenseKey"
+const val LICENSE_ACTIVATED_AT_KEY = "licenseActivatedAt"
 
 class AppSettings private constructor(private val settings: ObservableSettings) {
     constructor(platformAppContext: PlatformAppContext) : this(
@@ -31,7 +34,12 @@ class AppSettings private constructor(private val settings: ObservableSettings) 
     }
 
     fun clearSettings() {
-        settings.clear()
+        settings.remove(DOWNLOAD_DIRECTORY_KEY)
+        settings.remove(DOWNLOAD_DIRECTORY_NAME_KEY)
+        settings.remove(TRANSCODE_POLICY_KEY)
+        settings.remove(DETAILED_ERRORS_KEY)
+
+        // License key is not cleared
     }
 
     var downloadDirectory: String?
@@ -78,6 +86,36 @@ class AppSettings private constructor(private val settings: ObservableSettings) 
 
     val detailedErrorsFlow: Flow<Boolean>
         get() = settings.getBooleanFlow(DETAILED_ERRORS_KEY, false)
+
+    var licenseKey: String?
+        get() = settings.getStringOrNull(LICENSE_KEY_KEY)
+        set(value) {
+            value?.let {
+                settings.putString(LICENSE_KEY_KEY, value)
+            } ?: run {
+                settings.remove(LICENSE_KEY_KEY)
+            }
+        }
+
+    val licenseKeyFlow: Flow<String?> = settings.getStringOrNullFlow(LICENSE_KEY_KEY)
+
+    /**
+     * License activation timestamp, in seconds.
+     */
+    var licenseActivatedAt: Long?
+        get() = settings.getLongOrNull(LICENSE_ACTIVATED_AT_KEY)
+        set(value) {
+            value?.let {
+                settings.putLong(LICENSE_ACTIVATED_AT_KEY, value)
+            } ?: run {
+                settings.remove(LICENSE_ACTIVATED_AT_KEY)
+            }
+        }
+
+    /**
+     * License activation timestamp, in seconds.
+     */
+    val licenseActivatedAtFlow: Flow<Long?> = settings.getLongOrNullFlow(LICENSE_ACTIVATED_AT_KEY)
 }
 
 internal fun deserializeTranscodePolicy(s: String?) = when (s) {
