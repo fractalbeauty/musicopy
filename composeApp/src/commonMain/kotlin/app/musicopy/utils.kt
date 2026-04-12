@@ -120,11 +120,12 @@ fun mockNodeModel(
 }
 
 fun mockServerModel(
+    nodeId: String = mockNodeId(),
     transferJobs: List<TransferJobModel> = emptyList(),
 ): ServerModel {
     return ServerModel(
         name = "My Phone",
-        nodeId = mockNodeId(),
+        nodeId = nodeId,
         connectedAt = now(),
         state = ServerStateModel.Accepted,
         connectionType = "direct",

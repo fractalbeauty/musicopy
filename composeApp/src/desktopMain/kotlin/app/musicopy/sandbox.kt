@@ -36,7 +36,9 @@ import androidx.compose.ui.window.rememberWindowState
 import app.musicopy.ui.Theme
 import app.musicopy.ui.components.Info
 import app.musicopy.ui.screens.DisconnectedScreenSandbox
+import app.musicopy.ui.screens.HomeScreenSandbox
 import app.musicopy.ui.screens.PreTransferScreenSandbox
+import app.musicopy.ui.screens.SettingsScreenSandbox
 import app.musicopy.ui.screens.TransferScreenFinishedSandbox
 import app.musicopy.ui.screens.TransferScreenSandbox
 import app.musicopy.ui.screens.WaitingScreenSandbox
@@ -81,12 +83,14 @@ private fun Sandbox() {
 
 @Composable
 private fun SandboxContent() {
-//    SandboxScreenshot()
+    SandboxScreenshot()
 //    WaitingScreenSandbox()
-    PreTransferScreenSandbox()
+//    PreTransferScreenSandbox()
 //    TransferScreenSandbox()
 //    TransferScreenFinishedSandbox()
 //    DisconnectedScreenSandbox()
+//    SettingsScreenSandbox()
+//    HomeScreenSandbox()
 }
 
 val DIMENSIONS_MOBILE = 350 to 600
@@ -126,7 +130,7 @@ val screenshotConfigs = listOf(
     ),
     ScreenshotConfig(
         file = "screenshots/google/phone/google_phone_2.png",
-        description = "pretransfer - select boneyard, expand fishmonger, select all undownloaded. should be 14 selected",
+        description = "pretransfer - select all of boneyard, navigate to fishmonger, select all. should be 14 selected",
         dimensions = 1080 to 1920,
         density = 3f,
         content = { MobilePreTransferScreenshot() }
@@ -148,7 +152,7 @@ val screenshotConfigs = listOf(
     ),
     ScreenshotConfig(
         file = "screenshots/google/tablet/google_tablet_2.png",
-        description = "pretransfer - select boneyard, expand fishmonger, select all undownloaded. should be 14 selected",
+        description = "pretransfer - select all of boneyard, navigate to fishmonger, select all. should be 14 selected",
         dimensions = 1080 to 1920,
         density = 1.5f,
         content = { MobilePreTransferScreenshot() }
@@ -170,7 +174,7 @@ val screenshotConfigs = listOf(
     ),
     ScreenshotConfig(
         file = "screenshots/apple/phone65/apple_phone65_2.png",
-        description = "pretransfer - select boneyard, expand fishmonger, select all undownloaded. should be 14 selected",
+        description = "pretransfer - select all of boneyard, navigate to fishmonger, select all. should be 14 selected",
         dimensions = 1284 to 2778,
         density = 3.5f,
         content = { MobilePreTransferScreenshot() }
