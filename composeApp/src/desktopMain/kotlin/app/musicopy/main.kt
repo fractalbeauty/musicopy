@@ -54,9 +54,9 @@ fun main() = runBlocking {
             )
 
             // TODO
-            Box(modifier = Modifier.offset(x = 208.dp, y = 8.dp)) {
-                Text("window: ${LocalWindowInfo.current.containerSize}")
-            }
+            // Box(modifier = Modifier.offset(x = 208.dp, y = 8.dp)) {
+            //     Text("window: ${LocalWindowInfo.current.containerSize}")
+            // }
         }
     }
 }
