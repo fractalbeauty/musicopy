@@ -726,3 +726,20 @@ pub fn log_warn(message: String) {
 pub fn log_error(message: String) {
     log::error!("compose: {}", message);
 }
+
+// don't look too closely at this
+#[uniffi::export]
+pub fn validate_license(mut license_key: String) -> bool {
+    license_key.retain(|c| c.is_alphanumeric());
+    let license_key = license_key.to_lowercase();
+    let Ok(key_bytes) = zbase32::decode_full_bytes_str(&license_key) else {
+        return false;
+    };
+    let Ok(key_bytes): Result<[u8; 12], _> = key_bytes.try_into() else {
+        return false;
+    };
+    let left = &key_bytes[0..8];
+    let right = u32::from_be_bytes(key_bytes[8..12].try_into().unwrap());
+    let crc = crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
+    crc.checksum(left) == right
+}

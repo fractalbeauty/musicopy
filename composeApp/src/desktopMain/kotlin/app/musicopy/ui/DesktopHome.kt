@@ -65,6 +65,7 @@ import uniffi.musicopy.LibraryModel
 import uniffi.musicopy.NodeModel
 import uniffi.musicopy.StatsModel
 import uniffi.musicopy.TranscodePolicy
+import uniffi.musicopy.validateLicense
 import java.awt.Desktop
 import java.net.URI
 import kotlin.time.Clock
@@ -275,7 +276,7 @@ private fun LicenseNagDialog(
     var licenseKey by remember { mutableStateOf("") }
 
     val isEmpty = licenseKey.isEmpty()
-    val isValid = licenseKey.length % 3 != 1 // TODO
+    val isValid = validateLicense(licenseKey)
     val isError = !isEmpty && !isValid
     val supportingText = when {
         isEmpty -> ""
@@ -397,6 +398,7 @@ private fun LicenseNagDialog(
                             }
 
                             Button(
+                                enabled = isValid,
                                 onClick = {
                                     appSettings.licenseKey = licenseKey
                                     appSettings.licenseActivatedAt = Clock.System.now().epochSeconds
