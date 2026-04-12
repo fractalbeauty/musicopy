@@ -324,7 +324,7 @@ private fun LicenseNagDialog(
 
                             Text(
                                 text = buildAnnotatedString {
-                                    append("Thank you for your support! Your license key will be emailed to you after purchase. If you have any issues, please email ")
+                                    append("Thank you for your support! A license key will be emailed to you after purchase. If you have questions, please email ")
                                     withUrl("mailto:support@musicopy.app") {
                                         append("support@musicopy.app")
                                     }

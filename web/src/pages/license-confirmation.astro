@@ -1,0 +1,31 @@
+---
+import BaseLayout from "../components/BaseLayout.astro";
+import Footer from "../components/Footer.astro";
+import Main from "../components/Main.astro";
+import Nav from "../components/Nav.astro";
+---
+
+<BaseLayout title="Musicopy | Purchase Confirmation">
+  <Nav />
+
+  <Main>
+    <h1>Thank you!</h1>
+
+    <p>
+      Your order is being processed. Your license key will be emailed to you
+      shortly.
+    </p>
+
+    <p>
+      If you have questions, please email <a href="mailto:support@musicopy.app"
+        >support@musicopy.app</a
+      >.
+    </p>
+
+    <p>Thank you for your support!</p>
+  </Main>
+
+  <div class="flex-1"></div>
+
+  <Footer />
+</BaseLayout>
