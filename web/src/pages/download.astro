@@ -12,8 +12,8 @@ import Nav from "../components/Nav.astro";
   <Main>
     <h1>Download</h1>
 
-    <div class="platforms">
-      <div class="platform desktop">
+    <div class="tile-row">
+      <div class="tile desktop">
         <h2>Desktop</h2>
 
         <FilledButtonLink
@@ -31,7 +31,7 @@ import Nav from "../components/Nav.astro";
         <span class="label">Available for Windows, MacOS, and Linux.</span>
       </div>
 
-      <div class="platform mobile">
+      <div class="tile mobile">
         <h2>Mobile</h2>
 
         <div class="center">
@@ -43,6 +43,96 @@ import Nav from "../components/Nav.astro";
         </div>
       </div>
     </div>
+
+    <br />
+
+    <div class="tile-grid">
+      <div class="tile outlined span-2">
+        <h2>Features</h2>
+
+        <p>
+          <span class="features">
+            <span
+              ><strong>Magic connectivity:</strong> scan a QR code to connect.</span
+            >
+            <span
+              ><strong>Automatic transcoding</strong> to fit more songs on your device.</span
+            >
+            <span
+              ><strong>No cloud services, ads, or subscriptions:</strong> just two
+              apps.</span
+            >
+          </span>
+        </p>
+      </div>
+
+      <div class="tile outlined">
+        <h3>Demo</h3>
+
+        <p>Try the mobile app without installing the desktop app.</p>
+
+        <div class="flex-1"></div>
+
+        <div class="cta">
+          <FilledButtonLink href="/demo" size="md" outlined>
+            <div class="row">
+              Try the demo
+
+              <span class="material-symbols-outlined"> arrow_forward </span>
+            </div>
+          </FilledButtonLink>
+        </div>
+      </div>
+
+      <div class="tile outlined">
+        <h3>Source</h3>
+
+        <p>
+          Source code is available under the <a
+            href="https://github.com/fractalbeauty/musicopy/blob/main/LICENSE"
+            target="_blank">GNU AGPLv3</a
+          >.
+        </p>
+
+        <div class="flex-1"></div>
+
+        <div class="cta">
+          <FilledButtonLink
+            href="https://github.com/fractalbeauty/musicopy"
+            target="_blank"
+            size="md"
+            outlined
+          >
+            <div class="row">
+              View on GitHub
+
+              <span class="material-symbols-outlined"> arrow_forward </span>
+            </div>
+          </FilledButtonLink>
+        </div>
+      </div>
+
+      <div class="tile outlined span-2">
+        <h3>License</h3>
+
+        <p>
+          Musicopy is free to try, with no restrictions. Buying a lifetime
+          license helps support its development. ♥
+        </p>
+
+        <div class="flex-1"></div>
+
+        <div class="cta cta-right">
+          <FilledButtonLink href="/license" size="md" outlined>
+            <div class="row">
+              Purchase a license&nbsp;
+
+              <span class="material-symbols-outlined"> arrow_forward </span>
+            </div>
+          </FilledButtonLink>
+        </div>
+      </div>
+    </div>
   </Main>
 
   <div class="flex-1"></div>
@@ -51,27 +141,44 @@ import Nav from "../components/Nav.astro";
 </BaseLayout>
 
 <style>
-  .platforms {
+  .tile-row {
     display: flex;
     flex-direction: row;
     gap: 20px;
     width: 100%;
   }
 
-  .platform {
+  .tile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    width: 100%;
+  }
+  .tile-grid .span-2 {
+    grid-column: span 2;
+  }
+
+  .tile {
     flex: 1;
     padding: 20px;
     border-radius: 12px;
     display: flex;
     flex-direction: column;
-    background-color: var(--color-surface-container-highest);
+    background-color: var(--color-surface-container-high);
+    border: 1px solid var(--color-outline-variant);
   }
 
-  .platform.desktop {
+  .tile.outlined {
+    background-color: inherit;
+    border: 1px solid var(--color-outline-variant);
+  }
+
+  .tile.desktop {
     gap: 20px;
   }
 
-  .platform h2 {
+  .tile h2,
+  .tile h3 {
     margin: 0;
   }
 
@@ -97,12 +204,34 @@ import Nav from "../components/Nav.astro";
   }
 
   @media screen and (max-width: 800px) {
-    .platforms {
+    .tile-row {
       flex-direction: column-reverse;
+    }
+
+    .tile-grid {
+      display: flex;
+      flex-direction: column;
     }
 
     .center {
       margin-top: 20px;
     }
+  }
+
+  .cta-right {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+  @media screen and (max-width: 800px) {
+    .cta {
+      display: block;
+    }
+  }
+
+  .features {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 </style>

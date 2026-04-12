@@ -1,14 +1,16 @@
 ---
 interface Props {
   href: string;
+  target?: string;
   size?: "md" | "lg";
   outlined?: boolean;
 }
-const { href, size, outlined } = Astro.props;
+const { href, target, size, outlined } = Astro.props;
 ---
 
 <a
   href={href}
+  target={target}
   class:list={["filledbutton", size === "lg" && "lg", outlined && "outlined"]}
 >
   <slot />
