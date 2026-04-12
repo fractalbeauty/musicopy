@@ -3,7 +3,7 @@
     <div>
       <a href="https://github.com/fractalbeauty/musicopy">GitHub</a>
     </div>
-    
+
     <div>
       <a href="/privacy">Privacy</a>
       &nbsp;&middot;&nbsp;
@@ -11,6 +11,8 @@
     </div>
   </div>
 </footer>
+
+<img class="footer-tree" src="/static/treeeeee.png" />
 
 <style>
   footer {
@@ -21,6 +23,7 @@
     background-color: var(--color-primary-container);
     color: var(--color-on-primary-container);
     margin-top: 25px;
+    anchor-name: --footer;
   }
 
   footer a {
@@ -40,6 +43,20 @@
       flex-direction: column;
       gap: 10px;
       width: 100%;
+    }
+  }
+
+  .footer-tree {
+    position: absolute;
+    position-anchor: --footer;
+    position-visibility: always;
+    bottom: anchor(top);
+    z-index: -1000;
+    padding-left: 500px;
+  }
+  @media screen and (max-width: 800px) {
+    .footer-tree {
+      display: none;
     }
   }
 </style>
