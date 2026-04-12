@@ -479,6 +479,11 @@ private fun LicenseThanksDialog(
 
 @Composable
 private fun LicenseDialogStatsText(statsModel: StatsModel) {
+    // Don't show if nothing has been transferred yet
+    if (statsModel.serverFiles == 0uL) {
+        return;
+    }
+
     Text(
         text = "You've transferred ${statsModel.serverFiles} ${
             if (statsModel.serverFiles == 1uL) {
