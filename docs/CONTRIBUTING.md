@@ -36,5 +36,6 @@ ui: changes to CMP project
   - ios
 tui: changes to musicopy-tui crate
 web
+dev
 docs
 ```
