@@ -104,7 +104,7 @@ class ScreenshotConfig(
     val content: @Composable () -> Unit,
 )
 
-const val initialConfig = 2
+const val initialConfig = 12 - 1
 val screenshotConfigs = listOf(
     // web hero images
     ScreenshotConfig(
@@ -164,7 +164,7 @@ val screenshotConfigs = listOf(
         content = { MobileHomeScreenshot() }
     ),
 
-    // apple - phone 6.5"
+    // apple - iphone 6.5"
     ScreenshotConfig(
         file = "screenshots/apple/phone65/apple_phone65_1.png",
         description = "transfer - expand all. should be 14 transferring",
@@ -183,6 +183,28 @@ val screenshotConfigs = listOf(
         file = "screenshots/apple/phone65/apple_phone65_3.png",
         dimensions = 1284 to 2778,
         density = 3.5f,
+        content = { MobileHomeScreenshot() }
+    ),
+
+    // apple - ipad 13"
+    ScreenshotConfig(
+        file = "screenshots/apple/ipad13/apple_ipad13_1.png",
+        description = "transfer - expand all. should be 14 transferring",
+        dimensions = 2064 to 2752,
+        density = 2f,
+        content = { MobileTransferScreenshot() }
+    ),
+    ScreenshotConfig(
+        file = "screenshots/apple/ipad13/apple_ipad13_2.png",
+        description = "pretransfer - select all of boneyard, navigate to fishmonger, select all. should be 14 selected",
+        dimensions = 2064 to 2752,
+        density = 2f,
+        content = { MobilePreTransferScreenshot() }
+    ),
+    ScreenshotConfig(
+        file = "screenshots/apple/ipad13/apple_ipad13_3.png",
+        dimensions = 2064 to 2752,
+        density = 2f,
         content = { MobileHomeScreenshot() }
     ),
 )
