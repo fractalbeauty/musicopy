@@ -1,22 +1,43 @@
 use anyhow::Context;
 use base64::{Engine, prelude::BASE64_STANDARD};
 use image::{ImageReader, codecs::jpeg::JpegEncoder, imageops::FilterType};
+use mp3lame_encoder::{DualPcm, FlushNoGap, MonoPcm};
 use rubato::{FftFixedIn, Resampler};
 use std::{
     fs::File,
-    io::{Cursor, Seek, SeekFrom},
+    io::{Cursor, Seek, SeekFrom, Write},
     path::Path,
 };
 use symphonia::core::{
-    formats::{TrackType, probe::Hint},
+    formats::{FormatReader, TrackType, probe::Hint},
     io::MediaSourceStream,
     meta::{StandardTag, StandardVisualKey},
 };
 
+pub enum TranscodeFormat {
+    Opus(OpusPreset),
+    Mp3(Mp3Preset),
+}
+
+pub enum OpusPreset {
+    Opus128,
+    Opus64,
+}
+
+pub enum Mp3Preset {
+    Mp3V0,
+    Mp3V5,
+}
+
 /// Transcode a file.
 ///
 /// Returns the file size of the output file.
-pub fn transcode(input_path: &Path, output_path: &Path) -> anyhow::Result<u64> {
+#[cfg(feature = "transcode")]
+pub fn transcode(
+    transcode_format: TranscodeFormat,
+    input_path: &Path,
+    output_path: &Path,
+) -> anyhow::Result<u64> {
     let input_file = File::open(input_path).context("failed to open input file")?;
 
     let mss = MediaSourceStream::new(Box::new(input_file), Default::default());
@@ -95,6 +116,34 @@ pub fn transcode(input_path: &Path, output_path: &Path) -> anyhow::Result<u64> {
         audio_buf.copy_to_slice_planar(&mut output_slices);
     }
 
+    match transcode_format {
+        TranscodeFormat::Opus(preset) => transcode_opus(
+            preset,
+            output_path,
+            format,
+            channel_count,
+            sample_rate,
+            original_samples,
+        ),
+        TranscodeFormat::Mp3(preset) => transcode_mp3(
+            preset,
+            output_path,
+            format,
+            channel_count,
+            sample_rate,
+            original_samples,
+        ),
+    }
+}
+
+fn transcode_opus(
+    preset: OpusPreset,
+    output_path: &Path,
+    mut format: Box<dyn FormatReader>,
+    channel_count: usize,
+    sample_rate: usize,
+    original_samples: Vec<Vec<f32>>,
+) -> anyhow::Result<u64> {
     // construct the encoder before resampling to determine the lookahead
     let mut encoder = opus::Encoder::new(
         48000,
@@ -107,7 +156,10 @@ pub fn transcode(input_path: &Path, output_path: &Path) -> anyhow::Result<u64> {
     )
     .context("failed to create opus encoder")?;
     encoder
-        .set_bitrate(opus::Bitrate::Bits(128000))
+        .set_bitrate(match preset {
+            OpusPreset::Opus128 => opus::Bitrate::Bits(128000),
+            OpusPreset::Opus64 => opus::Bitrate::Bits(64000),
+        })
         .context("failed to set opus bitrate")?;
 
     let lookahead_frames = encoder
@@ -472,4 +524,125 @@ pub fn transcode(input_path: &Path, output_path: &Path) -> anyhow::Result<u64> {
 
     // we did it
     Ok(file_size)
+}
+
+fn transcode_mp3(
+    preset: Mp3Preset,
+    output_path: &Path,
+    mut _format: Box<dyn FormatReader>,
+    channel_count: usize,
+    sample_rate: usize,
+    original_samples: Vec<Vec<f32>>,
+) -> anyhow::Result<u64> {
+    let mut builder =
+        mp3lame_encoder::Builder::new().context("failed to create encoder builder")?;
+
+    // save the inner lame pointer so we can call lame_get_lametag_frame later
+    let lame_ptr = unsafe { builder.as_ptr() };
+
+    let mut encoder = builder
+        .with_num_channels(channel_count as u8)
+        .map_err(|_| anyhow::anyhow!("failed to set channel count"))?
+        .with_sample_rate(sample_rate as u32)
+        .map_err(|_| anyhow::anyhow!("failed to set sample rate"))?
+        .with_vbr_mode(mp3lame_encoder::VbrMode::Mtrh)
+        .map_err(|_| anyhow::anyhow!("failed to set vbr mode"))?
+        .with_vbr_quality(match preset {
+            Mp3Preset::Mp3V0 => mp3lame_encoder::Quality::Best,
+            Mp3Preset::Mp3V5 => mp3lame_encoder::Quality::Good,
+        })
+        .map_err(|_| anyhow::anyhow!("failed to set vbr quality"))?
+        .build()
+        .map_err(|_| anyhow::anyhow!("failed to build encoder"))?;
+
+    // TODO: id3 tags, album art
+
+    let mut output_file = File::create(output_path).context("failed to create output file")?;
+
+    // number of frames per chunk (multiple of 1152 which is the internal frame size)
+    let chunk_frames = 4 * 1152;
+
+    // buffer size recommended by lame
+    // TODO: this may need to be larger to accomodate id3 tags and album art
+    let output_buf_len = chunk_frames * 5 / 4 + 7200;
+    let mut output_buf = Vec::with_capacity(output_buf_len);
+
+    let mut file_size = 0;
+
+    // encode and write chunks
+    match channel_count {
+        1 => {
+            for chunk in original_samples[0].chunks(chunk_frames) {
+                let input = MonoPcm(chunk);
+
+                let output_len = encoder
+                    .encode_to_vec(input, &mut output_buf)
+                    .map_err(|_| anyhow::anyhow!("failed to encode chunk"))?;
+
+                output_file.write_all(&output_buf[..output_len])?;
+                file_size += output_len;
+
+                output_buf.clear();
+            }
+        }
+        2 => {
+            for (left, right) in original_samples[0]
+                .chunks(chunk_frames)
+                .zip(original_samples[1].chunks(chunk_frames))
+            {
+                let input = DualPcm { left, right };
+
+                let output_len = encoder
+                    .encode_to_vec(input, &mut output_buf)
+                    .map_err(|_| anyhow::anyhow!("failed to encode chunk"))?;
+
+                output_file.write_all(&output_buf[..output_len])?;
+                file_size += output_len;
+
+                output_buf.clear();
+            }
+        }
+        _ => anyhow::bail!("unsupported channel count: {}", channel_count),
+    }
+
+    // encode and write final chunk
+    let output_len = encoder
+        .flush_to_vec::<FlushNoGap>(&mut output_buf)
+        .map_err(|_| anyhow::anyhow!("failed to flush encoder"))?;
+    output_file.write_all(&output_buf[..output_len])?;
+    file_size += output_len;
+
+    // call lame_get_lametag_frame to get VBR tag to write at start of file
+    let res = unsafe {
+        mp3lame_encoder::ffi::lame_get_lametag_frame(
+            lame_ptr,
+            output_buf.as_mut_ptr(),
+            output_buf.capacity(),
+        )
+    };
+    if res > output_buf.capacity() {
+        anyhow::bail!("buffer too small for lame_get_lametag_frame");
+    }
+    unsafe {
+        output_buf.set_len(res);
+    }
+    // seek to start of file and write VBR tag
+    output_file
+        .seek(SeekFrom::Start(0))
+        .context("failed to seek to start of file for VBR tag")?;
+    output_file
+        .write_all(&output_buf[..res])
+        .context("failed to write VBR tag")?;
+
+    // we did it 2
+    Ok(file_size as u64)
+}
+
+#[cfg(not(feature = "transcode"))]
+pub fn transcode(
+    _transcode_format: TranscodeFormat,
+    _input_path: &Path,
+    _output_path: &Path,
+) -> anyhow::Result<u64> {
+    anyhow::bail!("transcoding is not supported without the transcode feature")
 }

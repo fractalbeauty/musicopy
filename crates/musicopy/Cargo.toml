@@ -11,8 +11,6 @@ crate-type = ["cdylib", "staticlib", "lib"]
 name = "musicopy"
 
 [dependencies]
-musicopy-transcode = { path = "../musicopy-transcode" }
-
 android_logger = "0.15.0"
 anyhow = "1.0.98"
 arc-swap = "1.7.1"
@@ -50,9 +48,13 @@ zbase32 = "0.1.2"
 crc = "3.4.0"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+musicopy-transcode = { path = "../musicopy-transcode", default-features = false, features = ["transcode"] }
+
 rfd = "0.15.3"
 
 [target.'cfg(target_os = "android")'.dependencies]
+musicopy-transcode = { path = "../musicopy-transcode", default-features = false, features = [] }
+
 jni = "0.21.1"
 ndk-context = "0.1.1"
 

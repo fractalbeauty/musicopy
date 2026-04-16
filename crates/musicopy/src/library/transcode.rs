@@ -1,6 +1,7 @@
 use crate::{library::hash::HashCache, model::CounterModel, node::FileSizeModel};
 use anyhow::Context;
 use dashmap::DashMap;
+use musicopy_transcode::{OpusPreset, TranscodeFormat, transcode};
 use priority_queue::PriorityQueue;
 use std::{
     borrow::Borrow,
@@ -907,7 +908,9 @@ impl TranscodeWorker {
             let temp_path = transcodes_dir.join(format!("{}-{}.tmp", hash_kind, hex::encode(hash)));
 
             log::info!("transcoding file: {}", job.display());
-            let file_size = match musicopy_transcode::transcode(&job, &temp_path) {
+            // TODO(transcode formats)
+            let transcode_format = TranscodeFormat::Opus(OpusPreset::Opus128);
+            let file_size = match transcode(transcode_format, &job, &temp_path) {
                 Ok(file_size) => file_size,
 
                 Err(e) => {

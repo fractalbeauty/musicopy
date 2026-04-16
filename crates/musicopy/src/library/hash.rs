@@ -1,5 +1,6 @@
 use crate::database::{Database, FileHash, FileSize, InsertFileHash, InsertFileSize};
 use anyhow::Context;
+use musicopy_transcode::{Mp3Preset, OpusPreset, TranscodeFormat};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{
     borrow::Cow,
@@ -459,8 +460,18 @@ fn estimate_file_size(path: &Path) -> anyhow::Result<(f64, u64)> {
         }
     };
 
-    // estimated size = duration * bitrate (128k), converted to bytes
-    let estimated_size = duration_secs * 128_000.0 / 8.0;
+    // TODO(transcode formats): pass this in from somewhere
+    let transcode_format = TranscodeFormat::Opus(OpusPreset::Opus128);
+    let bitrate = match transcode_format {
+        TranscodeFormat::Opus(OpusPreset::Opus128) => 128_000.0,
+        TranscodeFormat::Opus(OpusPreset::Opus64) => 64_000.0,
+        // https://trac.ffmpeg.org/wiki/Encode/MP3
+        TranscodeFormat::Mp3(Mp3Preset::Mp3V0) => 245_000.0,
+        TranscodeFormat::Mp3(Mp3Preset::Mp3V5) => 130_000.0,
+    };
+
+    // estimated size = duration * bitrate, converted to bytes
+    let estimated_size = duration_secs * bitrate / 8.0;
 
     // add 150 KB for embedded cover art
     let estimated_size = estimated_size + 150_000.0;

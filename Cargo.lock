@@ -555,6 +555,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
+name = "autotools"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef941527c41b0fc0dd48511a8154cd5fc7e29200a0ff8b7203c5d777dbc795cf"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "av1-grain"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3135,6 +3144,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "mp3lame-encoder"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f4764fd362524f3b15808fe877c40d49a191f31f1b043ceabb4079c5d327e3b"
+dependencies = [
+ "mp3lame-sys",
+]
+
+[[package]]
+name = "mp3lame-sys"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54e3b1772db47828840702e5a2e05694527f731abadf9b931355d54035f019d8"
+dependencies = [
+ "autotools",
+ "cc",
+ "libc",
+]
+
+[[package]]
 name = "musicopy"
 version = "0.1.0"
 dependencies = [
@@ -3192,6 +3221,7 @@ dependencies = [
  "base64",
  "image",
  "log",
+ "mp3lame-encoder",
  "ogg",
  "opus",
  "rubato",
