@@ -1,5 +1,6 @@
 use anyhow::Context;
 use base64::{Engine, prelude::BASE64_STANDARD};
+use id3::TagLike;
 use image::{ImageReader, codecs::jpeg::JpegEncoder, imageops::FilterType};
 use mp3lame_encoder::{DualPcm, FlushNoGap, MonoPcm};
 use rubato::{FftFixedIn, Resampler};
@@ -11,7 +12,7 @@ use std::{
 use symphonia::core::{
     formats::{FormatReader, TrackType, probe::Hint},
     io::MediaSourceStream,
-    meta::{StandardTag, StandardVisualKey},
+    meta::{MetadataRevision, StandardTag, StandardVisualKey, Visual},
 };
 
 pub enum TranscodeFormat {
@@ -329,7 +330,7 @@ fn transcode_opus(
 
         if let Some(metadata) = format.metadata().skip_to_latest() {
             for tag in metadata.tags().iter().flat_map(|t| &t.std) {
-                // TODO: replace =
+                // TODO: escape = in tag values
                 let comment = match tag {
                     StandardTag::TrackTitle(tag) => Some(format!("TITLE={tag}")),
                     StandardTag::Album(tag) => Some(format!("ALBUM={tag}")),
@@ -345,33 +346,9 @@ fn transcode_opus(
                 }
             }
 
-            // find front cover visual or first available
-            let mut best_visual = metadata.visuals().first();
-            for visual in metadata.visuals() {
-                if visual.usage == Some(StandardVisualKey::FrontCover) {
-                    best_visual = Some(visual);
-                }
-            }
-
-            if let Some(visual) = best_visual {
-                let rdr = ImageReader::new(Cursor::new(&visual.data))
-                    .with_guessed_format()
-                    .expect("cursor io never fails");
-
-                // convert to jpeg 500x500 90% quality
-                let image_buf = {
-                    let original_image = rdr.decode().context("failed to decode image")?;
-
-                    let resized_image = original_image.resize(500, 500, FilterType::Lanczos3);
-
-                    let mut image_buf = vec![];
-                    let mut encoder = JpegEncoder::new_with_quality(&mut image_buf, 90);
-                    encoder
-                        .encode_image(&resized_image)
-                        .context("failed to encode image")?;
-
-                    image_buf
-                };
+            if let Some(visual) = get_best_visual(metadata) {
+                let image_buf =
+                    resize_cover_art(&visual.data).context("failed to encode cover art")?;
 
                 // construct flac picture structure
                 // note that flac uses big endian while vorbis comments use little endian
@@ -529,11 +506,55 @@ fn transcode_opus(
 fn transcode_mp3(
     preset: Mp3Preset,
     output_path: &Path,
-    mut _format: Box<dyn FormatReader>,
+    mut format: Box<dyn FormatReader>,
     channel_count: usize,
     sample_rate: usize,
     original_samples: Vec<Vec<f32>>,
 ) -> anyhow::Result<u64> {
+    // extract metadata and build ID3 tags
+    let mut tags = id3::Tag::new();
+    if let Some(metadata) = format.metadata().skip_to_latest() {
+        for tag in metadata.tags().iter().flat_map(|t| &t.std) {
+            match tag {
+                StandardTag::TrackTitle(tag) => tags.set_title(tag.to_string()),
+                StandardTag::Artist(tag) => tags.set_artist(tag.to_string()),
+                StandardTag::Album(tag) => tags.set_album(tag.to_string()),
+                StandardTag::ReleaseDate(tag) | StandardTag::RecordingDate(tag) => {
+                    if let Ok(y) = tag.get(..4).unwrap_or("").parse::<i32>() {
+                        tags.set_year(y);
+                    }
+                }
+                StandardTag::ReleaseYear(tag) => {
+                    tags.set_year((*tag).into());
+                }
+                StandardTag::TrackNumber(tag) => {
+                    if let Ok(tag) = (*tag).try_into() {
+                        tags.set_track(tag);
+                    }
+                }
+                _ => {}
+            }
+        }
+        if let Some(visual) = get_best_visual(metadata) {
+            let cover_art = resize_cover_art(&visual.data).context("failed to encode cover art")?;
+            tags.add_frame(id3::frame::Picture {
+                mime_type: "image/jpeg".to_string(),
+                picture_type: id3::frame::PictureType::CoverFront,
+                description: String::new(),
+                data: cover_art,
+            });
+        }
+    }
+
+    let mut output_file = File::create(output_path).context("failed to create output file")?;
+
+    // write ID3 tags and store tag length so we can write the VBR tag after it later
+    tags.write_to(&mut output_file, id3::Version::Id3v24)
+        .context("failed to write ID3 tags")?;
+    let id3_len = output_file
+        .stream_position()
+        .context("failed to get ID3 tags len")?;
+
     let mut builder =
         mp3lame_encoder::Builder::new().context("failed to create encoder builder")?;
 
@@ -555,32 +576,22 @@ fn transcode_mp3(
         .build()
         .map_err(|_| anyhow::anyhow!("failed to build encoder"))?;
 
-    // TODO: id3 tags, album art
-
-    let mut output_file = File::create(output_path).context("failed to create output file")?;
-
     // number of frames per chunk (multiple of 1152 which is the internal frame size)
     let chunk_frames = 4 * 1152;
 
     // buffer size recommended by lame
-    // TODO: this may need to be larger to accomodate id3 tags and album art
     let output_buf_len = chunk_frames * 5 / 4 + 7200;
     let mut output_buf = Vec::with_capacity(output_buf_len);
-
-    let mut file_size = 0;
 
     // encode and write chunks
     match channel_count {
         1 => {
             for chunk in original_samples[0].chunks(chunk_frames) {
-                let input = MonoPcm(chunk);
-
                 let output_len = encoder
-                    .encode_to_vec(input, &mut output_buf)
+                    .encode_to_vec(MonoPcm(chunk), &mut output_buf)
                     .map_err(|_| anyhow::anyhow!("failed to encode chunk"))?;
 
                 output_file.write_all(&output_buf[..output_len])?;
-                file_size += output_len;
 
                 output_buf.clear();
             }
@@ -590,14 +601,11 @@ fn transcode_mp3(
                 .chunks(chunk_frames)
                 .zip(original_samples[1].chunks(chunk_frames))
             {
-                let input = DualPcm { left, right };
-
                 let output_len = encoder
-                    .encode_to_vec(input, &mut output_buf)
+                    .encode_to_vec(DualPcm { left, right }, &mut output_buf)
                     .map_err(|_| anyhow::anyhow!("failed to encode chunk"))?;
 
                 output_file.write_all(&output_buf[..output_len])?;
-                file_size += output_len;
 
                 output_buf.clear();
             }
@@ -605,14 +613,18 @@ fn transcode_mp3(
         _ => anyhow::bail!("unsupported channel count: {}", channel_count),
     }
 
-    // encode and write final chunk
+    // flush encoder and write
     let output_len = encoder
         .flush_to_vec::<FlushNoGap>(&mut output_buf)
         .map_err(|_| anyhow::anyhow!("failed to flush encoder"))?;
     output_file.write_all(&output_buf[..output_len])?;
-    file_size += output_len;
 
-    // call lame_get_lametag_frame to get VBR tag to write at start of file
+    // store final file size
+    let file_size = output_file
+        .stream_position()
+        .context("failed to get file length")?;
+
+    // call lame_get_lametag_frame to get VBR tag and write it just after the ID3 tags
     let res = unsafe {
         mp3lame_encoder::ffi::lame_get_lametag_frame(
             lame_ptr,
@@ -626,18 +638,46 @@ fn transcode_mp3(
     unsafe {
         output_buf.set_len(res);
     }
-    // seek to start of file and write VBR tag
     output_file
-        .seek(SeekFrom::Start(0))
-        .context("failed to seek to start of file for VBR tag")?;
+        .seek(SeekFrom::Start(id3_len))
+        .context("failed to seek to VBR tag position")?;
     output_file
         .write_all(&output_buf[..res])
         .context("failed to write VBR tag")?;
 
     // we did it 2
-    Ok(file_size as u64)
+    Ok(file_size)
 }
 
+/// Find the front cover visual or the first available.
+fn get_best_visual(metadata: &MetadataRevision) -> Option<&Visual> {
+    let mut best_visual = metadata.visuals().first();
+    for visual in metadata.visuals() {
+        if visual.usage == Some(StandardVisualKey::FrontCover) {
+            best_visual = Some(visual);
+        }
+    }
+    best_visual
+}
+
+/// Convert cover art to a 500x500 JPEG with 90% quality.
+fn resize_cover_art(data: &[u8]) -> anyhow::Result<Vec<u8>> {
+    let rdr = ImageReader::new(Cursor::new(data))
+        .with_guessed_format()
+        .expect("cursor io never fails");
+    let original_image = rdr.decode().context("failed to decode image")?;
+
+    let resized_image = original_image.resize(500, 500, FilterType::Lanczos3);
+
+    let mut image_buf = vec![];
+    JpegEncoder::new_with_quality(&mut image_buf, 90)
+        .encode_image(&resized_image)
+        .context("failed to encode image")?;
+
+    Ok(image_buf)
+}
+
+/// Stub implementation when compiled without the `transcode` feature.
 #[cfg(not(feature = "transcode"))]
 pub fn transcode(
     _transcode_format: TranscodeFormat,
