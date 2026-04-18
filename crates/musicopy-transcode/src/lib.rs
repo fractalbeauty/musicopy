@@ -329,7 +329,7 @@ fn transcode_opus(
         let mut buf = Vec::new();
 
         if let Some(metadata) = format.metadata().skip_to_latest() {
-            for tag in metadata.tags().iter().flat_map(|t| &t.std) {
+            for tag in metadata.media.tags.iter().flat_map(|t| &t.std) {
                 // TODO: escape = in tag values
                 let comment = match tag {
                     StandardTag::TrackTitle(tag) => Some(format!("TITLE={tag}")),
@@ -514,7 +514,7 @@ fn transcode_mp3(
     // extract metadata and build ID3 tags
     let mut tags = id3::Tag::new();
     if let Some(metadata) = format.metadata().skip_to_latest() {
-        for tag in metadata.tags().iter().flat_map(|t| &t.std) {
+        for tag in metadata.media.tags.iter().flat_map(|t| &t.std) {
             match tag {
                 StandardTag::TrackTitle(tag) => tags.set_title(tag.to_string()),
                 StandardTag::Artist(tag) => tags.set_artist(tag.to_string()),
@@ -651,8 +651,8 @@ fn transcode_mp3(
 
 /// Find the front cover visual or the first available.
 fn get_best_visual(metadata: &MetadataRevision) -> Option<&Visual> {
-    let mut best_visual = metadata.visuals().first();
-    for visual in metadata.visuals() {
+    let mut best_visual = metadata.media.visuals.first();
+    for visual in &metadata.media.visuals {
         if visual.usage == Some(StandardVisualKey::FrontCover) {
             best_visual = Some(visual);
         }
