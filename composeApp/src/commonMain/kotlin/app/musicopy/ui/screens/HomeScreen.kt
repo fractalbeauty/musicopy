@@ -34,11 +34,15 @@ import app.musicopy.AppSettings
 import app.musicopy.mockNodeId
 import app.musicopy.now
 import app.musicopy.shortenNodeId
+import app.musicopy.ui.TranscodeFormat
+import app.musicopy.ui.TranscodeFormatSheet
 import app.musicopy.ui.components.DetailBox
 import app.musicopy.ui.components.DetailItem
 import app.musicopy.ui.components.SectionHeader
 import app.musicopy.ui.components.TopBar
 import app.musicopy.ui.components.TopBarMenuItem
+import app.musicopy.ui.fromId
+import app.musicopy.ui.rememberTranscodeFormatSheetState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import musicopy_root.musicopy.generated.resources.Res
@@ -65,6 +69,9 @@ fun HomeScreen(
     onConnectRecent: (nodeId: String) -> Unit,
     onShowSettings: () -> Unit,
 ) {
+    val transcodeFormatSheetState = rememberTranscodeFormatSheetState()
+    TranscodeFormatSheet(appSettings, transcodeFormatSheetState)
+
     Scaffold(
         topBar = {
             TopBar(
@@ -88,7 +95,10 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(modifier = Modifier.padding(8.dp)) {
+            Column(
+                modifier = Modifier.padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 val downloadDirectory by appSettings.downloadDirectoryFlow.collectAsState(
                     null
                 )
@@ -109,6 +119,27 @@ fun HomeScreen(
                     } ?: run {
                         DetailItem("Download Folder", "Not selected")
                     }
+                }
+
+                DetailBox(
+                    actionLabel = "Change",
+                    onAction = { transcodeFormatSheetState.peek() }
+                ) {
+                    val transcodeFormatId by appSettings.transcodeFormatFlow.collectAsState(
+                        appSettings.transcodeFormat
+                    )
+                    val transcodeFormat = TranscodeFormat.fromId(transcodeFormatId)
+                    val label = buildString {
+                        append("Format")
+                        if (transcodeFormat?.formatLabel != null) {
+                            append(": ")
+                            append(transcodeFormat.formatLabel)
+                        }
+                    }
+                    DetailItem(
+                        label,
+                        transcodeFormat?.label ?: "Error"
+                    )
                 }
             }
 

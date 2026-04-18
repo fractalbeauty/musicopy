@@ -8,6 +8,7 @@ import com.russhwolf.settings.ObservableSettings
 import com.russhwolf.settings.coroutines.getBooleanFlow
 import com.russhwolf.settings.coroutines.getBooleanStateFlow
 import com.russhwolf.settings.coroutines.getLongOrNullFlow
+import com.russhwolf.settings.coroutines.getStringFlow
 import com.russhwolf.settings.coroutines.getStringOrNullFlow
 import com.russhwolf.settings.observable.makeObservable
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +22,9 @@ const val TRANSCODE_POLICY_KEY = "transcodePolicy"
 const val DETAILED_ERRORS_KEY = "detailedErrors"
 const val LICENSE_KEY_KEY = "licenseKey"
 const val LICENSE_ACTIVATED_AT_KEY = "licenseActivatedAt"
+const val TRANSCODE_FORMAT_KEY = "transcodeFormat"
+
+const val defaultTranscodeFormat = "opus128"
 
 class AppSettings private constructor(private val settings: ObservableSettings) {
     constructor(platformAppContext: PlatformAppContext) : this(
@@ -116,6 +120,15 @@ class AppSettings private constructor(private val settings: ObservableSettings) 
      * License activation timestamp, in seconds.
      */
     val licenseActivatedAtFlow: Flow<Long?> = settings.getLongOrNullFlow(LICENSE_ACTIVATED_AT_KEY)
+
+    var transcodeFormat: String
+        get() = settings.getString(TRANSCODE_FORMAT_KEY, defaultTranscodeFormat)
+        set(value) {
+            settings.putString(TRANSCODE_FORMAT_KEY, value)
+        }
+
+    val transcodeFormatFlow: Flow<String> =
+        settings.getStringFlow(TRANSCODE_FORMAT_KEY, defaultTranscodeFormat)
 }
 
 internal fun deserializeTranscodePolicy(s: String?) = when (s) {
