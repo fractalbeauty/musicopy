@@ -1,14 +1,21 @@
 use anyhow::Context;
-use base64::{Engine, prelude::BASE64_STANDARD};
-use id3::TagLike;
-use image::{ImageReader, codecs::jpeg::JpegEncoder, imageops::FilterType};
-use mp3lame_encoder::{DualPcm, FlushNoGap, MonoPcm};
-use rubato::{FftFixedIn, Resampler};
 use std::{
     fs::File,
     io::{Cursor, Seek, SeekFrom, Write},
     path::Path,
 };
+
+#[cfg(feature = "transcode")]
+use base64::{Engine, prelude::BASE64_STANDARD};
+#[cfg(feature = "transcode")]
+use id3::TagLike;
+#[cfg(feature = "transcode")]
+use image::{ImageReader, codecs::jpeg::JpegEncoder, imageops::FilterType};
+#[cfg(feature = "transcode")]
+use mp3lame_encoder::{DualPcm, FlushNoGap, MonoPcm};
+#[cfg(feature = "transcode")]
+use rubato::{FftFixedIn, Resampler};
+#[cfg(feature = "transcode")]
 use symphonia::core::{
     formats::{FormatReader, TrackType, probe::Hint},
     io::MediaSourceStream,
@@ -137,6 +144,7 @@ pub fn transcode(
     }
 }
 
+#[cfg(feature = "transcode")]
 fn transcode_opus(
     preset: OpusPreset,
     output_path: &Path,
@@ -503,6 +511,7 @@ fn transcode_opus(
     Ok(file_size)
 }
 
+#[cfg(feature = "transcode")]
 fn transcode_mp3(
     preset: Mp3Preset,
     output_path: &Path,
@@ -650,6 +659,7 @@ fn transcode_mp3(
 }
 
 /// Find the front cover visual or the first available.
+#[cfg(feature = "transcode")]
 fn get_best_visual(metadata: &MetadataRevision) -> Option<&Visual> {
     let mut best_visual = metadata.media.visuals.first();
     for visual in &metadata.media.visuals {
@@ -661,6 +671,7 @@ fn get_best_visual(metadata: &MetadataRevision) -> Option<&Visual> {
 }
 
 /// Convert cover art to a 500x500 JPEG with 90% quality.
+#[cfg(feature = "transcode")]
 fn resize_cover_art(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     let rdr = ImageReader::new(Cursor::new(data))
         .with_guessed_format()
