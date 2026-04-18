@@ -47,10 +47,6 @@ fun DesktopApp(
                 },
                 onRemoveLibraryRoot = { name -> coreInstance.instance.removeLibraryRoot(name) },
                 onRescanLibrary = { coreInstance.instance.rescanLibrary() },
-                onSetTranscodePolicy = { policy ->
-                    appSettings.transcodePolicy = policy
-                    coreInstance.instance.setTranscodePolicy(policy)
-                },
                 onDeleteUnusedTranscodes = {
                     coreInstance.instance.deleteUnusedTranscodes()
                 },

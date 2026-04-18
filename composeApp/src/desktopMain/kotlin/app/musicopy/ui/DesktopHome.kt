@@ -64,7 +64,6 @@ import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.LibraryModel
 import uniffi.musicopy.NodeModel
 import uniffi.musicopy.StatsModel
-import uniffi.musicopy.TranscodePolicy
 import uniffi.musicopy.validateLicense
 import java.awt.Desktop
 import java.net.URI
@@ -85,7 +84,6 @@ fun DesktopHome(
     onAddLibraryRoot: (name: String, path: String) -> Unit,
     onRemoveLibraryRoot: (name: String) -> Unit,
     onRescanLibrary: () -> Unit,
-    onSetTranscodePolicy: (TranscodePolicy) -> Unit,
     onDeleteUnusedTranscodes: () -> Unit,
     onDeleteAllTranscodes: () -> Unit,
     onUntrustNode: (nodeId: String) -> Unit,
@@ -205,7 +203,6 @@ fun DesktopHome(
             SettingsWidget(
                 libraryModel = libraryModel,
                 nodeModel = nodeModel,
-                onSetTranscodePolicy = onSetTranscodePolicy,
                 onDeleteUnusedTranscodes = onDeleteUnusedTranscodes,
                 onDeleteAllTranscodes = onDeleteAllTranscodes,
                 onUntrustNode = onUntrustNode,

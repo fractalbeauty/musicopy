@@ -66,7 +66,6 @@ fun DesktopHeroScreenshot() {
         onAddLibraryRoot = { _: String, _: String -> },
         onRemoveLibraryRoot = {},
         onRescanLibrary = {},
-        onSetTranscodePolicy = {},
         onDeleteUnusedTranscodes = {},
         onDeleteAllTranscodes = {},
         onUntrustNode = {},

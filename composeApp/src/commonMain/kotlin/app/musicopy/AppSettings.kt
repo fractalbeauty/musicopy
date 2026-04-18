@@ -6,19 +6,14 @@ import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.MapSettings
 import com.russhwolf.settings.ObservableSettings
 import com.russhwolf.settings.coroutines.getBooleanFlow
-import com.russhwolf.settings.coroutines.getBooleanStateFlow
 import com.russhwolf.settings.coroutines.getLongOrNullFlow
 import com.russhwolf.settings.coroutines.getStringFlow
 import com.russhwolf.settings.coroutines.getStringOrNullFlow
 import com.russhwolf.settings.observable.makeObservable
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
-import uniffi.musicopy.TranscodePolicy
 
 const val DOWNLOAD_DIRECTORY_KEY = "downloadDirectory"
 const val DOWNLOAD_DIRECTORY_NAME_KEY = "downloadDirectoryName"
-const val TRANSCODE_POLICY_KEY = "transcodePolicy"
 const val DETAILED_ERRORS_KEY = "detailedErrors"
 const val LICENSE_KEY_KEY = "licenseKey"
 const val LICENSE_ACTIVATED_AT_KEY = "licenseActivatedAt"
@@ -40,7 +35,6 @@ class AppSettings private constructor(private val settings: ObservableSettings) 
     fun clearSettings() {
         settings.remove(DOWNLOAD_DIRECTORY_KEY)
         settings.remove(DOWNLOAD_DIRECTORY_NAME_KEY)
-        settings.remove(TRANSCODE_POLICY_KEY)
         settings.remove(DETAILED_ERRORS_KEY)
 
         // License key is not cleared
@@ -71,16 +65,6 @@ class AppSettings private constructor(private val settings: ObservableSettings) 
 
     val downloadDirectoryNameFlow: Flow<String?>
         get() = settings.getStringOrNullFlow(DOWNLOAD_DIRECTORY_NAME_KEY)
-
-    var transcodePolicy: TranscodePolicy
-        get() = deserializeTranscodePolicy(settings.getStringOrNull(TRANSCODE_POLICY_KEY))
-        set(value) {
-            settings.putString(TRANSCODE_POLICY_KEY, serializeTranscodePolicy(value))
-        }
-
-    val transcodePolicyFlow: Flow<TranscodePolicy>
-        get() = settings.getStringOrNullFlow(TRANSCODE_POLICY_KEY)
-            .map { deserializeTranscodePolicy(it) }
 
     var detailedErrors: Boolean
         get() = settings.getBoolean(DETAILED_ERRORS_KEY, false)
@@ -129,15 +113,4 @@ class AppSettings private constructor(private val settings: ObservableSettings) 
 
     val transcodeFormatFlow: Flow<String> =
         settings.getStringFlow(TRANSCODE_FORMAT_KEY, defaultTranscodeFormat)
-}
-
-internal fun deserializeTranscodePolicy(s: String?) = when (s) {
-    "IF_REQUESTED" -> TranscodePolicy.IF_REQUESTED
-    "ALWAYS" -> TranscodePolicy.ALWAYS
-    else -> TranscodePolicy.IF_REQUESTED
-}
-
-internal fun serializeTranscodePolicy(p: TranscodePolicy) = when (p) {
-    TranscodePolicy.IF_REQUESTED -> "IF_REQUESTED"
-    TranscodePolicy.ALWAYS -> "ALWAYS"
 }

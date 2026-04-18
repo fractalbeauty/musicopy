@@ -19,7 +19,6 @@ import uniffi.musicopy.NodeModel
 import uniffi.musicopy.ServerModel
 import uniffi.musicopy.ServerStateModel
 import uniffi.musicopy.StatsModel
-import uniffi.musicopy.TranscodePolicy
 import uniffi.musicopy.TransferJobModel
 import uniffi.musicopy.TransferJobProgressModel
 import kotlin.time.Clock
@@ -442,7 +441,6 @@ fun mockLibraryModel(
         transcodeCountInprogress = if (transcoding) CounterModel(8uL) else CounterModel(0uL),
         transcodeCountReady = if (transcoding) CounterModel(143uL) else CounterModel(0uL),
         transcodeCountFailed = CounterModel(0uL),
-        transcodePolicy = TranscodePolicy.IF_REQUESTED
     )
 }
 

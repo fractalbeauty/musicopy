@@ -7,7 +7,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.ClipEntry
 import com.russhwolf.settings.Settings
 import uniffi.musicopy.CoreOptions
-import uniffi.musicopy.TranscodePolicy
 
 expect val isAndroid: Boolean
 
@@ -31,7 +30,6 @@ interface ICoreProvider {
             initLogging = true,
             inMemory = false,
             projectDirs = null,
-            transcodePolicy = appSettings.transcodePolicy
         )
     }
 }

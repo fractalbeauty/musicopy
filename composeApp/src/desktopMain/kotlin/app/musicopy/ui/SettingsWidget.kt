@@ -63,7 +63,6 @@ import musicopy_root.musicopy.generated.resources.folder_open_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.LibraryModel
 import uniffi.musicopy.NodeModel
-import uniffi.musicopy.TranscodePolicy
 import uniffi.musicopy.TrustedNodeModel
 import kotlin.time.Duration.Companion.seconds
 
@@ -71,7 +70,6 @@ import kotlin.time.Duration.Companion.seconds
 fun SettingsWidget(
     libraryModel: LibraryModel,
     nodeModel: NodeModel,
-    onSetTranscodePolicy: (TranscodePolicy) -> Unit,
     onDeleteUnusedTranscodes: () -> Unit,
     onDeleteAllTranscodes: () -> Unit,
     onUntrustNode: (nodeId: String) -> Unit,
@@ -90,33 +88,6 @@ fun SettingsWidget(
         title = "OPTIONS",
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SettingCard(outlined = true) {
-                Text(
-                    modifier = Modifier.padding(start = 8.dp).weight(1f),
-                    text = "Transcode files",
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    TranscodePolicyButton(
-                        text = "when requested",
-                        onClick = { onSetTranscodePolicy(TranscodePolicy.IF_REQUESTED) },
-                        isSelected = libraryModel.transcodePolicy == TranscodePolicy.IF_REQUESTED,
-                        startOuter = true,
-                        endOuter = false,
-                    )
-                    TranscodePolicyButton(
-                        text = "ahead of time",
-                        onClick = { onSetTranscodePolicy(TranscodePolicy.ALWAYS) },
-                        isSelected = libraryModel.transcodePolicy == TranscodePolicy.ALWAYS,
-                        startOuter = false,
-                        endOuter = true,
-                    )
-                }
-            }
-
             SettingCard(outlined = true) {
                 Column(
                     modifier = Modifier.padding(start = 8.dp).weight(1f)
