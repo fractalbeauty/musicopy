@@ -498,6 +498,7 @@ mod connect {
 
 mod library {
     use crate::common::{LibraryFixture, TestCore};
+    use musicopy::library::transcode::TranscodeFormat;
 
     #[tokio::test]
     async fn add_root_with_files() {
@@ -674,7 +675,10 @@ mod library {
 
         // prioritize transcodes
         core.core
-            .prioritize_transcodes(vec![file_path.to_string_lossy().to_string()])
+            .request_transcodes(
+                TranscodeFormat::Opus128,
+                vec![file_path.to_string_lossy().to_string()],
+            )
             .expect("should prioritize transcodes");
 
         // should have 1 not-ready transcode

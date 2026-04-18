@@ -1,4 +1,4 @@
-use musicopy_transcode::{Mp3Preset, OpusPreset, TranscodeFormat, transcode};
+use musicopy_transcode::{Mp3Preset, OpusPreset, TranscodePreset, transcode};
 use std::{path::Path, process};
 
 fn main() {
@@ -34,12 +34,12 @@ fn main() {
     }
 }
 
-fn parse_format(s: &str) -> Result<TranscodeFormat, String> {
+fn parse_format(s: &str) -> Result<TranscodePreset, String> {
     match s {
-        "opus128" => Ok(TranscodeFormat::Opus(OpusPreset::Opus128)),
-        "opus64" => Ok(TranscodeFormat::Opus(OpusPreset::Opus64)),
-        "mp3v0" => Ok(TranscodeFormat::Mp3(Mp3Preset::Mp3V0)),
-        "mp3v5" => Ok(TranscodeFormat::Mp3(Mp3Preset::Mp3V5)),
+        "opus128" => Ok(TranscodePreset::Opus(OpusPreset::Opus128)),
+        "opus64" => Ok(TranscodePreset::Opus(OpusPreset::Opus64)),
+        "mp3v0" => Ok(TranscodePreset::Mp3(Mp3Preset::Mp3V0)),
+        "mp3v5" => Ok(TranscodePreset::Mp3(Mp3Preset::Mp3V5)),
         other => Err(format!(
             "unknown format '{other}' (expected: opus128, opus64, mp3v0, mp3v5)"
         )),

@@ -5,7 +5,7 @@ use crate::{
 use anyhow::Context;
 use musicopy::{
     Core, CoreOptions, StatsModel,
-    library::{LibraryModel, transcode::TranscodePolicy},
+    library::LibraryModel,
     node::{ClientStateModel, DownloadRequestModel, NodeModel, ServerStateModel},
 };
 use ratatui::{
@@ -87,7 +87,6 @@ impl<'a> App<'a> {
                 init_logging: false,
                 in_memory,
                 project_dirs: None,
-                transcode_policy: TranscodePolicy::IfRequested,
             },
         )
         .await?;
@@ -491,22 +490,6 @@ impl<'a> App<'a> {
                     if matches!(client.state, ClientStateModel::Accepted) {
                         self.core.pause_downloads(&client.node_id)?;
                     }
-                }
-            }
-
-            "tp" => {
-                if parts.len() < 2 {
-                    anyhow::bail!("usage: tp <a|always|r|ifrequested>");
-                }
-
-                let policy = match parts[1] {
-                    "a" | "always" => TranscodePolicy::Always,
-                    "r" | "ifrequested" => TranscodePolicy::IfRequested,
-                    _ => anyhow::bail!("unknown transcode policy: {}", parts[1]),
-                };
-
-                if let Err(e) = self.core.set_transcode_policy(policy) {
-                    anyhow::bail!("failed to set transcode policy: {e:#}");
                 }
             }
 

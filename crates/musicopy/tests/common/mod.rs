@@ -1,7 +1,7 @@
 use iroh::NodeId;
 use musicopy::{
     Core, CoreOptions, EventHandler, ProjectDirsOptions, StatsModel, TestHooks,
-    library::{LibraryModel, transcode::TranscodePolicy},
+    library::LibraryModel,
     node::{ClientModel, ClientStateModel, NodeModel, ServerModel, ServerStateModel},
 };
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
@@ -93,7 +93,6 @@ impl TestCore {
             init_logging: false,
             in_memory: false,
             project_dirs: Some(project_dirs),
-            transcode_policy: TranscodePolicy::IfRequested,
         };
 
         #[cfg(feature = "test-hooks")]

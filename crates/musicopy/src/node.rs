@@ -18,7 +18,7 @@ use crate::{
     library::{
         Library, LibraryCommand,
         hash::HashCache,
-        transcode::{TranscodeStatus, TranscodeStatusCache},
+        transcode::{TranscodeFormat, TranscodeStatus, TranscodeStatusCache},
     },
     model::CounterModel,
 };
@@ -690,7 +690,9 @@ impl Node {
                 Some(event) = event_rx.recv() => {
                     match event {
                         NodeEvent::FilesRequested(files) => {
-                            if let Err(e) = library.send(LibraryCommand::PrioritizeTranscodes(files)) {
+                            // TODO(transcode formats)
+                            let format = TranscodeFormat::Opus128;
+                            if let Err(e) = library.send(LibraryCommand::RequestTranscodes(format, files)) {
                                 error!("NodeEvent::FilesRequested: failed to send to library: {e:#}");
                             }
                         }
@@ -1770,7 +1772,10 @@ impl Server {
                             };
 
                             // get transcode status
-                            let Some(status) = transcode_status_cache.get(&hash_kind, hash) else {
+                            // TODO(transcode formats)
+                            let format = TranscodeFormat::Opus128;
+                            let Some(status) = transcode_status_cache.get(format, &hash_kind, hash)
+                            else {
                                 // no status yet, still transcoding
                                 continue;
                             };
@@ -1963,7 +1968,9 @@ impl Server {
                                         };
 
                                         // get transcode status
-                                        let transcode_status = self.transcode_status_cache.get(&hash_kind, hash);
+                                        // TODO(transcode formats)
+                                        let format = TranscodeFormat::Opus128;
+                                        let transcode_status = self.transcode_status_cache.get(format, &hash_kind, hash);
 
                                         match transcode_status.as_deref() {
                                             Some(TranscodeStatus::Ready { transcode_path, file_size }) => {
@@ -2167,9 +2174,11 @@ impl Server {
                             // check for actual size from transcode cache, then estimated size from database
                             let file_size = match self.hash_cache.read_cache_key(local_path) {
                                 Ok(key) => {
+                                    // TODO(transcode formats)
+                                    let format = TranscodeFormat::Opus128;
                                     if let Some(actual_size) = self.hash_cache.get_cached_hash(&key)
                                         .ok().flatten()
-                                        .and_then(|(hash_kind, hash)| self.transcode_status_cache.get(&hash_kind, hash))
+                                        .and_then(|(hash_kind, hash)| self.transcode_status_cache.get(format, &hash_kind, hash))
                                         .and_then(|entry| match &*entry {
                                             TranscodeStatus::Ready { file_size, .. } => Some(*file_size),
                                             _ => None,

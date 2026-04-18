@@ -22,7 +22,7 @@ use symphonia::core::{
     meta::{MetadataRevision, StandardTag, StandardVisualKey, Visual},
 };
 
-pub enum TranscodeFormat {
+pub enum TranscodePreset {
     Opus(OpusPreset),
     Mp3(Mp3Preset),
 }
@@ -42,7 +42,7 @@ pub enum Mp3Preset {
 /// Returns the file size of the output file.
 #[cfg(feature = "transcode")]
 pub fn transcode(
-    transcode_format: TranscodeFormat,
+    transcode_preset: TranscodePreset,
     input_path: &Path,
     output_path: &Path,
 ) -> anyhow::Result<u64> {
@@ -124,8 +124,8 @@ pub fn transcode(
         audio_buf.copy_to_slice_planar(&mut output_slices);
     }
 
-    match transcode_format {
-        TranscodeFormat::Opus(preset) => transcode_opus(
+    match transcode_preset {
+        TranscodePreset::Opus(preset) => transcode_opus(
             preset,
             output_path,
             format,
@@ -133,7 +133,7 @@ pub fn transcode(
             sample_rate,
             original_samples,
         ),
-        TranscodeFormat::Mp3(preset) => transcode_mp3(
+        TranscodePreset::Mp3(preset) => transcode_mp3(
             preset,
             output_path,
             format,
@@ -691,7 +691,7 @@ fn resize_cover_art(data: &[u8]) -> anyhow::Result<Vec<u8>> {
 /// Stub implementation when compiled without the `transcode` feature.
 #[cfg(not(feature = "transcode"))]
 pub fn transcode(
-    _transcode_format: TranscodeFormat,
+    _transcode_preset: TranscodePreset,
     _input_path: &Path,
     _output_path: &Path,
 ) -> anyhow::Result<u64> {

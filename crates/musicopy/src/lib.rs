@@ -13,7 +13,7 @@ use crate::{
     library::{
         Library, LibraryCommand, LibraryModel,
         hash::HashCache,
-        transcode::{TranscodePolicy, TranscodeStatusCache},
+        transcode::{TranscodeFormat, TranscodeStatusCache},
     },
     node::{DownloadRequestModel, Node, NodeCommand, NodeModel},
 };
@@ -59,7 +59,6 @@ pub struct CoreOptions {
     pub init_logging: bool,
     pub in_memory: bool,
     pub project_dirs: Option<ProjectDirsOptions>,
-    pub transcode_policy: TranscodePolicy,
 }
 
 /// Long-lived object created by Compose as the entry point to the Rust core.
@@ -230,7 +229,6 @@ impl Core {
                                 db.clone(),
                                 node_id,
                                 transcodes_dir.clone(),
-                                options.transcode_policy,
                                 transcode_status_cache.clone(),
                                 hash_cache.clone(),
                             ),
@@ -546,17 +544,14 @@ impl Core {
     }
 
     // TODO: used in test
-    pub fn prioritize_transcodes(&self, paths: Vec<String>) -> Result<(), CoreError> {
+    pub fn request_transcodes(
+        &self,
+        format: TranscodeFormat,
+        paths: Vec<String>,
+    ) -> Result<(), CoreError> {
         let paths = paths.into_iter().map(PathBuf::from).collect();
         self.library
-            .send(LibraryCommand::PrioritizeTranscodes(paths))
-            .context("failed to send to library thread")?;
-        Ok(())
-    }
-
-    pub fn set_transcode_policy(&self, transcode_policy: TranscodePolicy) -> Result<(), CoreError> {
-        self.library
-            .send(LibraryCommand::SetTranscodePolicy(transcode_policy))
+            .send(LibraryCommand::RequestTranscodes(format, paths))
             .context("failed to send to library thread")?;
         Ok(())
     }
