@@ -35,23 +35,15 @@ import Tile from "../components/Tile.astro";
       <Tile>
         <h2>Mobile</h2>
 
-        <div class="googleplay">
+        <div class="app-store-badges">
           <a href="https://play.google.com/store/apps/details?id=app.musicopy">
             <img height="50px" src="/static/3rdparty/googleplay_en.png" />
           </a>
-        </div>
 
-        <div class="ios label">
-          Available for iOS on <a
-            href="https://testflight.apple.com/join/Ck9KaZVR">TestFlight</a
-          >
-          <br />
-          Releasing May 2026
+          <a href="https://apps.apple.com/us/app/musicopy/id6754856938">
+            <img height="50px" src="/static/3rdparty/appstore_en.svg" />
+          </a>
         </div>
-
-        <!-- <a href="">
-            <img height="45px" src="/static/3rdparty/appstore_en.svg" />
-          </a> -->
       </Tile>
     </div>
 
@@ -225,16 +217,12 @@ import Tile from "../components/Tile.astro";
     gap: 8px;
   }
 
-  .googleplay {
+  .app-store-badges {
     flex: 1;
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    margin: 8px;
-  }
-
-  .ios {
-    text-align: center;
+    gap: 8px;
   }
 </style>
