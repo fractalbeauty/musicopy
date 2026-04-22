@@ -312,7 +312,7 @@ impl Library {
             .flat_map(|root| {
                 let walker = globwalk::GlobWalkerBuilder::new(
                     &root.path,
-                    "*.{mp3,flac,ogg,m4a,wav,aif,aiff}",
+                    "*.{mp3,flac,ogg,opus,m4a,wav,aif,aiff}",
                 )
                 .file_type(globwalk::FileType::FILE)
                 .build()

@@ -1,4 +1,4 @@
-use crate::{library::hash::HashCache, model::CounterModel, node::FileSizeModel};
+use crate::{error::CoreError, library::hash::HashCache, model::CounterModel, node::FileSizeModel};
 use anyhow::Context;
 use dashmap::DashMap;
 use musicopy_transcode::{Mp3Preset, OpusPreset, TranscodePreset, transcode};
@@ -231,6 +231,20 @@ pub enum TranscodeFormat {
     Opus64,
     Mp3V0,
     Mp3V5,
+}
+
+impl TranscodeFormat {
+    pub fn extension(&self) -> &'static str {
+        match self {
+            TranscodeFormat::Opus128 | TranscodeFormat::Opus64 => "ogg",
+            TranscodeFormat::Mp3V0 | TranscodeFormat::Mp3V5 => "mp3",
+        }
+    }
+}
+
+#[uniffi::export]
+pub fn parse_transcode_format(s: &str) -> Result<TranscodeFormat, CoreError> {
+    Ok(s.parse::<TranscodeFormat>()?)
 }
 
 impl Display for TranscodeFormat {
@@ -899,7 +913,6 @@ impl TranscodeWorker {
             ));
 
             log::info!("transcoding file: {format} {}", job.display());
-            // TODO(transcode formats)
             let transcode_preset = match format {
                 TranscodeFormat::Opus128 => TranscodePreset::Opus(OpusPreset::Opus128),
                 TranscodeFormat::Opus64 => TranscodePreset::Opus(OpusPreset::Opus64),
@@ -933,11 +946,7 @@ impl TranscodeWorker {
             };
 
             // rename the temp file
-            let extension = match format {
-                TranscodeFormat::Opus128 | TranscodeFormat::Opus64 => "ogg",
-                TranscodeFormat::Mp3V0 | TranscodeFormat::Mp3V5 => "mp3",
-            };
-            let final_path = temp_path.with_extension(extension);
+            let final_path = temp_path.with_extension(format.extension());
             if let Err(e) = std::fs::rename(&temp_path, &final_path) {
                 log::error!(
                     "failed to rename temp file: {} -> {}: {e:#}",

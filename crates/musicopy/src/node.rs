@@ -218,6 +218,7 @@ pub enum NodeCommand {
     SetDownloadDirectory(String),
 
     Connect {
+        transcode_format: TranscodeFormat,
         addr: NodeAddr,
         callback: oneshot::Sender<anyhow::Result<()>>,
     },
@@ -251,7 +252,7 @@ pub enum NodeCommand {
 
 /// An event sent from a server or client to the node.
 enum NodeEvent {
-    FilesRequested(HashSet<PathBuf>),
+    FilesRequested(TranscodeFormat, HashSet<PathBuf>),
 
     TrustedNodesChanged,
     RecentServersChanged,
@@ -537,11 +538,11 @@ impl Node {
                             *download_directory = Some(path);
                         },
 
-                        NodeCommand::Connect { addr, callback } => {
+                        NodeCommand::Connect { transcode_format, addr, callback } => {
                             let node = self.clone();
                             tokio::task::spawn(async move {
                                 log::debug!("starting connect");
-                                let res = node.connect(addr).await;
+                                let res = node.connect(transcode_format, addr).await;
                                 log::debug!("connect result: {res:?}");
                                 if let Err(e) = callback.send(res) {
                                     log::error!("failed to send res: {e:?}");
@@ -693,10 +694,8 @@ impl Node {
 
                 Some(event) = event_rx.recv() => {
                     match event {
-                        NodeEvent::FilesRequested(files) => {
-                            // TODO(transcode formats)
-                            let format = TranscodeFormat::Opus128;
-                            if let Err(e) = library.send(LibraryCommand::RequestTranscodes(format, files)) {
+                        NodeEvent::FilesRequested(transcode_format, files) => {
+                            if let Err(e) = library.send(LibraryCommand::RequestTranscodes(transcode_format, files)) {
                                 error!("NodeEvent::FilesRequested: failed to send to library: {e:#}");
                             }
                         }
@@ -1255,7 +1254,11 @@ impl Node {
             .map_err(|e| anyhow::anyhow!("failed to send command: {e:?}"))
     }
 
-    async fn connect(self: &Arc<Self>, addr: NodeAddr) -> anyhow::Result<()> {
+    async fn connect(
+        self: &Arc<Self>,
+        transcode_format: TranscodeFormat,
+        addr: NodeAddr,
+    ) -> anyhow::Result<()> {
         // connect before spawning the task, so we can return an error immediately
         let connection = self.router.endpoint().connect(addr, Protocol::ALPN).await?;
 
@@ -1272,6 +1275,7 @@ impl Node {
                 db,
                 event_tx.clone(),
                 connection,
+                transcode_format,
                 download_directory,
                 #[cfg(feature = "test-hooks")]
                 test_hooks,
@@ -1559,11 +1563,11 @@ impl Server {
             log::error!("failed to receive Identify message");
             return Ok(());
         };
-        let client_name = match message {
+        let (client_name, transcode_format) = match message {
             ClientMessageV1::Identify {
                 name,
                 transcode_format,
-            } => name,
+            } => (name, transcode_format),
             _ => {
                 log::error!("unexpected message, expected Identify: {message:?}");
                 return Ok(());
@@ -1707,9 +1711,8 @@ impl Server {
                             };
 
                             // get transcode status
-                            // TODO(transcode formats)
-                            let format = TranscodeFormat::Opus128;
-                            let Some(status) = transcode_status_cache.get(format, &hash_kind, hash)
+                            let Some(status) =
+                                transcode_status_cache.get(transcode_format, &hash_kind, hash)
                             else {
                                 // no status yet, still transcoding
                                 continue;
@@ -1903,9 +1906,7 @@ impl Server {
                                         };
 
                                         // get transcode status
-                                        // TODO(transcode formats)
-                                        let format = TranscodeFormat::Opus128;
-                                        let transcode_status = self.transcode_status_cache.get(format, &hash_kind, hash);
+                                        let transcode_status = self.transcode_status_cache.get(transcode_format, &hash_kind, hash);
 
                                         match transcode_status.as_deref() {
                                             Some(TranscodeStatus::Ready { transcode_path, file_size }) => {
@@ -1975,7 +1976,7 @@ impl Server {
 
                                     // prioritize transcodes
                                     let requested_paths = files.into_values().map(|f| PathBuf::from(f.local_path)).collect::<HashSet<_>>();
-                                    self.event_tx.send(NodeEvent::FilesRequested(requested_paths)).expect("failed to send NodeEvent::FilesRequested");
+                                    self.event_tx.send(NodeEvent::FilesRequested(transcode_format, requested_paths)).expect("failed to send NodeEvent::FilesRequested");
                                 }
                             }
                         },
@@ -2109,11 +2110,9 @@ impl Server {
                             // check for actual size from transcode cache, then estimated size from database
                             let file_size = match self.hash_cache.read_cache_key(local_path) {
                                 Ok(key) => {
-                                    // TODO(transcode formats)
-                                    let format = TranscodeFormat::Opus128;
                                     if let Some(actual_size) = self.hash_cache.get_cached_hash(&key)
                                         .ok().flatten()
-                                        .and_then(|(hash_kind, hash)| self.transcode_status_cache.get(format, &hash_kind, hash))
+                                        .and_then(|(hash_kind, hash)| self.transcode_status_cache.get(transcode_format, &hash_kind, hash))
                                         .and_then(|entry| match &*entry {
                                             TranscodeStatus::Ready { file_size, .. } => Some(*file_size),
                                             _ => None,
@@ -2255,6 +2254,7 @@ struct ClientHandle {
 struct Client {
     db: Arc<Mutex<Database>>,
     download_directory: Arc<Mutex<Option<String>>>,
+    transcode_format: TranscodeFormat,
 
     event_tx: mpsc::UnboundedSender<NodeEvent>,
     connection: Connection,
@@ -2275,6 +2275,7 @@ impl Client {
         db: Arc<Mutex<Database>>,
         event_tx: mpsc::UnboundedSender<NodeEvent>,
         connection: Connection,
+        transcode_format: TranscodeFormat,
         download_directory: Arc<Mutex<Option<String>>>,
         #[cfg(feature = "test-hooks")] test_hooks: Arc<TestHooks>,
     ) -> Self {
@@ -2427,7 +2428,7 @@ impl Client {
                                 let mut local_path =
                                     TreePath::new(download_directory, root_dir_name.into())?;
                                 local_path.push(&file_path);
-                                local_path.set_extension("ogg");
+                                local_path.set_extension(transcode_format.extension());
                                 local_path
                             };
 
@@ -2510,6 +2511,7 @@ impl Client {
         Self {
             db,
             download_directory,
+            transcode_format,
 
             event_tx,
             connection,
@@ -2578,11 +2580,9 @@ impl Client {
             });
 
         // send client Identify
-        // TODO(transcode formats)
-        let transcode_format = TranscodeFormat::Opus128;
         send.send(ClientMessageV1::Identify {
             name: device_name().to_string(),
-            transcode_format,
+            transcode_format: self.transcode_format,
         })
         .await
         .expect("failed to send Identify message");

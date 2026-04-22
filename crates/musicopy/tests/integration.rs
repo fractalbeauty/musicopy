@@ -5,7 +5,9 @@ mod common;
 
 mod connect {
     use crate::common::{TestCore, TestNodeIdExt};
-    use musicopy::{device_name::device_name, node::ClientStateModel};
+    use musicopy::{
+        device_name::device_name, library::transcode::TranscodeFormat, node::ClientStateModel,
+    };
     use std::time::Duration;
 
     #[tokio::test]
@@ -22,7 +24,7 @@ mod connect {
 
         core_1
             .core
-            .connect(&core_2.node_id_str())
+            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -55,7 +57,7 @@ mod connect {
         // core 1: connect to core 2
         core_1
             .core
-            .connect(&core_2.node_id_str())
+            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -92,7 +94,7 @@ mod connect {
         // core 1: connect to core 2
         core_1
             .core
-            .connect(&core_2.node_id_str())
+            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -135,7 +137,7 @@ mod connect {
         // core 1: connect to core 2
         core_1
             .core
-            .connect(&core_2.node_id_str())
+            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -178,7 +180,7 @@ mod connect {
 
         core_1
             .core
-            .connect(&core_2.node_id_str())
+            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -217,7 +219,7 @@ mod connect {
         // core 1: connect to core 2
         core_1
             .core
-            .connect(&core_2.node_id_str())
+            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -296,7 +298,7 @@ mod connect {
 
         core_1
             .core
-            .connect(&core_2.node_id_str())
+            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -328,7 +330,7 @@ mod connect {
 
             core_1
                 .core
-                .connect(&core_2.node_id_str())
+                .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
                 .await
                 .expect("should connect");
 
@@ -363,7 +365,7 @@ mod connect {
 
             core_1
                 .core
-                .connect(&core_2.node_id_str())
+                .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
                 .await
                 .expect("should connect");
 
@@ -401,7 +403,7 @@ mod connect {
 
         core_1
             .core
-            .connect(&core_2.node_id_str())
+            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -449,7 +451,7 @@ mod connect {
 
         core_1
             .core
-            .connect(&core_2.node_id_str())
+            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -706,8 +708,9 @@ mod library {
 
 mod transfer {
     use crate::common::{LibraryFixture, TestCore, TestNodeIdExt};
-    use musicopy::node::{
-        DownloadRequestModel, IndexItemDownloadStatusModel, TransferJobProgressModel,
+    use musicopy::{
+        library::transcode::TranscodeFormat,
+        node::{DownloadRequestModel, IndexItemDownloadStatusModel, TransferJobProgressModel},
     };
 
     /// Prepares two TestCores for transfer tests.
@@ -757,7 +760,7 @@ mod transfer {
 
         core_1
             .core
-            .connect(&core_2.node_id_str())
+            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -1787,7 +1790,10 @@ mod transfer {
 
 mod stats {
     use crate::common::{LibraryFixture, TestCore, TestNodeIdExt};
-    use musicopy::node::{DownloadRequestModel, TransferJobProgressModel};
+    use musicopy::{
+        library::transcode::TranscodeFormat,
+        node::{DownloadRequestModel, TransferJobProgressModel},
+    };
 
     /// Prepares two cores for a transfer: sets up the server library, connects, accepts, and waits
     /// for the client to receive the index. Returns the download items.
@@ -1833,7 +1839,7 @@ mod stats {
     ) -> (TestCore, TestCore, Vec<DownloadRequestModel>) {
         core_1
             .core
-            .connect(&core_2.node_id_str())
+            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
             .await
             .expect("should connect");
 

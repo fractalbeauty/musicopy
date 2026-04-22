@@ -5,7 +5,7 @@ use crate::{
 use anyhow::Context;
 use musicopy::{
     Core, CoreOptions, StatsModel,
-    library::LibraryModel,
+    library::{LibraryModel, transcode::TranscodeFormat},
     node::{ClientStateModel, DownloadRequestModel, NodeModel, ServerStateModel},
 };
 use ratatui::{
@@ -346,7 +346,9 @@ impl<'a> App<'a> {
 
                 let core = self.core.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = core.connect(&node_id).await {
+                    // TODO(transcode formats) allow configuring in tui
+                    let format = TranscodeFormat::Opus128;
+                    if let Err(e) = core.connect(format, &node_id).await {
                         app_log!("error connecting to node {}: {e:#}", node_id);
                     }
                 });

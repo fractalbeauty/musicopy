@@ -379,7 +379,15 @@ impl Core {
         db.get_stats().map_err(CoreError::from)
     }
 
-    pub async fn connect(&self, node_id: &str) -> Result<(), CoreError> {
+    /// Connects to a node.
+    ///
+    /// Takes the transcode format to send in the initial handshake and use for the connection.
+    pub async fn connect(
+        &self,
+        // TODO(transcode formats): should be optional (support sending originals)
+        transcode_format: TranscodeFormat,
+        node_id: &str,
+    ) -> Result<(), CoreError> {
         let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
         let node_addr = NodeAddr::from(node_id);
 
@@ -387,6 +395,7 @@ impl Core {
 
         self.node
             .send(NodeCommand::Connect {
+                transcode_format,
                 addr: node_addr,
                 callback: callback_tx,
             })

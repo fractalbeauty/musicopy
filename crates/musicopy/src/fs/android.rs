@@ -144,6 +144,7 @@ pub fn open_or_create_file(
                 Some("ogg") => "audio/ogg",
                 Some("opus") => "audio/ogg",
                 Some("flac") => "audio/flac",
+                Some("mp3") => "audio/mpeg",
                 Some("txt") => "text/plain",
                 _ => "application/octet-stream",
             };

@@ -42,6 +42,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import uniffi.musicopy.ClientStateModel
 import uniffi.musicopy.CoreException
+import uniffi.musicopy.TranscodeFormat
+import uniffi.musicopy.parseTranscodeFormat
 
 @Composable
 fun App(
@@ -99,7 +101,10 @@ fun App(
 
         scope.launch {
             try {
-                coreInstance.instance.connect(nodeId = nodeId)
+                coreInstance.instance.connect(
+                    transcodeFormat = parseTranscodeFormat(appSettings.transcodeFormat),
+                    nodeId = nodeId
+                )
                 delay(100) // TODO
                 val client = nodeModel.clients.values.find { it.nodeId == nodeId }
                 if (client?.state is ClientStateModel.Accepted) {
