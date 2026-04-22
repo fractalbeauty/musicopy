@@ -36,6 +36,7 @@ class AppSettings private constructor(private val settings: ObservableSettings) 
         settings.remove(DOWNLOAD_DIRECTORY_KEY)
         settings.remove(DOWNLOAD_DIRECTORY_NAME_KEY)
         settings.remove(DETAILED_ERRORS_KEY)
+        settings.remove(TRANSCODE_FORMAT_KEY)
 
         // License key is not cleared
     }
