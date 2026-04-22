@@ -3,6 +3,7 @@ use anyhow::Context;
 use dashmap::DashMap;
 use musicopy_transcode::{Mp3Preset, OpusPreset, TranscodePreset, transcode};
 use priority_queue::PriorityQueue;
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 use std::{
     borrow::Borrow,
     collections::HashSet,
@@ -10,6 +11,7 @@ use std::{
     hash::{Hash, Hasher},
     ops::Deref,
     path::{Path, PathBuf},
+    str::FromStr,
     sync::{
         Arc, Condvar, Mutex,
         atomic::{AtomicU64, Ordering},
@@ -221,7 +223,9 @@ impl Default for TranscodeStatusCache {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr, uniffi::Enum,
+)]
 pub enum TranscodeFormat {
     Opus128,
     Opus64,
@@ -240,16 +244,16 @@ impl Display for TranscodeFormat {
     }
 }
 
-impl TryFrom<&str> for TranscodeFormat {
-    type Error = anyhow::Error;
+impl FromStr for TranscodeFormat {
+    type Err = anyhow::Error;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
             "opus128" => Ok(TranscodeFormat::Opus128),
             "opus64" => Ok(TranscodeFormat::Opus64),
             "mp3v0" => Ok(TranscodeFormat::Mp3V0),
             "mp3v5" => Ok(TranscodeFormat::Mp3V5),
-            _ => anyhow::bail!("invalid transcode format: {value}"),
+            _ => anyhow::bail!("invalid transcode format: {s}"),
         }
     }
 }
@@ -513,7 +517,10 @@ impl TranscodePool {
             }
             2 => {
                 let mut parts = file_stem.splitn(3, '-');
-                let format = TranscodeFormat::try_from(parts.next().unwrap())
+                let format = parts
+                    .next()
+                    .unwrap()
+                    .parse::<TranscodeFormat>()
                     .context("failed to parse file name")?;
                 let hash_kind = parts.next().unwrap();
                 let hash = parts.next().unwrap();

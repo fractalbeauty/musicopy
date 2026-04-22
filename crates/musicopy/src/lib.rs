@@ -6,6 +6,7 @@ pub mod fs;
 pub mod library;
 pub mod model;
 pub mod node;
+pub mod protocol;
 
 use crate::{
     database::Database,

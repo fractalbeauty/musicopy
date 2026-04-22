@@ -21,6 +21,10 @@ use crate::{
         transcode::{TranscodeFormat, TranscodeStatus, TranscodeStatusCache},
     },
     model::CounterModel,
+    protocol::{
+        ClientMessageV1, DownloadItem, FileSize, IndexItem, IndexUpdateItem, JobStatusItem,
+        ServerMessageV1,
+    },
 };
 use anyhow::Context;
 use dashmap::DashMap;
@@ -1342,7 +1346,7 @@ struct Protocol {
 }
 
 impl Protocol {
-    const ALPN: &'static [u8] = b"musicopy/0";
+    const ALPN: &'static [u8] = b"musicopy/1";
 
     fn new(
         db: Arc<Mutex<Database>>,
@@ -1395,78 +1399,6 @@ impl ProtocolHandler for Protocol {
             Ok(())
         })
     }
-}
-
-/// An item requested for downloading by the client.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct DownloadItem {
-    job_id: u64,
-
-    node_id: NodeId,
-    root: String,
-    path: String,
-}
-
-/// A message sent by the client end of a connection on the control stream.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-enum ClientMessage {
-    /// Identify the client with a friendly name.
-    Identify(String),
-    /// Request to download files.
-    Download(Vec<DownloadItem>),
-}
-
-/// An unknown, estimated, or actual file size.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FileSize {
-    Unknown,
-    Estimated(u64),
-    Actual(u64),
-}
-
-/// An item available for downloading from the server.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct IndexItem {
-    node_id: NodeId,
-    root: String,
-    path: String,
-
-    file_size: FileSize,
-}
-
-/// An update to an item in the index.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-enum IndexUpdateItem {
-    FileSize {
-        node_id: NodeId,
-        root: String,
-        path: String,
-
-        file_size: FileSize,
-    },
-}
-
-/// A job that changed status.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-enum JobStatusItem {
-    Transcoding,
-    Ready { file_size: u64 },
-    Failed { error: String },
-}
-
-/// A message sent by the server end of a connection on the control stream.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-enum ServerMessage {
-    /// Identify the server with a friendly name.
-    Identify(String),
-    /// Notify the client that the connection has been accepted.
-    Accepted,
-    /// Inform the client of available files.
-    Index(Vec<IndexItem>),
-    /// Inform the client of updates to the index.
-    IndexUpdate(Vec<IndexUpdateItem>),
-    /// Notify the client that the statuses of jobs have changed.
-    JobStatus(HashMap<u64, JobStatusItem>),
 }
 
 /// A message sent by the client at the start of a file transfer stream.
@@ -1525,7 +1457,7 @@ enum ServerCommand {
     ///
     /// This is sort of a hack, but it's used by the task that watches for
     /// finished transcodes to send JobStatus messages to the client.
-    ServerMessage(ServerMessage),
+    ServerMessage(ServerMessageV1),
 }
 
 #[derive(Debug, Clone)]
@@ -1607,7 +1539,7 @@ impl Server {
 
         // wrap in framed codecs
         let mut send = FramedWrite::new(send, LengthDelimitedCodec::new()).with_flat_map(
-            |message: ServerMessage| {
+            |message: ServerMessageV1| {
                 let buf: Vec<u8> =
                     postcard::to_stdvec(&message).expect("failed to serialize message");
                 futures::stream::once(futures::future::ready(Ok(Bytes::from(buf))))
@@ -1617,7 +1549,7 @@ impl Server {
             .map_err(|e| anyhow::anyhow!("failed to read from connection: {e:?}"))
             .map(|res| {
                 res.and_then(|bytes| {
-                    postcard::from_bytes::<ClientMessage>(&bytes)
+                    postcard::from_bytes::<ClientMessageV1>(&bytes)
                         .map_err(|e| anyhow::anyhow!("failed to deserialize message: {e:?}"))
                 })
             });
@@ -1628,7 +1560,10 @@ impl Server {
             return Ok(());
         };
         let client_name = match message {
-            ClientMessage::Identify(name) => name,
+            ClientMessageV1::Identify {
+                name,
+                transcode_format,
+            } => name,
             _ => {
                 log::error!("unexpected message, expected Identify: {message:?}");
                 return Ok(());
@@ -1636,7 +1571,7 @@ impl Server {
         };
 
         // send server Identify
-        send.send(ServerMessage::Identify(device_name().to_string()))
+        send.send(ServerMessageV1::Identify(device_name().to_string()))
             .await
             .expect("failed to send Identify message");
 
@@ -1684,7 +1619,7 @@ impl Server {
                             ServerCommand::ServerMessage(message) => {
                                 send.send(message)
                                     .await
-                                    .expect("failed to send ServerMessage");
+                                    .expect("failed to send ServerMessageV1");
                             }
                         }
                     }
@@ -1720,13 +1655,13 @@ impl Server {
             .expect("failed to send ServerModelUpdate::Accept");
 
         // send Accepted message
-        send.send(ServerMessage::Accepted)
+        send.send(ServerMessageV1::Accepted)
             .await
             .expect("failed to send Accepted message");
 
         // send Index message
         let mut index = self.get_index()?;
-        send.send(ServerMessage::Index(
+        send.send(ServerMessageV1::Index(
             index.iter().map(|(_, item)| item.clone()).collect(),
         ))
         .await
@@ -1851,7 +1786,7 @@ impl Server {
                     if !status_changes.is_empty() {
                         // send status changes to client via ServerCommand::ServerMessage
                         if let Err(e) = tx.send(ServerCommand::ServerMessage(
-                            ServerMessage::JobStatus(status_changes),
+                            ServerMessageV1::JobStatus(status_changes),
                         )) {
                             log::warn!("transcode watcher failed to send JobStatus message: {e}");
                         }
@@ -1901,11 +1836,11 @@ impl Server {
                     match next_message {
                         Some(Ok(message)) => {
                             match message {
-                                ClientMessage::Identify(_) => {
-                                    log::warn!("unexpected ClientMessage::Identify in main loop");
+                                ClientMessageV1::Identify { .. } => {
+                                    log::warn!("unexpected ClientMessageV1::Identify in main loop");
                                 }
 
-                                ClientMessage::Download(items) => {
+                                ClientMessageV1::Download(items) => {
                                     // get file local paths
                                     // TODO: this could be better
                                     let files = {
@@ -2028,7 +1963,7 @@ impl Server {
                                     }).collect::<HashMap<_, _>>();
 
                                     // send job status to client
-                                    send.send(ServerMessage::JobStatus(status_changes))
+                                    send.send(ServerMessageV1::JobStatus(status_changes))
                                         .await
                                         .expect("failed to send JobStatus message");
 
@@ -2209,7 +2144,7 @@ impl Server {
                     }
 
                     if !updates.is_empty() {
-                        send.send(ServerMessage::IndexUpdate(updates))
+                        send.send(ServerMessageV1::IndexUpdate(updates))
                             .await
                             .expect("failed to send IndexUpdate message");
                     }
@@ -2352,7 +2287,7 @@ impl Client {
         let is_first_transfer = Arc::new(AtomicBool::new(true));
 
         // spawn a task to handle ready jobs and spawn more tasks to download them
-        // Client::run() receives ServerMessage::JobStatus messages. jobs marked Ready are sent to this channel
+        // Client::run() receives ServerMessageV1::JobStatus messages. jobs marked Ready are sent to this channel
         let (ready_tx, mut ready_rx) = mpsc::unbounded_channel::<u64>();
         tokio::spawn({
             let db = db.clone();
@@ -2627,7 +2562,7 @@ impl Client {
 
         // wrap in framed codecs
         let mut send = FramedWrite::new(send, LengthDelimitedCodec::new()).with_flat_map(
-            |message: ClientMessage| {
+            |message: ClientMessageV1| {
                 let buf: Vec<u8> =
                     postcard::to_stdvec(&message).expect("failed to serialize message");
                 futures::stream::once(futures::future::ready(Ok(Bytes::from(buf))))
@@ -2637,15 +2572,20 @@ impl Client {
             .map_err(|e| anyhow::anyhow!("failed to read from connection: {e:?}"))
             .map(|res| {
                 res.and_then(|bytes| {
-                    postcard::from_bytes::<ServerMessage>(&bytes)
+                    postcard::from_bytes::<ServerMessageV1>(&bytes)
                         .map_err(|e| anyhow::anyhow!("failed to deserialize message: {e:?}"))
                 })
             });
 
         // send client Identify
-        send.send(ClientMessage::Identify(device_name().to_string()))
-            .await
-            .expect("failed to send Identify message");
+        // TODO(transcode formats)
+        let transcode_format = TranscodeFormat::Opus128;
+        send.send(ClientMessageV1::Identify {
+            name: device_name().to_string(),
+            transcode_format,
+        })
+        .await
+        .expect("failed to send Identify message");
 
         // wait for server Identify
         // TODO: also wait for commands
@@ -2654,7 +2594,7 @@ impl Client {
             return Ok(());
         };
         let server_name = match message {
-            ServerMessage::Identify(name) => name,
+            ServerMessageV1::Identify(name) => name,
             _ => {
                 log::error!("unexpected message, expected Identify: {message:?}");
                 return Ok(());
@@ -2701,7 +2641,7 @@ impl Client {
                     match next_message {
                         Some(Ok(message)) => {
                             match message {
-                                ServerMessage::Accepted => {
+                                ServerMessageV1::Accepted => {
                                     log::info!("server accepted the connection");
 
                                     // continue to next state
@@ -2868,7 +2808,7 @@ impl Client {
 
                             // send download request for new jobs
                             if !download_requests.is_empty() {
-                                send.send(ClientMessage::Download(download_requests))
+                                send.send(ClientMessageV1::Download(download_requests))
                                     .await
                                     .expect("failed to send Download message");
                             }
@@ -2920,7 +2860,7 @@ impl Client {
                     match next_message {
                         Some(Ok(message)) => {
                             match message {
-                                ServerMessage::Index(new_index) => {
+                                ServerMessageV1::Index(new_index) => {
                                     log::info!("received index with {} items", new_index.len());
                                     {
                                         let mut index = self.index.lock().unwrap();
@@ -2934,7 +2874,7 @@ impl Client {
                                     }).expect("failed to send ClientModelUpdate::UpdateIndex");
                                 }
 
-                                ServerMessage::IndexUpdate(updates) => {
+                                ServerMessageV1::IndexUpdate(updates) => {
                                     log::info!("received index update with {} items", updates.len());
                                     {
                                         let mut index = self.index.lock().unwrap();
@@ -2963,7 +2903,7 @@ impl Client {
                                     }).expect("failed to send ClientModelUpdate::UpdateIndex");
                                 }
 
-                                ServerMessage::JobStatus(status_changes) => {
+                                ServerMessageV1::JobStatus(status_changes) => {
                                     for (job_id, status) in status_changes {
                                         match status {
                                             JobStatusItem::Transcoding => {
