@@ -70,7 +70,8 @@ pub enum ClientMessageV1 {
     /// Identify the client with a friendly name.
     Identify {
         name: String,
-        transcode_format: TranscodeFormat,
+        /// Transcode format for transcoding, or None to transfer original files.
+        transcode_format: Option<TranscodeFormat>,
     },
     /// Request to download files.
     Download(Vec<DownloadItem>),

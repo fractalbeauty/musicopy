@@ -24,7 +24,7 @@ mod connect {
 
         core_1
             .core
-            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -57,7 +57,7 @@ mod connect {
         // core 1: connect to core 2
         core_1
             .core
-            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -94,7 +94,7 @@ mod connect {
         // core 1: connect to core 2
         core_1
             .core
-            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -137,7 +137,7 @@ mod connect {
         // core 1: connect to core 2
         core_1
             .core
-            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -180,7 +180,7 @@ mod connect {
 
         core_1
             .core
-            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -219,7 +219,7 @@ mod connect {
         // core 1: connect to core 2
         core_1
             .core
-            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -298,7 +298,7 @@ mod connect {
 
         core_1
             .core
-            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -330,7 +330,7 @@ mod connect {
 
             core_1
                 .core
-                .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+                .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
                 .await
                 .expect("should connect");
 
@@ -365,7 +365,7 @@ mod connect {
 
             core_1
                 .core
-                .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+                .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
                 .await
                 .expect("should connect");
 
@@ -403,7 +403,7 @@ mod connect {
 
         core_1
             .core
-            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -451,7 +451,7 @@ mod connect {
 
         core_1
             .core
-            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -760,7 +760,7 @@ mod transfer {
 
         core_1
             .core
-            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
             .await
             .expect("should connect");
 
@@ -1839,7 +1839,7 @@ mod stats {
     ) -> (TestCore, TestCore, Vec<DownloadRequestModel>) {
         core_1
             .core
-            .connect(TranscodeFormat::Opus128, &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
             .await
             .expect("should connect");
 

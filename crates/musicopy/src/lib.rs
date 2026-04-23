@@ -381,11 +381,11 @@ impl Core {
 
     /// Connects to a node.
     ///
-    /// Takes the transcode format to send in the initial handshake and use for the connection.
+    /// Takes the transcode format to send in the initial handshake and use for the connection,
+    /// or None to transfer original files.
     pub async fn connect(
         &self,
-        // TODO(transcode formats): should be optional (support sending originals)
-        transcode_format: TranscodeFormat,
+        transcode_format: Option<TranscodeFormat>,
         node_id: &str,
     ) -> Result<(), CoreError> {
         let node_id: NodeId = node_id.parse().context("failed to parse node id")?;

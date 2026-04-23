@@ -5,7 +5,10 @@ use crate::{
 use anyhow::Context;
 use musicopy::{
     Core, CoreOptions, StatsModel,
-    library::{LibraryModel, transcode::TranscodeFormat},
+    library::{
+        LibraryModel,
+        transcode::{self, TranscodeFormat},
+    },
     node::{ClientStateModel, DownloadRequestModel, NodeModel, ServerStateModel},
 };
 use ratatui::{
@@ -34,6 +37,8 @@ pub struct App<'a> {
     pub library_model: LibraryModel,
     pub node_model: NodeModel,
     pub stats_model: StatsModel,
+
+    pub transcode_format: Option<TranscodeFormat>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -140,6 +145,8 @@ impl<'a> App<'a> {
             library_model,
             node_model,
             stats_model,
+
+            transcode_format: Some(TranscodeFormat::Opus128),
         })
     }
 
@@ -345,10 +352,9 @@ impl<'a> App<'a> {
                 app_log!("connecting to node: {}", node_id);
 
                 let core = self.core.clone();
+                let transcode_format = self.transcode_format;
                 tokio::spawn(async move {
-                    // TODO(transcode formats) allow configuring in tui
-                    let format = TranscodeFormat::Opus128;
-                    if let Err(e) = core.connect(format, &node_id).await {
+                    if let Err(e) = core.connect(transcode_format, &node_id).await {
                         app_log!("error connecting to node {}: {e:#}", node_id);
                     }
                 });
@@ -500,6 +506,22 @@ impl<'a> App<'a> {
             }
             "delete-all-transcodes" => {
                 self.core.delete_all_transcodes()?;
+            }
+
+            "f" | "format" => {
+                if parts.len() < 2 {
+                    anyhow::bail!("usage: format <opus128|opus64|mp3v0|mp3v5|none>");
+                }
+
+                let format = match parts[1] {
+                    "opus128" => Some(TranscodeFormat::Opus128),
+                    "opus64" => Some(TranscodeFormat::Opus64),
+                    "mp3v0" => Some(TranscodeFormat::Mp3V0),
+                    "mp3v5" => Some(TranscodeFormat::Mp3V5),
+                    "none" => None,
+                    _ => anyhow::bail!("unknown format: {}", parts[1]),
+                };
+                self.transcode_format = format;
             }
 
             "help" | "h" | "?" => {

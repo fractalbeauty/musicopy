@@ -243,8 +243,11 @@ impl TranscodeFormat {
 }
 
 #[uniffi::export]
-pub fn parse_transcode_format(s: &str) -> Result<TranscodeFormat, CoreError> {
-    Ok(s.parse::<TranscodeFormat>()?)
+pub fn parse_transcode_format(s: &str) -> Result<Option<TranscodeFormat>, CoreError> {
+    Ok(match s {
+        "none" => None,
+        _ => Some(s.parse::<TranscodeFormat>()?),
+    })
 }
 
 impl Display for TranscodeFormat {

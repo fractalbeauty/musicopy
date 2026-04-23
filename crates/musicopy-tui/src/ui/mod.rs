@@ -235,6 +235,13 @@ impl<'a> App<'a> {
                 self.node_model.home_relay.clone().yellow(),
             ]),
             Line::from(""),
+            Line::from(vec![
+                "Transcode Format: ".into(),
+                self.transcode_format
+                    .map(|f| format!("{f:?}").blue())
+                    .unwrap_or_else(|| "None".blue()),
+            ]),
+            Line::from(""),
             Line::from(vec!["Trusted Nodes: ".into(), trusted_nodes.yellow()]),
             Line::from(vec!["Recent Servers: ".into(), recent_servers.yellow()]),
             Line::from(""),

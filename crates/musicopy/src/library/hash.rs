@@ -48,6 +48,10 @@ impl<'a> CacheKey<'a> {
     fn matches_file_size(&self, file_size: &FileSize) -> bool {
         self.file_size == file_size.last_file_size && self.modified_at == file_size.last_modified_at
     }
+
+    pub fn file_size(&self) -> u64 {
+        self.file_size
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -218,7 +218,8 @@ pub enum NodeCommand {
     SetDownloadDirectory(String),
 
     Connect {
-        transcode_format: TranscodeFormat,
+        /// Transcode format for transcoding, or None to transfer original files.
+        transcode_format: Option<TranscodeFormat>,
         addr: NodeAddr,
         callback: oneshot::Sender<anyhow::Result<()>>,
     },
@@ -1256,7 +1257,7 @@ impl Node {
 
     async fn connect(
         self: &Arc<Self>,
-        transcode_format: TranscodeFormat,
+        transcode_format: Option<TranscodeFormat>,
         addr: NodeAddr,
     ) -> anyhow::Result<()> {
         // connect before spawning the task, so we can return an error immediately
@@ -1699,11 +1700,19 @@ impl Server {
                         if let ServerTransferJobProgress::Transcoding { local_path } =
                             &job.value().progress
                         {
-                            // check for cached hash
+                            // read cache key from metadata
                             let Ok(key) = hash_cache.read_cache_key(local_path) else {
                                 // TODO: failing to read metadata is likely an error
                                 continue;
                             };
+
+                            // If no transcode format was specified, mark the job as ready
+                            let Some(transcode_format) = transcode_format else {
+                                ready_jobs.push((*job.key(), local_path.clone(), key.file_size()));
+                                continue;
+                            };
+
+                            // check for cached hash
                             let Ok(Some((hash_kind, hash))) = hash_cache.get_cached_hash(&key)
                             else {
                                 // error or not hashed yet, still transcoding
@@ -1889,6 +1898,24 @@ impl Server {
 
                                             return (item.job_id, JobStatusItem::Transcoding);
                                         };
+
+                                        // If no transcode format was specified, create a ready job
+                                        let Some(transcode_format) = transcode_format else {
+                                            self.jobs.insert(item.job_id, ServerTransferJob {
+                                                progress: ServerTransferJobProgress::Ready {
+                                                    transcode_path: local_path.clone(),
+                                                    file_size: key.file_size(),
+                                                },
+                                                file_node_id: item.node_id,
+                                                file_root: item.root,
+                                                file_path: item.path,
+                                            });
+
+                                            return (item.job_id, JobStatusItem::Ready {
+                                                file_size: key.file_size(),
+                                            });
+                                        };
+
                                         let Ok(Some((hash_kind, hash))) =
                                             self.hash_cache.get_cached_hash(&key)
                                         else {
@@ -1975,8 +2002,10 @@ impl Server {
                                     }).expect("failed to send ServerModelUpdate::UpdateTransferJobs");
 
                                     // prioritize transcodes
-                                    let requested_paths = files.into_values().map(|f| PathBuf::from(f.local_path)).collect::<HashSet<_>>();
-                                    self.event_tx.send(NodeEvent::FilesRequested(transcode_format, requested_paths)).expect("failed to send NodeEvent::FilesRequested");
+                                    if let Some(transcode_format) = transcode_format {
+                                        let requested_paths = files.into_values().map(|f| PathBuf::from(f.local_path)).collect::<HashSet<_>>();
+                                        self.event_tx.send(NodeEvent::FilesRequested(transcode_format, requested_paths)).expect("failed to send NodeEvent::FilesRequested");
+                                    }
                                 }
                             }
                         },
@@ -2110,17 +2139,25 @@ impl Server {
                             // check for actual size from transcode cache, then estimated size from database
                             let file_size = match self.hash_cache.read_cache_key(local_path) {
                                 Ok(key) => {
-                                    if let Some(actual_size) = self.hash_cache.get_cached_hash(&key)
-                                        .ok().flatten()
-                                        .and_then(|(hash_kind, hash)| self.transcode_status_cache.get(transcode_format, &hash_kind, hash))
-                                        .and_then(|entry| match &*entry {
-                                            TranscodeStatus::Ready { file_size, .. } => Some(*file_size),
-                                            _ => None,
-                                        }) {
-                                        Some(FileSize::Actual(actual_size))
-                                    } else {
-                                        self.hash_cache.get_cached_estimated_size(&key)
-                                            .ok().flatten().map(FileSize::Estimated)
+                                    match transcode_format {
+                                        Some(transcode_format) => {
+                                            if let Some(actual_size) = self.hash_cache.get_cached_hash(&key)
+                                                .ok().flatten()
+                                                .and_then(|(hash_kind, hash)| self.transcode_status_cache.get(transcode_format, &hash_kind, hash))
+                                                .and_then(|entry| match &*entry {
+                                                    TranscodeStatus::Ready { file_size, .. } => Some(*file_size),
+                                                    _ => None,
+                                                }) {
+                                                Some(FileSize::Actual(actual_size))
+                                            } else {
+                                                self.hash_cache.get_cached_estimated_size(&key)
+                                                    .ok().flatten().map(FileSize::Estimated)
+                                            }
+                                        }
+                                        None => {
+                                            // use original file size
+                                            Some(FileSize::Actual(key.file_size()))
+                                        }
                                     }
                                 }
                                 Err(_) => None,
@@ -2254,7 +2291,7 @@ struct ClientHandle {
 struct Client {
     db: Arc<Mutex<Database>>,
     download_directory: Arc<Mutex<Option<String>>>,
-    transcode_format: TranscodeFormat,
+    transcode_format: Option<TranscodeFormat>,
 
     event_tx: mpsc::UnboundedSender<NodeEvent>,
     connection: Connection,
@@ -2275,7 +2312,7 @@ impl Client {
         db: Arc<Mutex<Database>>,
         event_tx: mpsc::UnboundedSender<NodeEvent>,
         connection: Connection,
-        transcode_format: TranscodeFormat,
+        transcode_format: Option<TranscodeFormat>,
         download_directory: Arc<Mutex<Option<String>>>,
         #[cfg(feature = "test-hooks")] test_hooks: Arc<TestHooks>,
     ) -> Self {
@@ -2428,7 +2465,10 @@ impl Client {
                                 let mut local_path =
                                     TreePath::new(download_directory, root_dir_name.into())?;
                                 local_path.push(&file_path);
-                                local_path.set_extension(transcode_format.extension());
+                                // If transcoding, overwrite the transferred file's extension
+                                if let Some(transcode_format) = transcode_format {
+                                    local_path.set_extension(transcode_format.extension());
+                                }
                                 local_path
                             };
 
