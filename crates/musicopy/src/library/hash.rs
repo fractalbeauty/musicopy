@@ -1,6 +1,5 @@
 use crate::database::{Database, FileHash, FileSize, InsertFileHash, InsertFileSize};
 use anyhow::Context;
-use musicopy_transcode::{Mp3Preset, OpusPreset, TranscodePreset};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{
     borrow::Cow,
@@ -206,21 +205,21 @@ impl HashCache {
         Ok(all_hashes)
     }
 
-    /// Gets the cached estimated size of a file if it exists and is still valid.
+    /// Gets the cached duration of a file if it exists and is still valid.
     ///
     /// This requires first reading the cache key with [`read_cache_key`](Self::read_cache_key),
     /// which requires accessing the file and can be expensive.
-    pub(crate) fn get_cached_estimated_size(&self, key: &CacheKey) -> anyhow::Result<Option<u64>> {
-        // check for cached size
+    pub(crate) fn get_cached_duration(&self, key: &CacheKey) -> anyhow::Result<Option<f64>> {
+        // check for cached duration
         let cached = {
             let db = self.db.lock().unwrap();
             db.get_file_size_by_path(key.path)?
         };
 
-        // check if cached size matches current metadata
+        // check if cached duration matches current metadata
         if let Some(cached) = cached {
             if key.matches_file_size(&cached) {
-                return Ok(Some(cached.estimated_size));
+                return Ok(Some(cached.duration));
             }
         }
 
@@ -230,22 +229,34 @@ impl HashCache {
     /// Cheaply gets the cached estimated size of a file from cache without validating it.
     ///
     /// This does not require reading the cache key first, which requires accessing the file and can
-    /// be expensive. This should be used if using the stale size is allowable and needs to be fast.
-    /// Files are unlikely to be modified, and most modifications only change metadata which has
-    /// less effect on size than replacing the audio data, so this will often be correct anyway.
-    pub fn get_cached_estimated_size_unvalidated(
-        &self,
-        path: &Path,
-    ) -> anyhow::Result<Option<u64>> {
+    /// be expensive. This should be used if using the stale duration is allowable and needs to be
+    /// fast. Files are unlikely to be modified, and most modifications only change metadata which
+    /// has less effect on duration than replacing the audio data, so this will often be correct
+    /// anyway.
+    pub fn get_cached_duration_unvalidated(&self, path: &Path) -> anyhow::Result<Option<f64>> {
         let db = self.db.lock().unwrap();
         Ok(db
             .get_file_size_by_path(path)?
-            .map(|cached| cached.estimated_size))
+            .map(|cached| cached.duration))
     }
 
-    /// Prepares estimated sizes for multiple files.
-    pub fn batch_get_estimated_size(&self, paths: Vec<PathBuf>) -> anyhow::Result<()> {
-        // get cached sizes
+    /// Cheaply gets the size of a file from cache without validating it.
+    ///
+    /// This does not require reading the cache key first, which requires accessing the file and can
+    /// be expensive. This should be used if using the stale size is allowable and needs to be fast.
+    /// This reuses cached durations to get the original file sizes, to provide file sizes when
+    /// transferring originals. Sort of a hack... but it's faster than reading the files and we want
+    /// the index to prepare quickly.
+    pub fn get_cached_file_size_unvalidated(&self, path: &Path) -> anyhow::Result<Option<u64>> {
+        let db = self.db.lock().unwrap();
+        Ok(db
+            .get_file_size_by_path(path)?
+            .map(|cached| cached.last_file_size))
+    }
+
+    /// Prepares durations for multiple files.
+    pub fn batch_get_durations(&self, paths: Vec<PathBuf>) -> anyhow::Result<()> {
+        // get cached durations
         let cached = {
             let db = self.db.lock().unwrap();
             db.get_file_sizes_by_paths(paths.iter().map(|p| p.to_string_lossy()))?
@@ -275,12 +286,12 @@ impl HashCache {
                     }
                 }
 
-                // get new size
-                let (duration, estimated_size) = match estimate_file_size(path) {
+                // get new duration
+                let duration = match get_file_duration(path) {
                     Ok(v) => v,
                     Err(e) => {
                         log::warn!(
-                            "failed to estimate file size for {}: {:#}",
+                            "failed to get file duration for {}: {:#}",
                             path.display(),
                             e
                         );
@@ -293,7 +304,6 @@ impl HashCache {
                     last_file_size: key.file_size,
                     last_modified_at: key.modified_at,
                     duration,
-                    estimated_size,
                 })
             })
             .collect_into_vec(&mut insert_sizes);
@@ -377,10 +387,8 @@ fn get_file_hash(path: &Path) -> anyhow::Result<(&'static str, [u8; 16])> {
     }
 }
 
-/// Estimates the size of a file after transcoding based on its duration.
-///
-/// Returns (duration in seconds, estimated size in bytes).
-fn estimate_file_size(path: &Path) -> anyhow::Result<(f64, u64)> {
+/// Gets the duration of a file in seconds by reading its metadata or decoding it if necessary.
+fn get_file_duration(path: &Path) -> anyhow::Result<f64> {
     let src = std::fs::File::open(path).context("failed to open file")?;
 
     let mss = MediaSourceStream::new(Box::new(src), Default::default());
@@ -464,24 +472,5 @@ fn estimate_file_size(path: &Path) -> anyhow::Result<(f64, u64)> {
         }
     };
 
-    // TODO(transcode formats): pass this in from somewhere
-    let transcode_format = TranscodePreset::Opus(OpusPreset::Opus128);
-    let bitrate = match transcode_format {
-        TranscodePreset::Opus(OpusPreset::Opus128) => 128_000.0,
-        TranscodePreset::Opus(OpusPreset::Opus64) => 64_000.0,
-        // https://trac.ffmpeg.org/wiki/Encode/MP3
-        TranscodePreset::Mp3(Mp3Preset::Mp3V0) => 245_000.0,
-        TranscodePreset::Mp3(Mp3Preset::Mp3V5) => 130_000.0,
-    };
-
-    // estimated size = duration * bitrate, converted to bytes
-    let estimated_size = duration_secs * bitrate / 8.0;
-
-    // add 150 KB for embedded cover art
-    let estimated_size = estimated_size + 150_000.0;
-
-    // add 1% for container overhead
-    let estimated_size = estimated_size * 1.01;
-
-    Ok((duration_secs, estimated_size as u64))
+    Ok(duration_secs)
 }

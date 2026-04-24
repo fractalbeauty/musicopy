@@ -639,7 +639,7 @@ impl TranscodePool {
                             });
 
                             if !items.is_empty() {
-                                // spawn task to estimate file sizes in parallel using rayon
+                                // spawn task to get file durations in parallel using rayon
                                 // this seems fast enough to do without indicating progress.
                                 // it requires opening each file and reading metadata, but doesn't need to
                                 // decode the file, so it's fast ish. spawn it as a background task though
@@ -648,22 +648,22 @@ impl TranscodePool {
                                     let items = items.iter().cloned().collect::<Vec<_>>();
                                     async move {
                                         let start = std::time::Instant::now();
-                                        log::info!("TranscodePool: estimating sizes for {} files", items.len());
+                                        log::info!("TranscodePool: getting durations for {} files", items.len());
 
                                         let Ok(res) = tokio::task::spawn_blocking(move || {
-                                            hash_cache.batch_get_estimated_size(items)
+                                            hash_cache.batch_get_durations(items)
                                         }).await else {
-                                            log::error!("TranscodePool: failed to join file size estimation task");
+                                            log::error!("TranscodePool: failed to join file duration task");
                                             return;
                                         };
 
                                         match res {
                                             Ok(_) => {
                                                 let elapsed = (start.elapsed().as_millis() as f64) / 1000.0;
-                                                log::info!("TranscodePool: finished estimating file sizes in {elapsed:?}s");
+                                                log::info!("TranscodePool: finished getting file durations in {elapsed:?}s");
                                             },
                                             Err(e) => {
-                                                log::error!("TranscodePool: failed to estimate file sizes: {e:#}");
+                                                log::error!("TranscodePool: failed to get file durations: {e:#}");
                                             }
                                         }
                                     }
@@ -1031,6 +1031,28 @@ impl Drop for RegionCounterGuard<'_> {
     fn drop(&mut self) {
         self.0.0.fetch_sub(1, Ordering::Relaxed);
     }
+}
+
+/// Estimates the file size in bytes of a transcode, given the transcode format and file duration in seconds.
+pub fn estimate_file_size(format: TranscodeFormat, duration: f64) -> u64 {
+    let bitrate = match format {
+        TranscodeFormat::Opus128 => 128_000.0,
+        TranscodeFormat::Opus64 => 64_000.0,
+        // https://trac.ffmpeg.org/wiki/Encode/MP3
+        TranscodeFormat::Mp3V0 => 245_000.0,
+        TranscodeFormat::Mp3V5 => 130_000.0,
+    };
+
+    // estimated size = duration * bitrate, converted to bytes
+    let estimated_size = duration * bitrate / 8.0;
+
+    // add 150 KB for embedded cover art
+    let estimated_size = estimated_size + 150_000.0;
+
+    // add 1% for container overhead
+    let estimated_size = estimated_size * 1.01;
+
+    estimated_size as u64
 }
 
 #[cfg(test)]

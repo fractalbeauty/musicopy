@@ -44,13 +44,17 @@ pub struct InsertFileHash<'a> {
     pub hash: [u8; 16],
 }
 
+/// A cached file duration.
+///
+/// This used to also include the estimated size, but we no longer store the estimated size, and
+/// instead calculate it from the duration and transcode format when needed. The struct is left
+/// named the same since the SQLite table is still called `file_sizes`.
 pub struct FileSize {
     pub id: u64,
     pub path: String,
     pub last_file_size: u64,
     pub last_modified_at: u64,
     pub duration: f64,
-    pub estimated_size: u64,
 }
 
 pub struct InsertFileSize<'a> {
@@ -58,7 +62,6 @@ pub struct InsertFileSize<'a> {
     pub last_file_size: u64,
     pub last_modified_at: u64,
     pub duration: f64,
-    pub estimated_size: u64,
 }
 
 pub struct TrustedNode {
@@ -142,11 +145,13 @@ impl Database {
                 last_file_size INTEGER NOT NULL,
                 last_modified_at INTEGER NOT NULL,
                 duration FLOAT NOT NULL,
-                estimated_size INTEGER NOT NULL,
                 UNIQUE (path)
             )",
             [],
         )?;
+        let _ = self
+            .conn
+            .execute("ALTER TABLE file_sizes DROP COLUMN estimated_size", [])?;
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS trusted_nodes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -632,7 +637,7 @@ impl Database {
     pub fn get_file_size_by_path(&self, path: &Path) -> anyhow::Result<Option<FileSize>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, path, last_file_size, last_modified_at, duration, estimated_size FROM file_sizes WHERE path = ?")
+            .prepare("SELECT id, path, last_file_size, last_modified_at, duration FROM file_sizes WHERE path = ?")
             .expect("should prepare statement");
 
         stmt.query_and_then([path.to_string_lossy().as_ref()], |row| {
@@ -642,7 +647,6 @@ impl Database {
                 last_file_size: row.get(2)?,
                 last_modified_at: row.get(3)?,
                 duration: row.get(4)?,
-                estimated_size: row.get(5)?,
             })
         })
         .expect("should bind parameters")
@@ -661,7 +665,7 @@ impl Database {
 
         let placeholders = std::iter::repeat_n("?", paths.len()).join(", ");
         let sql = format!(
-            "SELECT id, path, last_file_size, last_modified_at, duration, estimated_size FROM file_sizes WHERE path IN ({placeholders})"
+            "SELECT id, path, last_file_size, last_modified_at, duration FROM file_sizes WHERE path IN ({placeholders})"
         );
 
         let mut stmt = self.conn.prepare(&sql).expect("should prepare statement");
@@ -675,7 +679,6 @@ impl Database {
                 last_file_size: row.get(2)?,
                 last_modified_at: row.get(3)?,
                 duration: row.get(4)?,
-                estimated_size: row.get(5)?,
             };
             Ok((file_size.path.clone(), file_size))
         })
@@ -695,8 +698,8 @@ impl Database {
 
         {
             let mut stmt = tx.prepare(
-                "INSERT INTO file_sizes (path, last_file_size, last_modified_at, duration, estimated_size) VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(path) DO UPDATE SET last_file_size = excluded.last_file_size, last_modified_at = excluded.last_modified_at, duration = excluded.duration, estimated_size = excluded.estimated_size",
+                "INSERT INTO file_sizes (path, last_file_size, last_modified_at, duration) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(path) DO UPDATE SET last_file_size = excluded.last_file_size, last_modified_at = excluded.last_modified_at, duration = excluded.duration",
             )?;
 
             for file_size in file_sizes {
@@ -705,7 +708,6 @@ impl Database {
                     file_size.last_file_size,
                     file_size.last_modified_at,
                     file_size.duration,
-                    file_size.estimated_size,
                 ))?;
             }
         }

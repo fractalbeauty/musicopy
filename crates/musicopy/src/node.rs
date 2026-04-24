@@ -18,7 +18,7 @@ use crate::{
     library::{
         Library, LibraryCommand,
         hash::HashCache,
-        transcode::{TranscodeFormat, TranscodeStatus, TranscodeStatusCache},
+        transcode::{TranscodeFormat, TranscodeStatus, TranscodeStatusCache, estimate_file_size},
     },
     model::CounterModel,
     protocol::{
@@ -1665,7 +1665,7 @@ impl Server {
             .expect("failed to send Accepted message");
 
         // send Index message
-        let mut index = self.get_index()?;
+        let mut index = self.get_index(transcode_format)?;
         send.send(ServerMessageV1::Index(
             index.iter().map(|(_, item)| item.clone()).collect(),
         ))
@@ -2150,8 +2150,8 @@ impl Server {
                                                 }) {
                                                 Some(FileSize::Actual(actual_size))
                                             } else {
-                                                self.hash_cache.get_cached_estimated_size(&key)
-                                                    .ok().flatten().map(FileSize::Estimated)
+                                                self.hash_cache.get_cached_duration(&key)
+                                                    .ok().flatten().map(|duration| estimate_file_size(transcode_format, duration)).map(FileSize::Estimated)
                                             }
                                         }
                                         None => {
@@ -2202,7 +2202,10 @@ impl Server {
     ///
     /// Also returns the local paths for the files, which are used to check for index updates
     /// (i.e. file size updates). Local paths are not sent to the client.
-    fn get_index(&self) -> anyhow::Result<Vec<(PathBuf, IndexItem)>> {
+    fn get_index(
+        &self,
+        transcode_format: Option<TranscodeFormat>,
+    ) -> anyhow::Result<Vec<(PathBuf, IndexItem)>> {
         let files = {
             let db = self.db.lock().unwrap();
             db.get_files()?
@@ -2211,18 +2214,31 @@ impl Server {
         let index = files
             .into_iter()
             .map(|file| {
-                // Get cached estimated size without checking validity. Validating the cached size
-                // requires accessing the file to read its metadata, which can be expensive. We want
-                // this to be fast since it's on the user's critical path. We can tolerate the
-                // estimated sizes very rarely being incorrect, and we also set the size to
-                // Estimated, so the periodic index update will send the actual size shortly after.
                 let local_path = PathBuf::from(file.local_path);
-                let file_size = match self
-                    .hash_cache
-                    .get_cached_estimated_size_unvalidated(&local_path)
-                {
-                    Ok(Some(n)) => FileSize::Estimated(n),
-                    _ => FileSize::Unknown,
+
+                let file_size = if let Some(transcode_format) = transcode_format {
+                    // Get cached estimated size without checking validity. Validating the cached size
+                    // requires accessing the file to read its metadata, which can be expensive. We want
+                    // this to be fast since it's on the user's critical path. We can tolerate the
+                    // estimated sizes very rarely being incorrect, and we also set the size to
+                    // Estimated, so the periodic index update will send the actual size shortly after.
+                    match self.hash_cache.get_cached_duration_unvalidated(&local_path) {
+                        Ok(Some(duration)) => {
+                            FileSize::Estimated(estimate_file_size(transcode_format, duration))
+                        }
+                        _ => FileSize::Unknown,
+                    }
+                } else {
+                    // Get cached original file size without accessing the file.
+                    match self
+                        .hash_cache
+                        .get_cached_file_size_unvalidated(&local_path)
+                    {
+                        // This could be stale if the files were modified, so we set the size to
+                        // Estimated, and the periodic index update will send the actual size shortly after.
+                        Ok(Some(size)) => FileSize::Estimated(size),
+                        _ => FileSize::Unknown,
+                    }
                 };
 
                 (
