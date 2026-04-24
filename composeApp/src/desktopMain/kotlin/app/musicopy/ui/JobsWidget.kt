@@ -26,7 +26,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.dp
 import app.musicopy.formatFloat
-import app.musicopy.shortenNodeId
+import app.musicopy.shortenEndpointId
 import app.musicopy.ui.components.AnimatedList
 import app.musicopy.ui.components.ScrollableContainer
 import app.musicopy.ui.components.WidgetContainer
@@ -79,7 +79,7 @@ fun JobsWidget(
 
                     AnimatedList(
                         activeServers,
-                        itemKey = { it.nodeId },
+                        itemKey = { it.endpointId },
                     ) { connection ->
                         ActiveConnectionJob(
                             connection
@@ -88,7 +88,7 @@ fun JobsWidget(
 
                     AnimatedList(
                         activeServers.filter { it.transferJobs.any { job -> job.progress !is TransferJobProgressModel.Finished } },
-                        itemKey = { it.nodeId },
+                        itemKey = { it.endpointId },
                     ) { connection ->
                         ActiveTransferJob(connection)
                     }
@@ -162,7 +162,7 @@ private fun ActiveConnectionJob(connection: ServerModel) {
         body = {
             Column {
                 Text(
-                    "Node ID: ${shortenNodeId(connection.nodeId)}",
+                    "Node ID: ${shortenEndpointId(connection.endpointId)}",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(

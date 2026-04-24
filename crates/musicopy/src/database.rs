@@ -1,19 +1,25 @@
+//! Database module.
+//!
+//! Things to clean up, if we eventually do a proper database migration:
+//! - Rename the `file_sizes` table to `file_durations` and the `FileSize` struct to `FileDuration`.
+//! - Rename the `node_id` columns to `endpoint_id` for consistency with Iroh v1.
+
 use anyhow::Context;
-use iroh::NodeId;
+use iroh::EndpointId;
 use itertools::Itertools;
 use rusqlite::OptionalExtension;
 use std::{borrow::Cow, collections::HashMap, path::Path};
 
 pub struct Root {
     pub id: u64,
-    pub node_id: NodeId,
+    pub node_id: EndpointId,
     pub name: String,
     pub path: String,
 }
 
 pub struct File {
     pub id: u64,
-    pub node_id: NodeId,
+    pub node_id: EndpointId,
     pub root: String,
     pub path: String,
     pub local_tree: String,
@@ -65,13 +71,13 @@ pub struct InsertFileSize<'a> {
 }
 
 pub struct TrustedNode {
-    pub node_id: NodeId,
+    pub node_id: EndpointId,
     pub name: Option<String>,
     pub connected_at: Option<u64>,
 }
 
 pub struct RecentServer {
-    pub node_id: NodeId,
+    pub node_id: EndpointId,
     pub name: String,
     pub connected_at: u64,
 }
@@ -151,7 +157,7 @@ impl Database {
         )?;
         let _ = self
             .conn
-            .execute("ALTER TABLE file_sizes DROP COLUMN estimated_size", [])?;
+            .execute("ALTER TABLE file_sizes DROP COLUMN estimated_size", []);
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS trusted_nodes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -219,8 +225,8 @@ impl Database {
         Ok(())
     }
 
-    pub fn add_root(&self, node_id: NodeId, name: &str, path: &str) -> anyhow::Result<()> {
-        let node_id = node_id_to_string(&node_id);
+    pub fn add_root(&self, node_id: EndpointId, name: &str, path: &str) -> anyhow::Result<()> {
+        let node_id = endpoint_id_to_string(&node_id);
         self.conn.execute(
             "INSERT INTO roots (node_id, name, path) VALUES (?, ?, ?)",
             [&node_id, name, path],
@@ -228,8 +234,8 @@ impl Database {
         Ok(())
     }
 
-    pub fn delete_root_by_name(&self, node_id: NodeId, name: &str) -> anyhow::Result<()> {
-        let node_id = node_id_to_string(&node_id);
+    pub fn delete_root_by_name(&self, node_id: EndpointId, name: &str) -> anyhow::Result<()> {
+        let node_id = endpoint_id_to_string(&node_id);
         self.conn.execute(
             "DELETE FROM roots WHERE node_id = ? AND name = ?",
             [&node_id, name],
@@ -237,18 +243,18 @@ impl Database {
         Ok(())
     }
 
-    pub fn get_roots_by_node_id(&self, node_id: NodeId) -> anyhow::Result<Vec<Root>> {
+    pub fn get_roots_by_node_id(&self, node_id: EndpointId) -> anyhow::Result<Vec<Root>> {
         let mut stmt = self
             .conn
             .prepare("SELECT id, node_id, name, path FROM roots WHERE node_id = ?")
             .expect("should prepare statement");
 
-        let node_id = node_id_to_string(&node_id);
+        let node_id = endpoint_id_to_string(&node_id);
         stmt.query_and_then([node_id], |row| {
             let node_id =
                 hex::decode(row.get::<_, String>(1)?).context("failed to parse node id")?;
             let node_id =
-                NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
+                EndpointId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(Root {
                 id: row.get(0)?,
@@ -261,13 +267,13 @@ impl Database {
         .collect()
     }
 
-    pub fn count_files_by_root(&self, node_id: NodeId, root: &str) -> anyhow::Result<u64> {
+    pub fn count_files_by_root(&self, node_id: EndpointId, root: &str) -> anyhow::Result<u64> {
         let mut stmt = self
             .conn
             .prepare("SELECT COUNT(*) FROM files WHERE node_id = ? AND root = ?")
             .expect("should prepare statement");
 
-        let node_id = node_id_to_string(&node_id);
+        let node_id = endpoint_id_to_string(&node_id);
         let count: u64 = stmt
             .query_row([&node_id, root], |row| row.get(0))
             .context("failed to count files")?;
@@ -278,7 +284,7 @@ impl Database {
     /// Delete all local files and insert new ones.
     pub fn replace_local_files<'a>(
         &mut self,
-        local_node_id: NodeId,
+        local_node_id: EndpointId,
         iter: impl Iterator<Item = InsertFile<'a>>,
     ) -> anyhow::Result<()> {
         let tx = self
@@ -288,14 +294,14 @@ impl Database {
 
         tx.execute(
             "DELETE FROM files WHERE node_id = ?",
-            [node_id_to_string(&local_node_id)],
+            [endpoint_id_to_string(&local_node_id)],
         )?;
 
         {
             let mut stmt = tx.prepare("INSERT INTO files (node_id, root, path, local_tree, local_path) VALUES (?, ?, ?, ?, ?)")?;
             for file in iter {
                 stmt.execute((
-                    node_id_to_string(&local_node_id),
+                    endpoint_id_to_string(&local_node_id),
                     file.root,
                     file.path,
                     file.local_tree,
@@ -312,7 +318,7 @@ impl Database {
     /// Insert a file from a remote node, updating the existing entry if it exists.
     pub fn insert_remote_file<'a>(
         &mut self,
-        remote_node_id: NodeId,
+        remote_node_id: EndpointId,
         file: InsertFile<'a>,
     ) -> anyhow::Result<()> {
         let mut stmt = self.conn.prepare(
@@ -321,7 +327,7 @@ impl Database {
         )?;
 
         stmt.execute((
-            node_id_to_string(&remote_node_id),
+            endpoint_id_to_string(&remote_node_id),
             file.root,
             file.path,
             file.local_tree,
@@ -341,7 +347,7 @@ impl Database {
             let node_id =
                 hex::decode(row.get::<_, String>(1)?).context("failed to parse node id")?;
             let node_id =
-                NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
+                EndpointId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(File {
                 id: row.get(0)?,
@@ -357,18 +363,18 @@ impl Database {
     }
 
     /// Get files where node ID is the given node ID.
-    pub fn get_files_by_node_id(&self, node_id: NodeId) -> anyhow::Result<Vec<File>> {
+    pub fn get_files_by_node_id(&self, node_id: EndpointId) -> anyhow::Result<Vec<File>> {
         let mut stmt = self
             .conn
             .prepare("SELECT id, node_id, root, path, local_tree, local_path FROM files WHERE node_id = ?")
             .expect("should prepare statement");
 
-        let node_id = node_id_to_string(&node_id);
+        let node_id = endpoint_id_to_string(&node_id);
         stmt.query_and_then([&node_id], |row| {
             let node_id =
                 hex::decode(row.get::<_, String>(1)?).context("failed to parse node id")?;
             let node_id =
-                NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
+                EndpointId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(File {
                 id: row.get(0)?,
@@ -384,18 +390,18 @@ impl Database {
     }
 
     /// Get files where node ID is not the given node ID.
-    pub fn get_files_by_ne_node_id(&self, node_id: NodeId) -> anyhow::Result<Vec<File>> {
+    pub fn get_files_by_ne_node_id(&self, node_id: EndpointId) -> anyhow::Result<Vec<File>> {
         let mut stmt = self
             .conn
             .prepare("SELECT id, node_id, root, path, local_tree, local_path FROM files WHERE node_id != ?")
             .expect("should prepare statement");
 
-        let node_id = node_id_to_string(&node_id);
+        let node_id = endpoint_id_to_string(&node_id);
         stmt.query_and_then([&node_id], |row| {
             let node_id =
                 hex::decode(row.get::<_, String>(1)?).context("failed to parse node id")?;
             let node_id =
-                NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
+                EndpointId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(File {
                 id: row.get(0)?,
@@ -414,7 +420,7 @@ impl Database {
     // used to determine if a file has already been downloaded to the *current* download directory
     pub fn exists_file_by_node_root_path_localtree(
         &self,
-        node_id: NodeId,
+        node_id: EndpointId,
         root: &str,
         path: &str,
         local_tree: &str,
@@ -424,7 +430,7 @@ impl Database {
             .prepare("SELECT 1 FROM files WHERE node_id = ? AND root = ? AND path = ? AND local_tree = ? LIMIT 1")
             .expect("should prepare statement");
 
-        let node_id = node_id_to_string(&node_id);
+        let node_id = endpoint_id_to_string(&node_id);
         let exists: Option<u8> = stmt
             .query_row([&node_id, root, path, local_tree], |row| row.get(0))
             .optional()
@@ -435,7 +441,7 @@ impl Database {
 
     pub fn get_file_by_node_root_path(
         &self,
-        node_id: NodeId,
+        node_id: EndpointId,
         root: &str,
         path: &str,
     ) -> anyhow::Result<Option<File>> {
@@ -444,12 +450,12 @@ impl Database {
         .prepare("SELECT id, node_id, root, path, local_tree, local_path FROM files WHERE node_id = ? AND root = ? AND path = ?")
         .expect("should prepare statement");
 
-        let node_id = node_id_to_string(&node_id);
+        let node_id = endpoint_id_to_string(&node_id);
         stmt.query_and_then([&node_id, root, path], |row| {
             let node_id =
                 hex::decode(row.get::<_, String>(1)?).context("failed to parse node id")?;
             let node_id =
-                NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
+                EndpointId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(File {
                 id: row.get(0)?,
@@ -467,7 +473,7 @@ impl Database {
 
     pub fn get_files_by_node_root_path(
         &self,
-        keys: impl ExactSizeIterator<Item = (NodeId, String, String)>,
+        keys: impl ExactSizeIterator<Item = (EndpointId, String, String)>,
     ) -> anyhow::Result<Vec<File>> {
         if keys.len() == 0 {
             return Ok(Vec::new());
@@ -481,7 +487,7 @@ impl Database {
         let mut stmt = self.conn.prepare(&sql).expect("should prepare statement");
 
         let params_flat = rusqlite::params_from_iter(keys.flat_map(|(node_id, root, path)| {
-            let node_id_string = node_id_to_string(&node_id);
+            let node_id_string = endpoint_id_to_string(&node_id);
             [node_id_string, root, path]
         }));
 
@@ -489,7 +495,7 @@ impl Database {
             let node_id =
                 hex::decode(row.get::<_, String>(1)?).context("failed to parse node id")?;
             let node_id =
-                NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
+                EndpointId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(File {
                 id: row.get(0)?,
@@ -698,7 +704,7 @@ impl Database {
 
         {
             let mut stmt = tx.prepare(
-                "INSERT INTO file_sizes (path, last_file_size, last_modified_at, duration) VALUES (?, ?, ?, ?, ?)
+                "INSERT INTO file_sizes (path, last_file_size, last_modified_at, duration) VALUES (?, ?, ?, ?)
                 ON CONFLICT(path) DO UPDATE SET last_file_size = excluded.last_file_size, last_modified_at = excluded.last_modified_at, duration = excluded.duration",
             )?;
 
@@ -727,7 +733,7 @@ impl Database {
             let node_id =
                 hex::decode(row.get::<_, String>(0)?).context("failed to parse node id")?;
             let node_id =
-                NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
+                EndpointId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(TrustedNode {
                 node_id,
@@ -739,8 +745,8 @@ impl Database {
         .collect()
     }
 
-    pub fn add_trusted_node(&self, node_id: NodeId) -> anyhow::Result<()> {
-        let node_id = node_id_to_string(&node_id);
+    pub fn add_trusted_node(&self, node_id: EndpointId) -> anyhow::Result<()> {
+        let node_id = endpoint_id_to_string(&node_id);
         self.conn.execute(
             "INSERT INTO trusted_nodes (node_id) VALUES (?) ON CONFLICT(node_id) DO NOTHING",
             [&node_id],
@@ -748,20 +754,20 @@ impl Database {
         Ok(())
     }
 
-    pub fn remove_trusted_node(&self, node_id: NodeId) -> anyhow::Result<()> {
-        let node_id = node_id_to_string(&node_id);
+    pub fn remove_trusted_node(&self, node_id: EndpointId) -> anyhow::Result<()> {
+        let node_id = endpoint_id_to_string(&node_id);
         self.conn
             .execute("DELETE FROM trusted_nodes WHERE node_id = ?", [&node_id])?;
         Ok(())
     }
 
-    pub fn is_node_trusted(&self, node_id: NodeId) -> anyhow::Result<bool> {
+    pub fn is_node_trusted(&self, node_id: EndpointId) -> anyhow::Result<bool> {
         let mut stmt = self
             .conn
             .prepare("SELECT 1 FROM trusted_nodes WHERE node_id = ? LIMIT 1")
             .expect("should prepare statement");
 
-        let node_id = node_id_to_string(&node_id);
+        let node_id = endpoint_id_to_string(&node_id);
         let exists: Option<u8> = stmt
             .query_row([&node_id], |row| row.get(0))
             .optional()
@@ -773,11 +779,11 @@ impl Database {
     /// Update a node ID's stored name and connected_at if it is trusted.
     pub fn update_trusted_node(
         &self,
-        node_id: NodeId,
+        node_id: EndpointId,
         name: &str,
         connected_at: u64,
     ) -> anyhow::Result<()> {
-        let node_id = node_id_to_string(&node_id);
+        let node_id = endpoint_id_to_string(&node_id);
         self.conn.execute(
             "UPDATE trusted_nodes SET name = ?, connected_at = ? WHERE node_id = ?",
             [name, &connected_at.to_string(), &node_id],
@@ -788,11 +794,11 @@ impl Database {
     /// Insert or update a recent server entry.
     pub fn update_recent_server(
         &self,
-        node_id: NodeId,
+        node_id: EndpointId,
         name: &str,
         connected_at: u64,
     ) -> anyhow::Result<()> {
-        let node_id = node_id_to_string(&node_id);
+        let node_id = endpoint_id_to_string(&node_id);
         self.conn.execute(
             "INSERT INTO recent_servers (node_id, name, connected_at) VALUES (?, ?, ?)
             ON CONFLICT(node_id) DO UPDATE SET name = excluded.name, connected_at = excluded.connected_at",
@@ -813,7 +819,7 @@ impl Database {
             let node_id =
                 hex::decode(row.get::<_, String>(0)?).context("failed to parse node id")?;
             let node_id =
-                NodeId::try_from(node_id.as_slice()).context("failed to parse node id")?;
+                EndpointId::try_from(node_id.as_slice()).context("failed to parse node id")?;
 
             Ok(RecentServer {
                 node_id,
@@ -884,6 +890,6 @@ impl Database {
     }
 }
 
-fn node_id_to_string(node_id: &NodeId) -> String {
+fn endpoint_id_to_string(node_id: &EndpointId) -> String {
     hex::encode(node_id)
 }

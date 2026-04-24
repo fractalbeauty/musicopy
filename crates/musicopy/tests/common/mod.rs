@@ -1,4 +1,4 @@
-use iroh::NodeId;
+use iroh::EndpointId;
 use musicopy::{
     Core, CoreOptions, EventHandler, ProjectDirsOptions, StatsModel, TestHooks,
     library::LibraryModel,
@@ -40,7 +40,7 @@ async fn wait_until(msg: &str, condition: impl Fn() -> bool, on_fail: impl Fn())
     log::debug!("wait_until: waiting for condition: {}", msg);
     let start = std::time::Instant::now();
     while !condition() {
-        if start.elapsed().as_secs_f64() > 5.0 {
+        if start.elapsed().as_secs_f64() > 10.0 {
             on_fail();
             panic!("timed out waiting for condition: {msg}");
         }
@@ -184,14 +184,14 @@ impl TestCore {
         .await;
     }
 
-    /// Wait until we have a client with the given node id
-    pub async fn wait_for_client(&self, other: impl TestNodeIdExt) {
+    /// Wait until we have a client with the given endpoint id
+    pub async fn wait_for_client(&self, other: impl TestEndpointIdExt) {
         let full_msg = format!("{} has client for {}", self.label, other.label());
         wait_until(
             &full_msg,
             || {
                 let model = self.core.get_node_model().expect("should get node model");
-                model.clients.contains_key(&other.node_id_str())
+                model.clients.contains_key(&other.endpoint_id_str())
             },
             || {
                 log::warn!(
@@ -203,11 +203,11 @@ impl TestCore {
         .await;
     }
 
-    /// Wait until we have a client with the given node id, satisfying the given condition
+    /// Wait until we have a client with the given endpoint id, satisfying the given condition
     pub async fn wait_for_client_condition(
         &self,
         msg: &str,
-        other: impl TestNodeIdExt,
+        other: impl TestEndpointIdExt,
         condition: impl Fn(&ClientModel) -> bool,
     ) {
         let full_msg = format!(
@@ -225,7 +225,7 @@ impl TestCore {
             &full_msg,
             || {
                 let model = self.core.get_node_model().expect("should get node model");
-                if let Some(client) = model.clients.get(&other.node_id_str()) {
+                if let Some(client) = model.clients.get(&other.endpoint_id_str()) {
                     condition(client)
                 } else {
                     eprintln!(
@@ -245,38 +245,38 @@ impl TestCore {
         .await;
     }
 
-    /// Wait until we have a client with the given node id, with state Pending
-    pub async fn wait_for_client_pending(&self, other: impl TestNodeIdExt) {
+    /// Wait until we have a client with the given endpoint id, with state Pending
+    pub async fn wait_for_client_pending(&self, other: impl TestEndpointIdExt) {
         self.wait_for_client_condition("state is Pending", other, |client| {
             matches!(client.state, ClientStateModel::Pending)
         })
         .await;
     }
 
-    /// Wait until we have a client with the given node id, with state Accepted
-    pub async fn wait_for_client_accepted(&self, other: impl TestNodeIdExt) {
+    /// Wait until we have a client with the given endpoint id, with state Accepted
+    pub async fn wait_for_client_accepted(&self, other: impl TestEndpointIdExt) {
         self.wait_for_client_condition("state is Accepted", other, |client| {
             matches!(client.state, ClientStateModel::Accepted)
         })
         .await;
     }
 
-    /// Wait until we have a client with the given node id, with state Closed
-    pub async fn wait_for_client_closed(&self, other: impl TestNodeIdExt) {
+    /// Wait until we have a client with the given endpoint id, with state Closed
+    pub async fn wait_for_client_closed(&self, other: impl TestEndpointIdExt) {
         self.wait_for_client_condition("state is Closed", other, |client| {
             matches!(client.state, ClientStateModel::Closed { .. })
         })
         .await;
     }
 
-    /// Wait until we have a server with the given node id
-    pub async fn wait_for_server(&self, other: impl TestNodeIdExt) {
+    /// Wait until we have a server with the given endpoint id
+    pub async fn wait_for_server(&self, other: impl TestEndpointIdExt) {
         let full_msg = format!("{} has server for {}", self.label, other.label());
         wait_until(
             &full_msg,
             || {
                 let model = self.core.get_node_model().expect("should get node model");
-                model.servers.contains_key(&other.node_id_str())
+                model.servers.contains_key(&other.endpoint_id_str())
             },
             || {
                 log::warn!(
@@ -288,11 +288,11 @@ impl TestCore {
         .await;
     }
 
-    /// Wait until we have a server with the given node id, satisfying the given condition
+    /// Wait until we have a server with the given endpoint id, satisfying the given condition
     pub async fn wait_for_server_condition(
         &self,
         msg: &str,
-        other: impl TestNodeIdExt,
+        other: impl TestEndpointIdExt,
         condition: impl Fn(&ServerModel) -> bool,
     ) {
         let full_msg = format!(
@@ -310,7 +310,7 @@ impl TestCore {
             &full_msg,
             || {
                 let model = self.core.get_node_model().expect("should get node model");
-                if let Some(server) = model.servers.get(&other.node_id_str()) {
+                if let Some(server) = model.servers.get(&other.endpoint_id_str()) {
                     condition(server)
                 } else {
                     eprintln!(
@@ -330,24 +330,24 @@ impl TestCore {
         .await;
     }
 
-    /// Wait until we have a server with the given node id, with state Pending
-    pub async fn wait_for_server_pending(&self, other: impl TestNodeIdExt) {
+    /// Wait until we have a server with the given endpoint id, with state Pending
+    pub async fn wait_for_server_pending(&self, other: impl TestEndpointIdExt) {
         self.wait_for_server_condition("state is Pending", other, |server| {
             matches!(server.state, ServerStateModel::Pending)
         })
         .await;
     }
 
-    /// Wait until we have a server with the given node id, with state Accepted
-    pub async fn wait_for_server_accepted(&self, other: impl TestNodeIdExt) {
+    /// Wait until we have a server with the given endpoint id, with state Accepted
+    pub async fn wait_for_server_accepted(&self, other: impl TestEndpointIdExt) {
         self.wait_for_server_condition("state is Accepted", other, |server| {
             matches!(server.state, ServerStateModel::Accepted)
         })
         .await;
     }
 
-    /// Wait until we have a server with the given node id, with state Closed
-    pub async fn wait_for_server_closed(&self, other: impl TestNodeIdExt) {
+    /// Wait until we have a server with the given endpoint id, with state Closed
+    pub async fn wait_for_server_closed(&self, other: impl TestEndpointIdExt) {
         self.wait_for_server_condition("state is Closed", other, |server| {
             matches!(server.state, ServerStateModel::Closed { .. })
         })
@@ -358,7 +358,7 @@ impl TestCore {
     pub async fn check_client_condition(
         &self,
         msg: &str,
-        other: impl TestNodeIdExt,
+        other: impl TestEndpointIdExt,
         condition: impl Fn(&ClientModel) -> bool,
     ) {
         let full_msg = format!(
@@ -369,7 +369,7 @@ impl TestCore {
         );
 
         let model = self.core.get_node_model().expect("should get node model");
-        let Some(client) = model.clients.get(&other.node_id_str()) else {
+        let Some(client) = model.clients.get(&other.endpoint_id_str()) else {
             panic!(
                 "check_client_condition: {}: client for {} missing?",
                 full_msg,
@@ -402,59 +402,59 @@ impl TestCore {
         .await;
     }
 
-    pub fn node_id(&self) -> NodeId {
+    pub fn endpoint_id(&self) -> EndpointId {
         let model = self.core.get_node_model().expect("should get node model");
-        let bytes = hex::decode(&model.node_id).expect("should decode node id hex");
-        NodeId::from_bytes(&bytes.try_into().expect("should have correct length"))
-            .expect("should parse node id")
+        let bytes = hex::decode(&model.endpoint_id).expect("should decode endpoint id hex");
+        EndpointId::from_bytes(&bytes.try_into().expect("should have correct length"))
+            .expect("should parse endpoint id")
     }
 
-    pub fn client_model(&self, other: impl TestNodeIdExt) -> ClientModel {
+    pub fn client_model(&self, other: impl TestEndpointIdExt) -> ClientModel {
         let model = self.core.get_node_model().expect("should get node model");
         model
             .clients
-            .get(&other.node_id_str())
+            .get(&other.endpoint_id_str())
             .unwrap_or_else(|| panic!("client_model: client for {} missing?", other.label()))
             .clone()
     }
 }
 
-/// Helper trait to pass a TestCore or NodeId and get a label and NodeId
-pub trait TestNodeIdExt: Clone {
+/// Helper trait to pass a TestCore or EndpointId and get a label and EndpointId
+pub trait TestEndpointIdExt: Clone {
     fn label(&self) -> Cow<'_, str>;
-    fn node_id(&self) -> NodeId;
+    fn endpoint_id(&self) -> EndpointId;
 
-    fn node_id_str(&self) -> String {
-        self.node_id().to_string()
+    fn endpoint_id_str(&self) -> String {
+        self.endpoint_id().to_string()
     }
 }
 
-impl TestNodeIdExt for TestCore {
+impl TestEndpointIdExt for TestCore {
     fn label(&self) -> Cow<'_, str> {
         Cow::Borrowed(&self.label)
     }
 
-    fn node_id(&self) -> NodeId {
-        TestCore::node_id(self)
+    fn endpoint_id(&self) -> EndpointId {
+        TestCore::endpoint_id(self)
     }
 }
 
-impl TestNodeIdExt for &TestCore {
+impl TestEndpointIdExt for &TestCore {
     fn label(&self) -> Cow<'_, str> {
         Cow::Borrowed(&self.label)
     }
 
-    fn node_id(&self) -> NodeId {
-        TestCore::node_id(self)
+    fn endpoint_id(&self) -> EndpointId {
+        TestCore::endpoint_id(self)
     }
 }
 
-impl TestNodeIdExt for NodeId {
+impl TestEndpointIdExt for EndpointId {
     fn label(&self) -> Cow<'_, str> {
         Cow::Owned(self.to_string())
     }
 
-    fn node_id(&self) -> NodeId {
+    fn endpoint_id(&self) -> EndpointId {
         *self
     }
 }

@@ -140,7 +140,7 @@ fun PreTransferScreen(
     val onDownload = {
         onSetDownloads(selectionManager.selectedKeys.map { (root, path) ->
             DownloadRequestModel(
-                nodeId = clientModel.nodeId,
+                endpointId = clientModel.endpointId,
                 root = root,
                 path = path
             )

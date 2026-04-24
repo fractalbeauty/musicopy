@@ -11,8 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import app.musicopy.mockNodeId
-import app.musicopy.shortenNodeId
+import app.musicopy.mockEndpointId
+import app.musicopy.shortenEndpointId
 import app.musicopy.ui.components.LoadingButton
 import app.musicopy.ui.components.TopBar
 import app.musicopy.ui.widgetHeadline
@@ -22,7 +22,7 @@ fun DisconnectedScreen(
     snackbarHost: @Composable () -> Unit,
     onShowNodeStatus: () -> Unit,
 
-    nodeId: String,
+    endpointId: String,
     name: String,
     isConnecting: Boolean,
     onCancel: () -> Unit,
@@ -55,7 +55,7 @@ fun DisconnectedScreen(
             )
 
             Text(
-                text = shortenNodeId(nodeId),
+                text = shortenEndpointId(endpointId),
                 style = MaterialTheme.typography.labelMedium
             )
 
@@ -74,7 +74,7 @@ fun DisconnectedScreenSandbox() {
         snackbarHost = {},
         onShowNodeStatus = {},
 
-        nodeId = mockNodeId(),
+        endpointId = mockEndpointId(),
         name = "My Desktop",
         isConnecting = false,
         onCancel = {},

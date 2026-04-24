@@ -17,11 +17,11 @@ import uniffi.musicopy.LibraryRootModel
 @Composable
 fun DesktopHeroScreenshot() {
     val nodeModel = mockNodeModel(
-        nodeId = "941117ff675f3ac981ed27eb0bef5f32471bbc493fdc7aa4d416e5fa0d99f83a",
+        endpointId = "941117ff675f3ac981ed27eb0bef5f32471bbc493fdc7aa4d416e5fa0d99f83a",
         servers = listOf(
             mockServerModel(
                 // Hardcoded for stability
-                nodeId = "793cfe8e6010ff50b994247c2822e270429aa0e0dd7dc561f51ccea28ca8a7ab",
+                endpointId = "793cfe8e6010ff50b994247c2822e270429aa0e0dd7dc561f51ccea28ca8a7ab",
                 transferJobs = buildList {
                     repeat(7) {
                         add(mockTransferJobModel(progress = mockTransferJobProgressModelTranscoding()))

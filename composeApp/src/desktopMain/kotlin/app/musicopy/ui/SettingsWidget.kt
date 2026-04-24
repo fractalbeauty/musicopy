@@ -48,7 +48,7 @@ import app.musicopy.formatSize
 import app.musicopy.now
 import app.musicopy.openDirectoryInExplorer
 import app.musicopy.rememberPoll
-import app.musicopy.shortenNodeId
+import app.musicopy.shortenEndpointId
 import app.musicopy.ui.components.WidgetContainer
 import com.composables.core.Dialog
 import com.composables.core.DialogPanel
@@ -72,7 +72,7 @@ fun SettingsWidget(
     nodeModel: NodeModel,
     onDeleteUnusedTranscodes: () -> Unit,
     onDeleteAllTranscodes: () -> Unit,
-    onUntrustNode: (nodeId: String) -> Unit,
+    onUntrustNode: (endpointId: String) -> Unit,
 ) {
     val cleanTranscodesState = rememberDialogState(initiallyVisible = false)
     CleanTranscodesDialog(
@@ -170,7 +170,7 @@ fun SettingsWidget(
                             for (trustedNode in nodeModel.trustedNodes) {
                                 TrustedNode(
                                     trustedNode = trustedNode,
-                                    onUntrust = { onUntrustNode(trustedNode.nodeId) }
+                                    onUntrust = { onUntrustNode(trustedNode.endpointId) }
                                 )
                             }
                         }
@@ -426,7 +426,7 @@ fun TrustedNode(
             else -> "$daysAgo days ago"
         }
     } ?: "never"
-    val detail = "${shortenNodeId(trustedNode.nodeId)}, $readableDaysAgo"
+    val detail = "${shortenEndpointId(trustedNode.endpointId)}, $readableDaysAgo"
 
     SettingCard {
         Column(

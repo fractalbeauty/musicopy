@@ -7,7 +7,7 @@ use musicopy::{
     Core, CoreOptions, StatsModel,
     library::{
         LibraryModel,
-        transcode::{self, TranscodeFormat},
+        transcode::{TranscodeFormat},
     },
     node::{ClientStateModel, DownloadRequestModel, NodeModel, ServerStateModel},
 };
@@ -114,9 +114,12 @@ impl<'a> App<'a> {
 
                     for server in node_model.servers.values() {
                         if matches!(server.state, ServerStateModel::Pending) {
-                            app_log!("auto accepting server: {}", server.node_id);
-                            if let Err(e) = core.accept_connection(&server.node_id) {
-                                app_log!("error auto accepting server {}: {e:#}", server.node_id);
+                            app_log!("auto accepting server: {}", server.endpoint_id);
+                            if let Err(e) = core.accept_connection(&server.endpoint_id) {
+                                app_log!(
+                                    "error auto accepting server {}: {e:#}",
+                                    server.endpoint_id
+                                );
                             }
                         }
                     }
@@ -325,8 +328,8 @@ impl<'a> App<'a> {
 
                 for server in self.node_model.servers.values() {
                     if matches!(server.state, ServerStateModel::Pending) {
-                        app_log!("accepting server: {}", server.node_id);
-                        self.core.accept_connection(&server.node_id)?;
+                        app_log!("accepting server: {}", server.endpoint_id);
+                        self.core.accept_connection(&server.endpoint_id)?;
                     }
                 }
             }
@@ -336,26 +339,26 @@ impl<'a> App<'a> {
 
                 for server in self.node_model.servers.values() {
                     if matches!(server.state, ServerStateModel::Pending) {
-                        app_log!("accepting and trusting server: {}", server.node_id);
-                        self.core.accept_connection_and_trust(&server.node_id)?;
+                        app_log!("accepting and trusting server: {}", server.endpoint_id);
+                        self.core.accept_connection_and_trust(&server.endpoint_id)?;
                     }
                 }
             }
 
             "c" | "connect" => {
                 if parts.len() < 2 {
-                    anyhow::bail!("usage: connect <node_id>");
+                    anyhow::bail!("usage: connect <endpoint_id>");
                 }
 
-                let node_id = parts[1].to_string();
+                let endpoint_id = parts[1].to_string();
 
-                app_log!("connecting to node: {}", node_id);
+                app_log!("connecting to node: {}", endpoint_id);
 
                 let core = self.core.clone();
                 let transcode_format = self.transcode_format;
                 tokio::spawn(async move {
-                    if let Err(e) = core.connect(transcode_format, &node_id).await {
-                        app_log!("error connecting to node {}: {e:#}", node_id);
+                    if let Err(e) = core.connect(transcode_format, &endpoint_id).await {
+                        app_log!("error connecting to node {}: {e:#}", endpoint_id);
                     }
                 });
             }
@@ -364,11 +367,11 @@ impl<'a> App<'a> {
                 app_log!("disconnecting everything");
 
                 for client in self.node_model.clients.values() {
-                    self.core.close_client(&client.node_id)?;
+                    self.core.close_client(&client.endpoint_id)?;
                 }
 
                 for server in self.node_model.servers.values() {
-                    self.core.close_server(&server.node_id)?;
+                    self.core.close_server(&server.endpoint_id)?;
                 }
             }
 
@@ -393,14 +396,14 @@ impl<'a> App<'a> {
                     .nth(client_num - 1)
                     .ok_or_else(|| anyhow::anyhow!("client number out of range"))?;
 
-                let node_id = client_model.node_id.clone();
+                let endpoint_id = client_model.endpoint_id.clone();
                 let download_requests = client_model
                     .index
                     .as_ref()
                     .ok_or(anyhow::anyhow!("client index not available"))?
                     .iter()
                     .map(|item| DownloadRequestModel {
-                        node_id: node_id.clone(),
+                        endpoint_id: endpoint_id.clone(),
                         root: item.root.clone(),
                         path: item.path.clone(),
                     })
@@ -419,7 +422,7 @@ impl<'a> App<'a> {
                         return;
                     }
 
-                    if let Err(e) = core.set_downloads(&node_id, download_requests) {
+                    if let Err(e) = core.set_downloads(&endpoint_id, download_requests) {
                         app_log!("error downloading from client {}: {e:#}", client_num);
                     }
                 });
@@ -452,7 +455,7 @@ impl<'a> App<'a> {
                     .as_secs() as usize
                     % fractions;
 
-                let node_id = client_model.node_id.to_string();
+                let endpoint_id = client_model.endpoint_id.to_string();
                 let download_requests = client_model
                     .index
                     .as_ref()
@@ -462,7 +465,7 @@ impl<'a> App<'a> {
                     .flat_map(|(i, item)| {
                         if i % fractions == random_fraction {
                             Some(DownloadRequestModel {
-                                node_id: node_id.clone(),
+                                endpoint_id: endpoint_id.clone(),
                                 root: item.root.clone(),
                                 path: item.path.clone(),
                             })
@@ -485,7 +488,7 @@ impl<'a> App<'a> {
                         return;
                     }
 
-                    if let Err(e) = core.set_downloads(&node_id, download_requests) {
+                    if let Err(e) = core.set_downloads(&endpoint_id, download_requests) {
                         app_log!("error downloading from client {}: {e:#}", client_num);
                     }
                 });
@@ -496,7 +499,7 @@ impl<'a> App<'a> {
 
                 for client in self.node_model.clients.values() {
                     if matches!(client.state, ClientStateModel::Accepted) {
-                        self.core.pause_downloads(&client.node_id)?;
+                        self.core.pause_downloads(&client.endpoint_id)?;
                     }
                 }
             }
@@ -522,6 +525,28 @@ impl<'a> App<'a> {
                     _ => anyhow::bail!("unknown format: {}", parts[1]),
                 };
                 self.transcode_format = format;
+            }
+
+            "connectinfo" => {
+                for server in self.node_model.servers.values() {
+                    app_log!(
+                        "server {}: status={:?} remote_addr={} latency_ms={:?}",
+                        server.endpoint_id,
+                        server.state,
+                        server.connection_type,
+                        server.latency_ms,
+                    );
+                }
+
+                for client in self.node_model.clients.values() {
+                    app_log!(
+                        "client {}: status={:?} remote_addr={} latency_ms={:?}",
+                        client.endpoint_id,
+                        client.state,
+                        client.connection_type,
+                        client.latency_ms
+                    );
+                }
             }
 
             "help" | "h" | "?" => {

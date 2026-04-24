@@ -91,24 +91,24 @@ fun App(
         }
     }
 
-    val onConnect = fun(nodeId: String, popToHome: Boolean) {
+    val onConnect = fun(endpointId: String, popToHome: Boolean) {
         // only connect to one node at a time
         if (connectingTo != null) {
             println("onConnect failed, already connecting")
             return
         }
-        connectingTo = nodeId
+        connectingTo = endpointId
 
         scope.launch {
             try {
                 coreInstance.instance.connect(
                     transcodeFormat = parseTranscodeFormat(appSettings.transcodeFormat),
-                    nodeId = nodeId
+                    endpointId = endpointId
                 )
                 delay(100) // TODO
-                val client = nodeModel.clients.values.find { it.nodeId == nodeId }
+                val client = nodeModel.clients.values.find { it.endpointId == endpointId }
                 if (client?.state is ClientStateModel.Accepted) {
-                    navController.navigate(PreTransfer(nodeId = nodeId)) {
+                    navController.navigate(PreTransfer(endpointId = endpointId)) {
                         if (popToHome) {
                             popUpTo<Home> {
                                 inclusive = false
@@ -116,7 +116,7 @@ fun App(
                         }
                     }
                 } else {
-                    navController.navigate(Waiting(nodeId = nodeId)) {
+                    navController.navigate(Waiting(endpointId = endpointId)) {
                         if (popToHome) {
                             popUpTo<Home> {
                                 inclusive = false
@@ -133,8 +133,8 @@ fun App(
         }
     }
 
-    val leaveClientScreen = { nodeId: String ->
-        coreInstance.instance.closeClient(nodeId)
+    val leaveClientScreen = { endpointId: String ->
+        coreInstance.instance.closeClient(endpointId)
 
         navController.popBackStack(Home, inclusive = false)
     }
@@ -194,7 +194,7 @@ fun App(
                     onConnectManuallyButtonClicked = {
                         navController.navigate(ConnectManually)
                     },
-                    onConnectRecent = { nodeId -> onConnect(nodeId, false) },
+                    onConnectRecent = { endpointId -> onConnect(endpointId, false) },
                     onShowSettings = {
                         navController.navigate(Settings)
                     }
@@ -231,9 +231,9 @@ fun App(
 
                     autoLaunch = !hasSubmitted,
                     isConnecting = isConnecting,
-                    onSubmit = { nodeId ->
+                    onSubmit = { endpointId ->
                         backStackEntry.savedStateHandle.set("hasSubmitted", true)
-                        onConnect(nodeId, false)
+                        onConnect(endpointId, false)
                     },
                     onCancel = {
                         navController.popBackStack(Home, inclusive = false)
@@ -247,7 +247,7 @@ fun App(
                     onShowNodeStatus = onShowNodeStatus,
 
                     isConnecting = isConnecting,
-                    onSubmit = { nodeId -> onConnect(nodeId, false) },
+                    onSubmit = { endpointId -> onConnect(endpointId, false) },
                     onCancel = {
                         navController.popBackStack(Home, inclusive = false)
                     }
@@ -256,14 +256,14 @@ fun App(
             }
             composable<Waiting> { backStackEntry ->
                 val waiting: Waiting = backStackEntry.toRoute()
-                val nodeId = waiting.nodeId
-                val clientModel = nodeModel.clients.values.find { x -> x.nodeId == nodeId }
+                val endpointId = waiting.endpointId
+                val clientModel = nodeModel.clients.values.find { x -> x.endpointId == endpointId }
 
                 // if still on this route
                 if (navController.currentDestination?.hasRoute<Waiting>() == true) {
                     // if accepted
                     if (clientModel?.state is ClientStateModel.Accepted) {
-                        navController.navigate(PreTransfer(nodeId = nodeId)) {
+                        navController.navigate(PreTransfer(endpointId = endpointId)) {
                             // pop Waiting screen from back stack
                             popUpTo<Waiting>() {
                                 inclusive = true
@@ -273,7 +273,7 @@ fun App(
 
                     // if closed
                     if (clientModel?.state is ClientStateModel.Closed) {
-                        navController.navigate(Disconnected(nodeId = nodeId)) {
+                        navController.navigate(Disconnected(endpointId = endpointId)) {
                             // pop Waiting screen from back stack
                             popUpTo<Waiting>() {
                                 inclusive = true
@@ -289,7 +289,7 @@ fun App(
 
                         clientModel = clientModel,
                         onCancel = {
-                            leaveClientScreen(nodeId)
+                            leaveClientScreen(endpointId)
                         }
                     )
 
@@ -297,15 +297,15 @@ fun App(
             }
             composable<PreTransfer> { backStackEntry ->
                 val preTransfer: PreTransfer = backStackEntry.toRoute()
-                val nodeId = preTransfer.nodeId
-                val clientModel = nodeModel.clients.values.find { x -> x.nodeId == nodeId }
+                val endpointId = preTransfer.endpointId
+                val clientModel = nodeModel.clients.values.find { x -> x.endpointId == endpointId }
 
                 // if still on this route
                 if (navController.currentDestination?.hasRoute<PreTransfer>() == true) {
                     // if closed
                     if (clientModel?.state is ClientStateModel.Closed) {
                         // navigate to Disconnected screen
-                        navController.navigate(Disconnected(nodeId = nodeId)) {
+                        navController.navigate(Disconnected(endpointId = endpointId)) {
                             // clear back stack
                             popUpTo<Home> {
                                 inclusive = false
@@ -334,35 +334,35 @@ fun App(
                         onSetDownloads = { items ->
                             downloadDirectory?.let { downloadDirectory ->
                                 coreInstance.instance.setDownloads(
-                                    nodeId,
+                                    endpointId,
                                     items,
                                 )
-                                navController.navigate(Transfer(nodeId = nodeId))
+                                navController.navigate(Transfer(endpointId = endpointId))
                             } ?: run {
                                 // TODO toast?
                                 println("download directory is null")
                             }
                         },
                         onNavigateToTransfer = {
-                            navController.navigate(Transfer(nodeId = nodeId))
+                            navController.navigate(Transfer(endpointId = endpointId))
                         },
                         onCancel = {
-                            leaveClientScreen(nodeId)
+                            leaveClientScreen(endpointId)
                         }
                     )
                 }
             }
             composable<Transfer> { backStackEntry ->
                 val transfer: Transfer = backStackEntry.toRoute()
-                val nodeId = transfer.nodeId
-                val clientModel = nodeModel.clients.values.find { x -> x.nodeId == nodeId }
+                val endpointId = transfer.endpointId
+                val clientModel = nodeModel.clients.values.find { x -> x.endpointId == endpointId }
 
                 // if still on this route
                 if (navController.currentDestination?.hasRoute<Transfer>() == true) {
                     // if closed
                     if (clientModel?.state is ClientStateModel.Closed) {
                         // navigate to Disconnected screen
-                        navController.navigate(Disconnected(nodeId = nodeId)) {
+                        navController.navigate(Disconnected(endpointId = endpointId)) {
                             // clear back stack
                             popUpTo<Home> {
                                 inclusive = false
@@ -380,21 +380,21 @@ fun App(
                         clientModel = clientModel,
                         onBack = {
                             // refresh index and return to pretransfer
-                            coreInstance.instance.refreshClientIndex(nodeId)
-                            navController.popBackStack(PreTransfer(nodeId), inclusive = false)
+                            coreInstance.instance.refreshClientIndex(endpointId)
+                            navController.popBackStack(PreTransfer(endpointId), inclusive = false)
                         },
                         onPause = {
                             // pause downloads and return to pretransfer
-                            coreInstance.instance.pauseDownloads(nodeId)
-                            navController.popBackStack(PreTransfer(nodeId), inclusive = false)
+                            coreInstance.instance.pauseDownloads(endpointId)
+                            navController.popBackStack(PreTransfer(endpointId), inclusive = false)
                         },
                         onTransferMore = {
                             // refresh index and return to pretransfer
-                            coreInstance.instance.refreshClientIndex(nodeId)
-                            navController.popBackStack(PreTransfer(nodeId), inclusive = false)
+                            coreInstance.instance.refreshClientIndex(endpointId)
+                            navController.popBackStack(PreTransfer(endpointId), inclusive = false)
                         },
                         onDone = {
-                            leaveClientScreen(nodeId)
+                            leaveClientScreen(endpointId)
                         }
                     )
                 }
@@ -402,19 +402,19 @@ fun App(
             }
             composable<Disconnected> { backStackEntry ->
                 val route: Disconnected = backStackEntry.toRoute()
-                val nodeId = route.nodeId
+                val endpointId = route.endpointId
 
-                val clientModel = nodeModel.clients.values.find { x -> x.nodeId == nodeId }
+                val clientModel = nodeModel.clients.values.find { x -> x.endpointId == endpointId }
                 val name = clientModel?.name ?: "Unknown"
 
                 DisconnectedScreen(
                     snackbarHost = snackbarHost,
                     onShowNodeStatus = onShowNodeStatus,
 
-                    nodeId = nodeId,
+                    endpointId = endpointId,
                     name = name,
                     isConnecting = isConnecting,
-                    onReconnect = { onConnect(nodeId, true) },
+                    onReconnect = { onConnect(endpointId, true) },
                     onCancel = {
                         // pop back to home
                         navController.popBackStack(Home, inclusive = false)

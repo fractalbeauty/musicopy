@@ -100,8 +100,8 @@ fun ConnectQRScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 QRScanner(
                     autoLaunch = autoLaunch,
-                    onResult = { nodeId ->
-                        onSubmit(nodeId)
+                    onResult = { endpointId ->
+                        onSubmit(endpointId)
                     }
                 )
             }

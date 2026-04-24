@@ -30,12 +30,11 @@ use anyhow::Context;
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt, TryStreamExt};
 use iroh::{
-    Endpoint, NodeAddr, NodeId, SecretKey,
-    endpoint::Connection,
-    protocol::{ProtocolHandler, Router},
+    Endpoint, EndpointAddr, EndpointId, SecretKey, Watcher,
+    endpoint::{Connection, presets::N0},
+    protocol::{AcceptError, ProtocolHandler, Router},
 };
 use log::error;
-use n0_future::future::Boxed;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
@@ -54,7 +53,6 @@ use tokio::{
 use tokio_util::{
     bytes::Bytes,
     codec::{FramedRead, FramedWrite, LengthDelimitedCodec},
-    sync::CancellationToken,
 };
 
 /// Model of progress for a transfer job.
@@ -98,7 +96,7 @@ pub enum ServerStateModel {
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct ServerModel {
     pub name: String,
-    pub node_id: String,
+    pub endpoint_id: String,
     pub connected_at: u64,
 
     pub state: ServerStateModel,
@@ -129,7 +127,7 @@ pub enum IndexItemDownloadStatusModel {
 /// Model of an item in the index sent by the server.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct IndexItemModel {
-    pub node_id: String,
+    pub endpoint_id: String,
     pub root: String,
     pub path: String,
 
@@ -150,7 +148,7 @@ pub enum ClientStateModel {
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct ClientModel {
     pub name: String,
-    pub node_id: String,
+    pub endpoint_id: String,
     pub connected_at: u64,
 
     pub state: ClientStateModel,
@@ -166,7 +164,7 @@ pub struct ClientModel {
 /// Model of a trusted node.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct TrustedNodeModel {
-    pub node_id: String,
+    pub endpoint_id: String,
     pub name: String,
     pub connected_at: Option<u64>,
 }
@@ -174,7 +172,7 @@ pub struct TrustedNodeModel {
 /// Model of a recently connected server.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct RecentServerModel {
-    pub node_id: String,
+    pub endpoint_id: String,
     pub name: String,
     pub connected_at: u64,
 }
@@ -184,7 +182,7 @@ pub struct RecentServerModel {
 /// Needs to be Clone to send snapshots to the UI.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct NodeModel {
-    pub node_id: String,
+    pub endpoint_id: String,
 
     pub home_relay: String,
 
@@ -207,7 +205,7 @@ pub struct NodeModel {
 /// Model of an item selected to be downloaded.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct DownloadRequestModel {
-    pub node_id: String,
+    pub endpoint_id: String,
     pub root: String,
     pub path: String,
 }
@@ -220,28 +218,28 @@ pub enum NodeCommand {
     Connect {
         /// Transcode format for transcoding, or None to transfer original files.
         transcode_format: Option<TranscodeFormat>,
-        addr: NodeAddr,
+        addr: EndpointAddr,
         callback: oneshot::Sender<anyhow::Result<()>>,
     },
 
-    AcceptConnection(NodeId),
-    DenyConnection(NodeId),
+    AcceptConnection(EndpointId),
+    DenyConnection(EndpointId),
 
-    CloseClient(NodeId),
-    CloseServer(NodeId),
+    CloseClient(EndpointId),
+    CloseServer(EndpointId),
 
-    RefreshClientIndex(NodeId),
+    RefreshClientIndex(EndpointId),
 
     SetDownloads {
-        client: NodeId,
+        client: EndpointId,
         items: Vec<DownloadRequestModel>,
     },
     PauseDownloads {
-        client: NodeId,
+        client: EndpointId,
     },
 
-    TrustNode(NodeId),
-    UntrustNode(NodeId),
+    TrustNode(EndpointId),
+    UntrustNode(EndpointId),
 
     RefreshModel,
 
@@ -259,44 +257,44 @@ enum NodeEvent {
     RecentServersChanged,
 
     ServerOpened {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         handle: ServerHandle,
 
         name: String,
         connected_at: u64,
     },
     ServerChanged {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         update: ServerModelUpdate,
     },
     ServerClosed {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         error: Option<String>,
     },
 
     ClientOpened {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         handle: ClientHandle,
 
         name: String,
         connected_at: u64,
     },
     ClientChanged {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         update: ClientModelUpdate,
     },
     ClientClosed {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         error: Option<String>,
     },
 
     ServerTransferCompleted {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         bytes: u64,
         is_first_transfer: bool,
     },
     ClientTransferCompleted {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         bytes: u64,
         is_first_transfer: bool,
     },
@@ -305,19 +303,29 @@ enum NodeEvent {
 /// An update to a server model.
 enum ServerModelUpdate {
     Accept,
-    PollRemoteInfo,
+    UpdateConnectionInfo {
+        remote_addr: String,
+        rtt_ms: Option<u64>,
+    },
     UpdateTransferJobs,
-    Close { error: Option<String> },
+    Close {
+        error: Option<String>,
+    },
 }
 
 /// An update to a client model.
 enum ClientModelUpdate {
     Accept,
-    PollRemoteInfo,
+    UpdateConnectionInfo {
+        remote_addr: String,
+        rtt_ms: Option<u64>,
+    },
     UpdateIndex,
     UpdateTransferJobs,
     UpdatePaused,
-    Close { error: Option<String> },
+    Close {
+        error: Option<String>,
+    },
 }
 
 /// An update to the node model.
@@ -330,22 +338,22 @@ enum NodeModelUpdate {
     UpdateRecentServers,
 
     CreateServer {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         name: String,
         connected_at: u64,
     },
     UpdateServer {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         update: ServerModelUpdate,
     },
 
     CreateClient {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         name: String,
         connected_at: u64,
     },
     UpdateClient {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         update: ClientModelUpdate,
     },
 }
@@ -359,8 +367,8 @@ pub struct Node {
     command_tx: mpsc::UnboundedSender<NodeCommand>,
     event_tx: mpsc::UnboundedSender<NodeEvent>,
 
-    servers: Mutex<HashMap<NodeId, ServerHandle>>,
-    clients: Mutex<HashMap<NodeId, ClientHandle>>,
+    servers: Mutex<HashMap<EndpointId, ServerHandle>>,
+    clients: Mutex<HashMap<EndpointId, ClientHandle>>,
 
     download_directory: Arc<Mutex<Option<String>>>,
 
@@ -400,11 +408,7 @@ impl Node {
         let (command_tx, command_rx) = mpsc::unbounded_channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
 
-        let endpoint = Endpoint::builder()
-            .secret_key(secret_key)
-            .discovery_n0()
-            .bind()
-            .await?;
+        let endpoint = Endpoint::builder(N0).secret_key(secret_key).bind().await?;
         let protocol = Protocol::new(
             db.clone(),
             transcode_status_cache.clone(),
@@ -417,7 +421,7 @@ impl Node {
             .spawn();
 
         let model = NodeModel {
-            node_id: router.endpoint().node_id().to_string(),
+            endpoint_id: router.endpoint().id().to_string(),
 
             home_relay: "none".to_string(), // TODO
 
@@ -484,26 +488,22 @@ impl Node {
             }
         });
 
-        // TODO: observe iroh changes instead of polling
-        // spawn iroh polling task
-        tokio::spawn({
+        // spawn home relay watcher task
+        {
             let node = node.clone();
-            async move {
-                loop {
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    let home_relay = node
-                        .router
-                        .endpoint()
-                        .home_relay()
-                        .get()
-                        .ok()
-                        .flatten()
-                        .map(|url| url.to_string())
+            let mut addr_stream = node.router.endpoint().watch_addr().stream();
+            let endpoint_closed = node.router.endpoint().closed();
+            tokio::spawn(endpoint_closed.run_until(async move {
+                while let Some(addr) = addr_stream.next().await {
+                    let home_relay = addr
+                        .relay_urls()
+                        .next()
+                        .map(|relay_url| relay_url.to_string())
                         .unwrap_or_else(|| "none".to_string());
                     node.update_model(NodeModelUpdate::UpdateHomeRelay { home_relay });
                 }
-            }
-        });
+            }));
+        }
 
         let node_run = NodeRun {
             command_rx,
@@ -551,43 +551,43 @@ impl Node {
                             });
                         },
 
-                        NodeCommand::AcceptConnection(node_id) => {
+                        NodeCommand::AcceptConnection(endpoint_id) => {
                             let servers = self.servers.lock().unwrap();
-                            if let Some(server_handle) = servers.get(&node_id) {
+                            if let Some(server_handle) = servers.get(&endpoint_id) {
                                 server_handle.tx.send(ServerCommand::Accept).expect("failed to send ServerCommand::Accept");
                             } else {
-                                log::error!("AcceptConnection: no server found with node_id: {node_id}");
+                                log::error!("AcceptConnection: no server found with endpoint_id: {endpoint_id}");
                             }
                         },
-                        NodeCommand::DenyConnection(node_id) => {
+                        NodeCommand::DenyConnection(endpoint_id) => {
                             let servers = self.servers.lock().unwrap();
-                            if let Some(server_handle) = servers.get(&node_id) {
+                            if let Some(server_handle) = servers.get(&endpoint_id) {
                                 server_handle.tx.send(ServerCommand::Close).expect("failed to send ServerCommand::Close");
                             } else {
-                                log::error!("DenyConnection: no server found with node_id: {node_id}");
+                                log::error!("DenyConnection: no server found with endpoint_id: {endpoint_id}");
                             }
                         },
 
-                        NodeCommand::CloseClient(node_id) => {
+                        NodeCommand::CloseClient(endpoint_id) => {
                             let clients = self.clients.lock().unwrap();
-                            if let Some(client_handle) = clients.get(&node_id) {
+                            if let Some(client_handle) = clients.get(&endpoint_id) {
                                 client_handle.tx.send(ClientCommand::Close).expect("failed to send ClientCommand::Close");
                             } else {
-                                log::error!("CloseClient: no client found with node_id: {node_id}");
+                                log::error!("CloseClient: no client found with endpoint_id: {endpoint_id}");
                             }
                         }
-                        NodeCommand::CloseServer(node_id) => {
+                        NodeCommand::CloseServer(endpoint_id) => {
                             let servers = self.servers.lock().unwrap();
-                            if let Some(server_handle) = servers.get(&node_id) {
+                            if let Some(server_handle) = servers.get(&endpoint_id) {
                                 server_handle.tx.send(ServerCommand::Close).expect("failed to send ServerCommand::Close");
                             } else {
-                                log::error!("CloseServer: no server found with node_id: {node_id}");
+                                log::error!("CloseServer: no server found with endpoint_id: {endpoint_id}");
                             }
                         },
 
-                        NodeCommand::RefreshClientIndex(node_id) => {
+                        NodeCommand::RefreshClientIndex(endpoint_id) => {
                             self.update_model(NodeModelUpdate::UpdateClient {
-                                node_id,
+                                endpoint_id,
                                 update: ClientModelUpdate::UpdateIndex,
                             });
                         }
@@ -606,7 +606,7 @@ impl Node {
                             if let Some(client_handle) = clients.get(&client) {
                                 client_handle.tx.send(ClientCommand::SetDownloads { items }).expect("failed to send ClientCommand::SetDownloads");
                             } else {
-                                log::error!("SetDownloads: no client found with node_id: {client}");
+                                log::error!("SetDownloads: no client found with endpoint_id: {client}");
                             }
                         }
                         NodeCommand::PauseDownloads { client } => {
@@ -614,15 +614,15 @@ impl Node {
                             if let Some(client_handle) = clients.get(&client) {
                                 client_handle.tx.send(ClientCommand::PauseDownloads).expect("failed to send ClientCommand::PauseDownloads");
                             } else {
-                                log::error!("PauseDownloads: no client found with node_id: {client}");
+                                log::error!("PauseDownloads: no client found with endpoint_id: {client}");
                             }
                         }
 
-                        NodeCommand::TrustNode(node_id) => {
+                        NodeCommand::TrustNode(endpoint_id) => {
                             // persist to database
                             {
                                 let db = self.db.lock().unwrap();
-                                if let Err(e) = db.add_trusted_node(node_id) {
+                                if let Err(e) = db.add_trusted_node(endpoint_id) {
                                     log::error!("failed to add trusted node to database: {e:#}");
                                 }
                             }
@@ -630,11 +630,11 @@ impl Node {
                             // update model
                             self.update_model(NodeModelUpdate::UpdateTrustedNodes);
                         }
-                        NodeCommand::UntrustNode(node_id) => {
+                        NodeCommand::UntrustNode(endpoint_id) => {
                             // persist to database
                             {
                                 let db = self.db.lock().unwrap();
-                                if let Err(e) = db.remove_trusted_node(node_id) {
+                                if let Err(e) = db.remove_trusted_node(endpoint_id) {
                                     log::error!("failed to remove trusted node from database: {e:#}");
                                 }
                             }
@@ -708,51 +708,51 @@ impl Node {
                             self.update_model(NodeModelUpdate::UpdateRecentServers);
                         }
 
-                        NodeEvent::ServerOpened { node_id, handle, name, connected_at } => {
+                        NodeEvent::ServerOpened { endpoint_id, handle, name, connected_at } => {
                             {
                                 let mut servers = self.servers.lock().unwrap();
-                                servers.insert(node_id, handle);
+                                servers.insert(endpoint_id, handle);
                             }
 
-                            self.update_model(NodeModelUpdate::CreateServer { node_id, name, connected_at });
+                            self.update_model(NodeModelUpdate::CreateServer { endpoint_id, name, connected_at });
                         }
 
-                        NodeEvent::ServerChanged { node_id, update } => {
-                            self.update_model(NodeModelUpdate::UpdateServer { node_id, update });
+                        NodeEvent::ServerChanged { endpoint_id, update } => {
+                            self.update_model(NodeModelUpdate::UpdateServer { endpoint_id, update });
                         }
 
-                        NodeEvent::ServerClosed { node_id, error } => {
+                        NodeEvent::ServerClosed { endpoint_id, error } => {
                             {
                                 let mut servers = self.servers.lock().unwrap();
-                                servers.remove(&node_id);
+                                servers.remove(&endpoint_id);
                             }
 
-                            self.update_model(NodeModelUpdate::UpdateServer { node_id, update: ServerModelUpdate::Close { error } });
+                            self.update_model(NodeModelUpdate::UpdateServer { endpoint_id, update: ServerModelUpdate::Close { error } });
                         }
 
-                        NodeEvent::ClientOpened { node_id, handle, name, connected_at } => {
+                        NodeEvent::ClientOpened { endpoint_id, handle, name, connected_at } => {
                             {
                                 let mut clients = self.clients.lock().unwrap();
-                                clients.insert(node_id, handle);
+                                clients.insert(endpoint_id, handle);
                             }
 
-                            self.update_model(NodeModelUpdate::CreateClient { node_id, name, connected_at });
+                            self.update_model(NodeModelUpdate::CreateClient { endpoint_id, name, connected_at });
                         }
 
-                        NodeEvent::ClientChanged { node_id, update } => {
-                            self.update_model(NodeModelUpdate::UpdateClient { node_id, update });
+                        NodeEvent::ClientChanged { endpoint_id, update } => {
+                            self.update_model(NodeModelUpdate::UpdateClient { endpoint_id, update });
                         }
 
-                        NodeEvent::ClientClosed { node_id, error } => {
+                        NodeEvent::ClientClosed { endpoint_id, error } => {
                             {
                                 let mut clients = self.clients.lock().unwrap();
-                                clients.remove(&node_id);
+                                clients.remove(&endpoint_id);
                             }
 
-                            self.update_model(NodeModelUpdate::UpdateClient { node_id, update: ClientModelUpdate::Close { error } });
+                            self.update_model(NodeModelUpdate::UpdateClient { endpoint_id, update: ClientModelUpdate::Close { error } });
                         }
 
-                        NodeEvent::ServerTransferCompleted { node_id, bytes, is_first_transfer } => {
+                        NodeEvent::ServerTransferCompleted { endpoint_id, bytes, is_first_transfer } => {
                             {
                                 let db = self.db.lock().unwrap();
                                 let _ = db.track_server_transfer(1, bytes);
@@ -763,7 +763,7 @@ impl Node {
                             self.push_stats_model();
                         }
 
-                        NodeEvent::ClientTransferCompleted { node_id, bytes, is_first_transfer } => {
+                        NodeEvent::ClientTransferCompleted { endpoint_id, bytes, is_first_transfer } => {
                             {
                                 let db = self.db.lock().unwrap();
                                 let _ = db.track_client_transfer(1, bytes);
@@ -800,14 +800,14 @@ impl Node {
                 let metrics = self.router.endpoint().metrics();
 
                 let mut model = self.model.lock().unwrap();
-                model.send_ipv4 = metrics.magicsock.send_ipv4.get();
-                model.send_ipv6 = metrics.magicsock.send_ipv6.get();
-                model.send_relay = metrics.magicsock.send_relay.get();
-                model.recv_ipv4 = metrics.magicsock.recv_data_ipv4.get();
-                model.recv_ipv6 = metrics.magicsock.recv_data_ipv6.get();
-                model.recv_relay = metrics.magicsock.recv_data_relay.get();
-                model.conn_success = metrics.magicsock.connection_handshake_success.get();
-                model.conn_direct = metrics.magicsock.connection_became_direct.get();
+                model.send_ipv4 = metrics.socket.send_ipv4.get();
+                model.send_ipv6 = metrics.socket.send_ipv6.get();
+                model.send_relay = metrics.socket.send_relay.get();
+                model.recv_ipv4 = metrics.socket.recv_data_ipv4.get();
+                model.recv_ipv6 = metrics.socket.recv_data_ipv6.get();
+                model.recv_relay = metrics.socket.recv_data_relay.get();
+                model.conn_success = metrics.socket.num_conns_opened.get();
+                model.conn_direct = metrics.socket.num_conns_direct.get();
 
                 self.event_handler.on_node_model_snapshot(model.clone());
             }
@@ -832,7 +832,7 @@ impl Node {
                     trusted_nodes
                         .into_iter()
                         .map(|node| TrustedNodeModel {
-                            node_id: node.node_id.to_string(),
+                            endpoint_id: node.node_id.to_string(),
                             name: node.name.unwrap_or_else(|| "Unknown".to_string()),
                             connected_at: node.connected_at,
                         })
@@ -852,7 +852,7 @@ impl Node {
                         Ok(recent_servers) => recent_servers
                             .into_iter()
                             .map(|node| RecentServerModel {
-                                node_id: node.node_id.to_string(),
+                                endpoint_id: node.node_id.to_string(),
                                 name: node.name,
                                 connected_at: node.connected_at,
                             })
@@ -871,18 +871,18 @@ impl Node {
             }
 
             NodeModelUpdate::CreateServer {
-                node_id,
+                endpoint_id,
                 name,
                 connected_at,
             } => {
-                let node_id = node_id.to_string();
+                let endpoint_id = endpoint_id.to_string();
 
                 let mut model = self.model.lock().unwrap();
                 model.servers.insert(
-                    node_id.clone(),
+                    endpoint_id.clone(),
                     ServerModel {
                         name,
-                        node_id,
+                        endpoint_id,
                         connected_at,
 
                         state: ServerStateModel::Pending,
@@ -897,11 +897,14 @@ impl Node {
                 self.event_handler.on_node_model_snapshot(model.clone());
             }
 
-            NodeModelUpdate::UpdateServer { node_id, update } => {
-                let node_id_string = node_id.to_string();
+            NodeModelUpdate::UpdateServer {
+                endpoint_id,
+                update,
+            } => {
+                let endpoint_id_string = endpoint_id.to_string();
 
                 let mut model = self.model.lock().unwrap();
-                let Some(server) = model.servers.get_mut(&node_id_string) else {
+                let Some(server) = model.servers.get_mut(&endpoint_id_string) else {
                     log::warn!(
                         "failed to apply NodeModelUpdate::UpdateServer: no server model found"
                     );
@@ -912,22 +915,16 @@ impl Node {
                     ServerModelUpdate::Accept => {
                         server.state = ServerStateModel::Accepted;
                     }
-                    ServerModelUpdate::PollRemoteInfo => {
-                        let remote_info = self.router.endpoint().remote_info(node_id);
-                        let connection_type = remote_info
-                            .as_ref()
-                            .map(|info| info.conn_type.to_string())
-                            .unwrap_or_else(|| "unknown".to_string());
-                        let latency_ms = remote_info
-                            .and_then(|info| info.latency)
-                            .map(|latency| latency.as_millis() as u64);
-
-                        server.connection_type = connection_type;
-                        server.latency_ms = latency_ms;
+                    ServerModelUpdate::UpdateConnectionInfo {
+                        remote_addr,
+                        rtt_ms,
+                    } => {
+                        server.connection_type = remote_addr;
+                        server.latency_ms = rtt_ms;
                     }
                     ServerModelUpdate::UpdateTransferJobs => {
                         let server_handles = self.servers.lock().unwrap();
-                        let Some(server_handle) = server_handles.get(&node_id) else {
+                        let Some(server_handle) = server_handles.get(&endpoint_id) else {
                             log::warn!(
                                 "failed to apply ServerModelUpdate::UpdateTransferJobs: no server handle found"
                             );
@@ -1000,18 +997,18 @@ impl Node {
             }
 
             NodeModelUpdate::CreateClient {
-                node_id,
+                endpoint_id,
                 name,
                 connected_at,
             } => {
-                let node_id = node_id.to_string();
+                let endpoint_id = endpoint_id.to_string();
 
                 let mut model = self.model.lock().unwrap();
                 model.clients.insert(
-                    node_id.clone(),
+                    endpoint_id.clone(),
                     ClientModel {
                         name,
-                        node_id,
+                        endpoint_id,
                         connected_at,
 
                         state: ClientStateModel::Pending,
@@ -1028,11 +1025,14 @@ impl Node {
                 self.event_handler.on_node_model_snapshot(model.clone());
             }
 
-            NodeModelUpdate::UpdateClient { node_id, update } => {
-                let node_id_string = node_id.to_string();
+            NodeModelUpdate::UpdateClient {
+                endpoint_id,
+                update,
+            } => {
+                let endpoint_id_string = endpoint_id.to_string();
 
                 let mut model = self.model.lock().unwrap();
-                let Some(client) = model.clients.get_mut(&node_id_string) else {
+                let Some(client) = model.clients.get_mut(&endpoint_id_string) else {
                     log::warn!(
                         "failed to apply NodeModelUpdate::UpdateClient: no client model found"
                     );
@@ -1043,22 +1043,16 @@ impl Node {
                     ClientModelUpdate::Accept => {
                         client.state = ClientStateModel::Accepted;
                     }
-                    ClientModelUpdate::PollRemoteInfo => {
-                        let remote_info = self.router.endpoint().remote_info(node_id);
-                        let connection_type = remote_info
-                            .as_ref()
-                            .map(|info| info.conn_type.to_string())
-                            .unwrap_or_else(|| "unknown".to_string());
-                        let latency_ms = remote_info
-                            .and_then(|info| info.latency)
-                            .map(|latency| latency.as_millis() as u64);
-
-                        client.connection_type = connection_type;
-                        client.latency_ms = latency_ms;
+                    ClientModelUpdate::UpdateConnectionInfo {
+                        remote_addr,
+                        rtt_ms,
+                    } => {
+                        client.connection_type = remote_addr;
+                        client.latency_ms = rtt_ms;
                     }
                     ClientModelUpdate::UpdateIndex => {
                         let client_handles = self.clients.lock().unwrap();
-                        let Some(client_handle) = client_handles.get(&node_id) else {
+                        let Some(client_handle) = client_handles.get(&endpoint_id) else {
                             log::warn!(
                                 "failed to apply ClientModelUpdate::UpdateIndex: no client handle found"
                             );
@@ -1081,7 +1075,7 @@ impl Node {
                                     let file_exists = download_directory.as_ref().is_some_and(
                                         |download_directory| {
                                             db.exists_file_by_node_root_path_localtree(
-                                                node_id,
+                                                endpoint_id,
                                                 &item.root,
                                                 &item.path,
                                                 download_directory,
@@ -1123,7 +1117,7 @@ impl Node {
                                     };
 
                                     IndexItemModel {
-                                        node_id: node_id.to_string(),
+                                        endpoint_id: endpoint_id.to_string(),
                                         root: item.root,
                                         path: item.path,
 
@@ -1146,7 +1140,7 @@ impl Node {
                     }
                     ClientModelUpdate::UpdateTransferJobs => {
                         let client_handles = self.clients.lock().unwrap();
-                        let Some(client_handle) = client_handles.get(&node_id) else {
+                        let Some(client_handle) = client_handles.get(&endpoint_id) else {
                             log::warn!(
                                 "failed to apply ClientModelUpdate::UpdateTransferJobs: no client handle found"
                             );
@@ -1221,7 +1215,7 @@ impl Node {
                     }
                     ClientModelUpdate::UpdatePaused => {
                         let client_handles = self.clients.lock().unwrap();
-                        let Some(client_handle) = client_handles.get(&node_id) else {
+                        let Some(client_handle) = client_handles.get(&endpoint_id) else {
                             log::warn!(
                                 "failed to apply ClientModelUpdate::UpdatePaused: no client handle found"
                             );
@@ -1258,13 +1252,13 @@ impl Node {
     async fn connect(
         self: &Arc<Self>,
         transcode_format: Option<TranscodeFormat>,
-        addr: NodeAddr,
+        addr: EndpointAddr,
     ) -> anyhow::Result<()> {
         // connect before spawning the task, so we can return an error immediately
         let connection = self.router.endpoint().connect(addr, Protocol::ALPN).await?;
 
-        let node_id = connection.remote_node_id()?;
-        log::info!("opened connection to {node_id}");
+        let endpoint_id = connection.remote_id();
+        log::info!("opened connection to {endpoint_id}");
 
         let db = self.db.clone();
         let event_tx = self.event_tx.clone();
@@ -1290,7 +1284,7 @@ impl Node {
             // notify node
             event_tx
                 .send(NodeEvent::ClientClosed {
-                    node_id,
+                    endpoint_id,
                     error: res.err().map(|e| format!("{e:#}")),
                 })
                 .expect("failed to send NodeEvent::ClientClosed");
@@ -1301,10 +1295,10 @@ impl Node {
 
     /// Check if stored remote files still exist locally.
     async fn check_remote_files(self: &Arc<Self>) -> anyhow::Result<()> {
-        // get remote files by getting files where node ID is not the local node ID
+        // get remote files by getting files where endpoint ID is not the local endpoint ID
         let remote_files = {
             let db = self.db.lock().unwrap();
-            db.get_files_by_ne_node_id(self.router.endpoint().node_id())?
+            db.get_files_by_ne_node_id(self.router.endpoint().id())?
         };
 
         // check if files exist
@@ -1371,38 +1365,32 @@ impl Protocol {
 }
 
 impl ProtocolHandler for Protocol {
-    fn accept(&self, connection: iroh::endpoint::Connection) -> Boxed<anyhow::Result<()>> {
-        let db = self.db.clone();
-        let transcode_status_cache = self.transcode_status_cache.clone();
-        let hash_cache = self.hash_cache.clone();
-        let event_tx = self.event_tx.clone();
-        Box::pin(async move {
-            let node_id = connection.remote_node_id()?;
-            log::info!("accepted connection from {node_id}");
+    async fn accept(&self, connection: iroh::endpoint::Connection) -> Result<(), AcceptError> {
+        let endpoint_id = connection.remote_id();
+        log::info!("accepted connection from {endpoint_id}");
 
-            let server = Server::new(
-                db,
-                transcode_status_cache,
-                hash_cache,
-                connection,
-                event_tx.clone(),
-            );
+        let server = Server::new(
+            self.db.clone(),
+            self.transcode_status_cache.clone(),
+            self.hash_cache.clone(),
+            connection,
+            self.event_tx.clone(),
+        );
 
-            let res = server.run().await;
-            if let Err(e) = &res {
-                log::error!("error during server.run(): {e:#}");
-            }
+        let res = server.run().await;
+        if let Err(e) = &res {
+            log::error!("error during server.run(): {e:#}");
+        }
 
-            // notify node
-            event_tx
-                .send(NodeEvent::ServerClosed {
-                    node_id,
-                    error: res.err().map(|e| format!("{e:#}")),
-                })
-                .expect("failed to send NodeEvent::ServerClosed");
+        // notify node
+        self.event_tx
+            .send(NodeEvent::ServerClosed {
+                endpoint_id,
+                error: res.err().map(|e| format!("{e:#}")),
+            })
+            .expect("failed to send NodeEvent::ServerClosed");
 
-            Ok(())
-        })
+        Ok(())
     }
 }
 
@@ -1426,7 +1414,7 @@ struct ServerTransferJob {
     progress: ServerTransferJobProgress,
 
     // for UI
-    file_node_id: NodeId,
+    file_endpoint_id: EndpointId,
     file_root: String,
     file_path: String,
 }
@@ -1509,30 +1497,34 @@ impl Server {
     }
 
     async fn run(self) -> anyhow::Result<()> {
-        let remote_node_id = self.connection.remote_node_id()?;
+        let remote_endpoint_id = self.connection.remote_id();
 
-        // spawn remote info polling task
-        let cancel_token = CancellationToken::new();
-        let _cancel_guard = cancel_token.clone().drop_guard();
+        // spawn connection info watcher task
+        // TODO: check that this is cancelled/cleaned up correctly?
+        let mut paths_stream = self.connection.paths().stream();
         tokio::spawn({
             let event_tx = self.event_tx.clone();
             async move {
-                loop {
+                while let Some(paths) = paths_stream.next().await {
+                    let selected_path = paths.iter().find(|path| path.is_selected());
+                    let (remote_addr, rtt_ms) = match selected_path {
+                        Some(selected_path) => {
+                            let remote_addr = selected_path.remote_addr().to_string();
+                            let rtt_ms = selected_path.rtt().map(|d| d.as_millis() as u64);
+                            (remote_addr, rtt_ms)
+                        }
+                        None => ("unknown".to_string(), None),
+                    };
+
                     event_tx
                         .send(NodeEvent::ServerChanged {
-                            node_id: remote_node_id,
-                            update: ServerModelUpdate::PollRemoteInfo,
+                            endpoint_id: remote_endpoint_id,
+                            update: ServerModelUpdate::UpdateConnectionInfo {
+                                remote_addr,
+                                rtt_ms,
+                            },
                         })
-                        .expect("failed to send ServerModelUpdate::PollRemoteInfo");
-
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-
-                    if cancel_token.is_cancelled() {
-                        log::debug!(
-                            "remote info polling task cancelled for server {remote_node_id}"
-                        );
-                        break;
-                    }
+                        .expect("failed to send ServerModelUpdate::UpdateConnectionInfo");
                 }
             }
         });
@@ -1588,7 +1580,7 @@ impl Server {
         };
         self.event_tx
             .send(NodeEvent::ServerOpened {
-                node_id: remote_node_id,
+                endpoint_id: remote_endpoint_id,
                 handle,
 
                 name: client_name.clone(),
@@ -1599,15 +1591,15 @@ impl Server {
         // check if remote node is trusted
         let is_trusted = {
             let db = self.db.lock().unwrap();
-            db.is_node_trusted(remote_node_id)?
+            db.is_node_trusted(remote_endpoint_id)?
         };
 
         if is_trusted {
-            log::info!("accepting connection from trusted node {remote_node_id}");
+            log::info!("accepting connection from trusted node {remote_endpoint_id}");
         } else {
             // waiting loop, wait for user to accept or deny the connection
             log::info!(
-                "waiting for accept or deny of connection from untrusted node {remote_node_id}",
+                "waiting for accept or deny of connection from untrusted node {remote_endpoint_id}",
             );
             loop {
                 tokio::select! {
@@ -1654,7 +1646,7 @@ impl Server {
         // mark as accepted
         self.event_tx
             .send(NodeEvent::ServerChanged {
-                node_id: remote_node_id,
+                endpoint_id: remote_endpoint_id,
                 update: ServerModelUpdate::Accept,
             })
             .expect("failed to send ServerModelUpdate::Accept");
@@ -1675,7 +1667,7 @@ impl Server {
         // update name and connected_at for trusted nodes
         {
             let db = self.db.lock().unwrap();
-            db.update_trusted_node(remote_node_id, &client_name, self.connected_at)
+            db.update_trusted_node(remote_endpoint_id, &client_name, self.connected_at)
                 .context("failed to update trusted node in database")?;
         }
         self.event_tx
@@ -1806,7 +1798,7 @@ impl Server {
                         // update model
                         event_tx
                             .send(NodeEvent::ServerChanged {
-                                node_id: remote_node_id,
+                                endpoint_id: remote_endpoint_id,
                                 update: ServerModelUpdate::UpdateTransferJobs,
                             })
                             .expect("failed to send ServerModelUpdate::UpdateTransferJobs");
@@ -1858,19 +1850,19 @@ impl Server {
                                     let files = {
                                         let db = self.db.lock().expect("failed to lock database");
                                         db.get_files_by_node_root_path(
-                                            items.iter().map(|item| (item.node_id, item.root.clone(), item.path.clone()))
+                                            items.iter().map(|item| (item.endpoint_id, item.root.clone(), item.path.clone()))
                                         )?.into_iter().map(|f| ((f.node_id, f.root.clone(), f.path.clone()), f)).collect::<HashMap<_, _>>()
                                     };
 
                                     let status_changes = items.into_iter().map(|item| {
                                         // TODO: wasteful clones
-                                        let file = files.get(&(item.node_id, item.root.clone(), item.path.clone()));
+                                        let file = files.get(&(item.endpoint_id, item.root.clone(), item.path.clone()));
 
                                         // get file for requested item
                                         let Some(file) = file else {
                                             self.jobs.insert(item.job_id, ServerTransferJob {
                                                 progress: ServerTransferJobProgress::Failed { error: anyhow::anyhow!("file not found") },
-                                                file_node_id: item.node_id,
+                                                file_endpoint_id: item.endpoint_id,
                                                 file_root: item.root,
                                                 file_path: item.path,
                                             });
@@ -1891,7 +1883,7 @@ impl Server {
                                             // create job
                                             self.jobs.insert(item.job_id, ServerTransferJob {
                                                 progress: ServerTransferJobProgress::Transcoding { local_path },
-                                                file_node_id: item.node_id,
+                                                file_endpoint_id: item.endpoint_id,
                                                 file_root: item.root,
                                                 file_path: item.path,
                                             });
@@ -1906,7 +1898,7 @@ impl Server {
                                                     transcode_path: local_path.clone(),
                                                     file_size: key.file_size(),
                                                 },
-                                                file_node_id: item.node_id,
+                                                file_endpoint_id: item.endpoint_id,
                                                 file_root: item.root,
                                                 file_path: item.path,
                                             });
@@ -1924,7 +1916,7 @@ impl Server {
                                             // create job
                                             self.jobs.insert(item.job_id, ServerTransferJob {
                                                 progress: ServerTransferJobProgress::Transcoding { local_path },
-                                                file_node_id: item.node_id,
+                                                file_endpoint_id: item.endpoint_id,
                                                 file_root: item.root,
                                                 file_path: item.path,
                                             });
@@ -1945,7 +1937,7 @@ impl Server {
                                                         transcode_path: transcode_path.clone(),
                                                         file_size: *file_size,
                                                     },
-                                                    file_node_id: item.node_id,
+                                                    file_endpoint_id: item.endpoint_id,
                                                     file_root: item.root,
                                                     file_path: item.path,
                                                 });
@@ -1963,7 +1955,7 @@ impl Server {
                                                     progress: ServerTransferJobProgress::Failed {
                                                         error: anyhow::anyhow!("transcoding failed: {error}"),
                                                     },
-                                                    file_node_id: item.node_id,
+                                                    file_endpoint_id: item.endpoint_id,
                                                     file_root: item.root,
                                                     file_path: item.path,
                                                 });
@@ -1979,7 +1971,7 @@ impl Server {
                                                 // create job
                                                 self.jobs.insert(item.job_id, ServerTransferJob {
                                                     progress: ServerTransferJobProgress::Transcoding { local_path },
-                                                    file_node_id: item.node_id,
+                                                    file_endpoint_id: item.endpoint_id,
                                                     file_root: item.root,
                                                     file_path: item.path,
                                                 });
@@ -1997,7 +1989,7 @@ impl Server {
 
                                     // update model
                                     self.event_tx.send(NodeEvent::ServerChanged {
-                                        node_id: remote_node_id,
+                                        endpoint_id: remote_endpoint_id,
                                         update: ServerModelUpdate::UpdateTransferJobs,
                                     }).expect("failed to send ServerModelUpdate::UpdateTransferJobs");
 
@@ -2088,7 +2080,7 @@ impl Server {
 
                                 // update model
                                 event_tx.send(NodeEvent::ServerChanged {
-                                    node_id: remote_node_id,
+                                    endpoint_id: remote_endpoint_id,
                                     update: ServerModelUpdate::UpdateTransferJobs,
                                 }).expect("failed to send ServerModelUpdate::UpdateTransferJobs");
 
@@ -2108,13 +2100,13 @@ impl Server {
 
                                 // update model
                                 event_tx.send(NodeEvent::ServerChanged {
-                                    node_id: remote_node_id,
+                                    endpoint_id: remote_endpoint_id,
                                     update: ServerModelUpdate::UpdateTransferJobs,
                                 }).expect("failed to send ServerModelUpdate::UpdateTransferJobs");
 
                                 let is_first_transfer = is_first_transfer.swap(false, Ordering::SeqCst);
                                 let _ = event_tx.send(NodeEvent::ServerTransferCompleted {
-                                    node_id: remote_node_id,
+                                    endpoint_id: remote_endpoint_id,
                                     bytes: file_size,
                                     is_first_transfer,
                                 });
@@ -2169,7 +2161,7 @@ impl Server {
                                 item.file_size = file_size;
 
                                 updates.push(IndexUpdateItem::FileSize {
-                                    node_id: item.node_id,
+                                    endpoint_id: item.endpoint_id,
                                     root: item.root.clone(),
                                     path: item.path.clone(),
 
@@ -2244,7 +2236,7 @@ impl Server {
                 (
                     local_path,
                     IndexItem {
-                        node_id: file.node_id,
+                        endpoint_id: file.node_id,
                         root: file.root,
                         path: file.path,
 
@@ -2262,7 +2254,7 @@ impl Server {
 struct ClientTransferJob {
     progress: ClientTransferJobProgress,
 
-    file_node_id: NodeId,
+    file_endpoint_id: EndpointId,
     file_root: String,
     file_path: String,
 }
@@ -2393,7 +2385,7 @@ impl Client {
                         let connection = connection.clone();
                         let is_first_transfer = is_first_transfer.clone();
                         async move {
-                            let remote_node_id = connection.remote_node_id()?;
+                            let remote_endpoint_id = connection.remote_id();
 
                             // check if download directory is set
                             // we need to do this inside the async block so that the return type of the closure is always the async block's anonymous future
@@ -2402,13 +2394,13 @@ impl Client {
                             };
 
                             // check job exists and get details
-                            let (file_node_id, file_root, file_path) = {
+                            let (file_endpoint_id, file_root, file_path) = {
                                 let Some(job) = jobs.get(&job_id) else {
                                     anyhow::bail!("received ready for unknown job ID {job_id}");
                                 };
 
                                 (
-                                    job.file_node_id,
+                                    job.file_endpoint_id,
                                     job.file_root.clone(),
                                     job.file_path.clone(),
                                 )
@@ -2469,7 +2461,7 @@ impl Client {
                             // update model
                             event_tx
                                 .send(NodeEvent::ClientChanged {
-                                    node_id: remote_node_id,
+                                    endpoint_id: remote_endpoint_id,
                                     update: ClientModelUpdate::UpdateTransferJobs,
                                 })
                                 .expect("failed to send ClientModelUpdate::UpdateTransferJobs");
@@ -2477,7 +2469,7 @@ impl Client {
                             // build file path
                             let local_path = {
                                 let root_dir_name =
-                                    format!("musicopy-{}-{}", &file_node_id, &file_root);
+                                    format!("musicopy-{}-{}", &file_endpoint_id, &file_root);
                                 let mut local_path =
                                     TreePath::new(download_directory, root_dir_name.into())?;
                                 local_path.push(&file_path);
@@ -2511,7 +2503,7 @@ impl Client {
                             {
                                 let mut db = db.lock().unwrap();
                                 db.insert_remote_file(
-                                    remote_node_id,
+                                    remote_endpoint_id,
                                     InsertFile {
                                         root: &file_root,
                                         path: &file_path,
@@ -2534,14 +2526,14 @@ impl Client {
                             // update model
                             event_tx
                                 .send(NodeEvent::ClientChanged {
-                                    node_id: remote_node_id,
+                                    endpoint_id: remote_endpoint_id,
                                     update: ClientModelUpdate::UpdateTransferJobs,
                                 })
                                 .expect("failed to send ClientModelUpdate::UpdateTransferJobs");
 
                             let is_first_transfer = is_first_transfer.swap(false, Ordering::SeqCst);
                             let _ = event_tx.send(NodeEvent::ClientTransferCompleted {
-                                node_id: remote_node_id,
+                                endpoint_id: remote_endpoint_id,
                                 bytes: file_size,
                                 is_first_transfer,
                             });
@@ -2585,30 +2577,34 @@ impl Client {
     }
 
     async fn run(self) -> anyhow::Result<()> {
-        let remote_node_id = self.connection.remote_node_id()?;
+        let remote_endpoint_id = self.connection.remote_id();
 
-        // spawn remote info polling task
-        let cancel_token = CancellationToken::new();
-        let _cancel_guard = cancel_token.clone().drop_guard();
+        // spawn connection info watcher task
+        // TODO: check that this is cancelled/cleaned up correctly?
+        let mut paths_stream = self.connection.paths().stream();
         tokio::spawn({
             let event_tx = self.event_tx.clone();
             async move {
-                loop {
+                while let Some(paths) = paths_stream.next().await {
+                    let selected_path = paths.iter().find(|path| path.is_selected());
+                    let (remote_addr, rtt_ms) = match selected_path {
+                        Some(selected_path) => {
+                            let remote_addr = selected_path.remote_addr().to_string();
+                            let rtt_ms = selected_path.rtt().map(|d| d.as_millis() as u64);
+                            (remote_addr, rtt_ms)
+                        }
+                        None => ("unknown".to_string(), None),
+                    };
+
                     event_tx
                         .send(NodeEvent::ClientChanged {
-                            node_id: remote_node_id,
-                            update: ClientModelUpdate::PollRemoteInfo,
+                            endpoint_id: remote_endpoint_id,
+                            update: ClientModelUpdate::UpdateConnectionInfo {
+                                remote_addr,
+                                rtt_ms,
+                            },
                         })
-                        .expect("failed to send ClientModelUpdate::PollRemoteInfo");
-
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-
-                    if cancel_token.is_cancelled() {
-                        log::debug!(
-                            "remote info polling task cancelled for client {remote_node_id}"
-                        );
-                        break;
-                    }
+                        .expect("failed to send ClientModelUpdate::UpdateConnectionInfo");
                 }
             }
         });
@@ -2667,7 +2663,7 @@ impl Client {
         };
         self.event_tx
             .send(NodeEvent::ClientOpened {
-                node_id: remote_node_id,
+                endpoint_id: remote_endpoint_id,
                 handle,
 
                 name: server_name.clone(),
@@ -2726,7 +2722,7 @@ impl Client {
         // mark as accepted
         self.event_tx
             .send(NodeEvent::ClientChanged {
-                node_id: remote_node_id,
+                endpoint_id: remote_endpoint_id,
                 update: ClientModelUpdate::Accept,
             })
             .expect("failed to send ClientModelUpdate::Accept");
@@ -2734,7 +2730,7 @@ impl Client {
         // update recent servers in database
         {
             let db = self.db.lock().unwrap();
-            db.update_recent_server(remote_node_id, &server_name, self.connected_at)
+            db.update_recent_server(remote_endpoint_id, &server_name, self.connected_at)
                 .context("failed to update recent server in database")?;
         }
         self.event_tx
@@ -2815,8 +2811,8 @@ impl Client {
                             let download_requests = {
                                 let db = self.db.lock().unwrap();
                                 items.into_iter().flat_map(|item| {
-                                    let Ok(file_node_id) = item.node_id.parse() else {
-                                        log::warn!("SetDownloads: invalid node ID");
+                                    let Ok(file_endpoint_id) = item.endpoint_id.parse() else {
+                                        log::warn!("SetDownloads: invalid endpoint ID");
                                         return None;
                                     };
 
@@ -2827,7 +2823,7 @@ impl Client {
 
                                     // find item in index
                                     let Some(_index_item) = index.iter().find(|i| {
-                                        i.node_id == file_node_id && i.root == item.root && i.path == item.path
+                                        i.endpoint_id == file_endpoint_id && i.root == item.root && i.path == item.path
                                     }) else {
                                         log::warn!("SetDownloads: item not found in index: {item:?}");
                                         return None;
@@ -2836,7 +2832,7 @@ impl Client {
                                     // check if file is downloaded to the current download directory
                                     let downloaded = download_directory.as_ref().is_some_and(|download_directory| {
                                         db.exists_file_by_node_root_path_localtree(
-                                            file_node_id, &item.root, &item.path, download_directory,
+                                            file_endpoint_id, &item.root, &item.path, download_directory,
                                         )
                                         .unwrap_or(false)
                                     });
@@ -2848,14 +2844,14 @@ impl Client {
                                     let job_id = self.next_job_id.fetch_add(1, Ordering::Relaxed);
                                     self.jobs.insert(job_id, ClientTransferJob {
                                         progress: ClientTransferJobProgress::Requested,
-                                        file_node_id,
+                                        file_endpoint_id,
                                         file_root: item.root.clone(),
                                         file_path: item.path.clone(),
                                     });
 
                                     Some(DownloadItem {
                                         job_id,
-                                        node_id: file_node_id,
+                                        endpoint_id: file_endpoint_id,
                                         root: item.root,
                                         path: item.path,
                                     })
@@ -2875,15 +2871,15 @@ impl Client {
 
                             // update model
                             self.event_tx.send(NodeEvent::ClientChanged {
-                                node_id: remote_node_id,
+                                endpoint_id: remote_endpoint_id,
                                 update: ClientModelUpdate::UpdateTransferJobs,
                             }).expect("failed to send ClientModelUpdate::UpdateTransferJobs");
                             self.event_tx.send(NodeEvent::ClientChanged {
-                                node_id: remote_node_id,
+                                endpoint_id: remote_endpoint_id,
                                 update: ClientModelUpdate::UpdateIndex,
                             }).expect("failed to send ClientModelUpdate::UpdateIndex");
                             self.event_tx.send(NodeEvent::ClientChanged {
-                                node_id: remote_node_id,
+                                endpoint_id: remote_endpoint_id,
                                 update: ClientModelUpdate::UpdatePaused,
                             }).expect("failed to send ClientModelUpdate::UpdatePaused");
                         }
@@ -2897,15 +2893,15 @@ impl Client {
 
                             // update model
                             self.event_tx.send(NodeEvent::ClientChanged {
-                                node_id: remote_node_id,
+                                endpoint_id: remote_endpoint_id,
                                 update: ClientModelUpdate::UpdateTransferJobs,
                             }).expect("failed to send ClientModelUpdate::UpdateTransferJobs");
                             self.event_tx.send(NodeEvent::ClientChanged {
-                                node_id: remote_node_id,
+                                endpoint_id: remote_endpoint_id,
                                 update: ClientModelUpdate::UpdateIndex,
                             }).expect("failed to send ClientModelUpdate::UpdateIndex");
                             self.event_tx.send(NodeEvent::ClientChanged {
-                                node_id: remote_node_id,
+                                endpoint_id: remote_endpoint_id,
                                 update: ClientModelUpdate::UpdatePaused,
                             }).expect("failed to send ClientModelUpdate::UpdatePaused");
                         }
@@ -2925,7 +2921,7 @@ impl Client {
 
                                     // update model
                                     self.event_tx.send(NodeEvent::ClientChanged {
-                                        node_id: remote_node_id,
+                                        endpoint_id: remote_endpoint_id,
                                         update: ClientModelUpdate::UpdateIndex,
                                     }).expect("failed to send ClientModelUpdate::UpdateIndex");
                                 }
@@ -2937,10 +2933,10 @@ impl Client {
                                         if let Some(index) = index.as_mut() {
                                             for update in updates {
                                                 match update {
-                                                    IndexUpdateItem::FileSize { node_id, root, path, file_size } => {
+                                                    IndexUpdateItem::FileSize { endpoint_id, root, path, file_size } => {
                                                         // TODO: don't be exponential
                                                         for item in index.iter_mut() {
-                                                            if item.node_id == node_id && item.root == root && item.path == path {
+                                                            if item.endpoint_id == endpoint_id && item.root == root && item.path == path {
                                                                 item.file_size = file_size;
                                                             }
                                                         }
@@ -2954,7 +2950,7 @@ impl Client {
 
                                     // update model
                                     self.event_tx.send(NodeEvent::ClientChanged {
-                                        node_id: remote_node_id,
+                                        endpoint_id: remote_endpoint_id,
                                         update: ClientModelUpdate::UpdateIndex,
                                     }).expect("failed to send ClientModelUpdate::UpdateIndex");
                                 }
@@ -2991,7 +2987,7 @@ impl Client {
 
                                     // update model
                                     self.event_tx.send(NodeEvent::ClientChanged {
-                                        node_id: remote_node_id,
+                                        endpoint_id: remote_endpoint_id,
                                         update: ClientModelUpdate::UpdateTransferJobs,
                                     }).expect("failed to send ClientModelUpdate::UpdateTransferJobs");
                                 }

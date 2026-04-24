@@ -31,9 +31,9 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.musicopy.AppSettings
-import app.musicopy.mockNodeId
+import app.musicopy.mockEndpointId
 import app.musicopy.now
-import app.musicopy.shortenNodeId
+import app.musicopy.shortenEndpointId
 import app.musicopy.ui.TranscodeFormat
 import app.musicopy.ui.TranscodeFormatSheet
 import app.musicopy.ui.components.DetailBox
@@ -66,7 +66,7 @@ fun HomeScreen(
     onPickDownloadDirectory: () -> Unit,
     onConnectQRButtonClicked: () -> Unit,
     onConnectManuallyButtonClicked: () -> Unit,
-    onConnectRecent: (nodeId: String) -> Unit,
+    onConnectRecent: (endpointId: String) -> Unit,
     onShowSettings: () -> Unit,
 ) {
     val transcodeFormatSheetState = rememberTranscodeFormatSheetState()
@@ -214,7 +214,7 @@ fun HomeScreen(
                                 recentServer = recentServer,
                                 connectingTo = connectingTo,
                                 onConnect = {
-                                    onConnectRecent(recentServer.nodeId)
+                                    onConnectRecent(recentServer.endpointId)
                                 }
                             )
                         }
@@ -263,7 +263,7 @@ fun RecentConnection(
         1L -> "1 day ago"
         else -> "$daysAgo days ago"
     }
-    val detail = "${shortenNodeId(recentServer.nodeId)}, $readableDaysAgo"
+    val detail = "${shortenEndpointId(recentServer.endpointId)}, $readableDaysAgo"
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -290,7 +290,7 @@ fun RecentConnection(
                 )
             }
 
-            if (connectingTo == recentServer.nodeId) {
+            if (connectingTo == recentServer.endpointId) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp)
                 )
@@ -312,7 +312,7 @@ fun HomeScreenSandbox() {
             repeat(10) {
                 add(
                     RecentServerModel(
-                        nodeId = mockNodeId(),
+                        endpointId = mockEndpointId(),
                         name = "My Desktop",
                         connectedAt = now() - (0uL..1_000_000uL).random()
                     )
@@ -324,9 +324,9 @@ fun HomeScreenSandbox() {
     var connectingTo by remember { mutableStateOf<String?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
-    val onConnectRecent = { nodeId: String ->
+    val onConnectRecent = { endpointId: String ->
         coroutineScope.launch {
-            connectingTo = nodeId
+            connectingTo = endpointId
             delay(500)
             connectingTo = null
         }

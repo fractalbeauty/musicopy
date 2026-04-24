@@ -84,7 +84,7 @@ impl<'a> App<'a> {
             .divider(" ")
             .render(tabs_area, frame.buffer_mut());
 
-        shorten_id(self.node_model.node_id.clone())
+        shorten_id(self.node_model.endpoint_id.clone())
             .yellow()
             .render(id_area, frame.buffer_mut());
 
@@ -135,7 +135,7 @@ impl<'a> App<'a> {
             .map(|n| {
                 format!(
                     "{} ({}) [{}]",
-                    shorten_id(&n.node_id),
+                    shorten_id(&n.endpoint_id),
                     n.name,
                     n.connected_at
                         .map(|x| x.to_string())
@@ -152,7 +152,7 @@ impl<'a> App<'a> {
             .map(|n| {
                 format!(
                     "{} ({}) [{}]",
-                    shorten_id(&n.node_id),
+                    shorten_id(&n.endpoint_id),
                     n.name,
                     n.connected_at
                 )
@@ -165,7 +165,7 @@ impl<'a> App<'a> {
             .servers
             .values()
             .filter(|s| matches!(s.state, ServerStateModel::Accepted))
-            .map(|s| format!("{} ({})", shorten_id(&s.node_id), s.name))
+            .map(|s| format!("{} ({})", shorten_id(&s.endpoint_id), s.name))
             .collect::<Vec<_>>()
             .join(", ");
         let pending_servers = self
@@ -173,7 +173,7 @@ impl<'a> App<'a> {
             .servers
             .values()
             .filter(|s| matches!(s.state, ServerStateModel::Pending))
-            .map(|s| format!("{} ({})", shorten_id(&s.node_id), s.name))
+            .map(|s| format!("{} ({})", shorten_id(&s.endpoint_id), s.name))
             .collect::<Vec<_>>()
             .join(", ");
         let closed_servers = self
@@ -183,7 +183,7 @@ impl<'a> App<'a> {
             .filter_map(|s| match &s.state {
                 ServerStateModel::Closed { error } => Some(format!(
                     "{} ({}) [{}]",
-                    shorten_id(&s.node_id),
+                    shorten_id(&s.endpoint_id),
                     s.name,
                     error.as_deref().unwrap_or("no error")
                 )),
@@ -197,7 +197,7 @@ impl<'a> App<'a> {
             .clients
             .values()
             .filter(|c| matches!(c.state, ClientStateModel::Accepted))
-            .map(|c| format!("{} ({})", shorten_id(&c.node_id), c.name))
+            .map(|c| format!("{} ({})", shorten_id(&c.endpoint_id), c.name))
             .collect::<Vec<_>>()
             .join(", ");
         let pending_clients = self
@@ -205,7 +205,7 @@ impl<'a> App<'a> {
             .clients
             .values()
             .filter(|c| matches!(c.state, ClientStateModel::Pending))
-            .map(|c| format!("{} ({})", shorten_id(&c.node_id), c.name))
+            .map(|c| format!("{} ({})", shorten_id(&c.endpoint_id), c.name))
             .collect::<Vec<_>>()
             .join(", ");
         let closed_clients = self
@@ -215,7 +215,7 @@ impl<'a> App<'a> {
             .filter_map(|c| match &c.state {
                 ClientStateModel::Closed { error } => Some(format!(
                     "{} ({}) [{}]",
-                    shorten_id(&c.node_id),
+                    shorten_id(&c.endpoint_id),
                     c.name,
                     error.as_deref().unwrap_or("no error")
                 )),
@@ -227,8 +227,8 @@ impl<'a> App<'a> {
         let mut lines = vec![
             Line::from("Network".bold()),
             Line::from(vec![
-                "Node ID: ".into(),
-                self.node_model.node_id.clone().yellow(),
+                "Endpoint ID: ".into(),
+                self.node_model.endpoint_id.clone().yellow(),
             ]),
             Line::from(vec![
                 "Home Relay: ".into(),
@@ -344,7 +344,7 @@ impl<'a> App<'a> {
 
                 let mut job_lines = vec![Line::from(vec![
                     " - ".into(),
-                    shorten_id(&server.node_id).blue(),
+                    shorten_id(&server.endpoint_id).blue(),
                     ": ".into(),
                     count_transcoding.to_string().green(),
                     " transcoding / ".into(),
@@ -441,7 +441,7 @@ impl<'a> App<'a> {
 
                 let mut job_lines = vec![Line::from(vec![
                     " - ".into(),
-                    shorten_id(&client.node_id).blue(),
+                    shorten_id(&client.endpoint_id).blue(),
                     ": ".into(),
                     count_requested.to_string().green(),
                     " requested / ".into(),
@@ -616,9 +616,9 @@ impl<'a> App<'a> {
     }
 }
 
-fn shorten_id(node_id: impl Into<String>) -> String {
-    let mut node_id = node_id.into();
-    node_id.truncate(6);
-    node_id.push_str("..");
-    node_id
+fn shorten_id(endpoint_id: impl Into<String>) -> String {
+    let mut endpoint_id = endpoint_id.into();
+    endpoint_id.truncate(6);
+    endpoint_id.push_str("..");
+    endpoint_id
 }

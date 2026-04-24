@@ -14,7 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.musicopy.mockClientModel
-import app.musicopy.shortenNodeId
+import app.musicopy.shortenEndpointId
 import app.musicopy.ui.components.Info
 import app.musicopy.ui.components.TopBar
 import app.musicopy.ui.widgetHeadline
@@ -67,7 +67,7 @@ fun WaitingScreen(
                 )
 
                 Text(
-                    text = shortenNodeId(clientModel.nodeId),
+                    text = shortenEndpointId(clientModel.endpointId),
                     style = MaterialTheme.typography.labelMedium
                 )
 

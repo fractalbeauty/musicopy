@@ -32,13 +32,13 @@ fun DesktopApp(
                 nodeModel = nodeModel,
                 statsModel = statsModel,
                 showHints = true,
-                onAcceptAndTrust = { nodeId ->
+                onAcceptAndTrust = { endpointId ->
                     coreInstance.instance.acceptConnectionAndTrust(
-                        nodeId
+                        endpointId
                     )
                 },
-                onAcceptOnce = { nodeId -> coreInstance.instance.acceptConnection(nodeId) },
-                onDeny = { nodeId -> coreInstance.instance.denyConnection(nodeId) },
+                onAcceptOnce = { endpointId -> coreInstance.instance.acceptConnection(endpointId) },
+                onDeny = { endpointId -> coreInstance.instance.denyConnection(endpointId) },
                 onAddLibraryRoot = { name, path ->
                     coreInstance.instance.addLibraryRoot(
                         name,
@@ -53,8 +53,8 @@ fun DesktopApp(
                 onDeleteAllTranscodes = {
                     coreInstance.instance.deleteAllTranscodes()
                 },
-                onUntrustNode = { nodeId ->
-                    coreInstance.instance.untrustNode(nodeId)
+                onUntrustNode = { endpointId ->
+                    coreInstance.instance.untrustNode(endpointId)
                 }
             )
         }

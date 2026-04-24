@@ -19,7 +19,7 @@ use crate::{
     node::{DownloadRequestModel, Node, NodeCommand, NodeModel},
 };
 use anyhow::Context;
-use iroh::{NodeAddr, NodeId, SecretKey};
+use iroh::{EndpointAddr, EndpointId, SecretKey};
 use log::{debug, error};
 use std::{
     path::PathBuf,
@@ -136,7 +136,7 @@ impl Core {
         let (db, secret_key, transcodes_dir) = if options.in_memory {
             let db = Database::open_in_memory().context("failed to open database")?;
 
-            let secret_key = SecretKey::generate(rand::rngs::OsRng);
+            let secret_key = SecretKey::generate();
 
             // TODO: maybe clean contents or name uniquely each run
             let transcodes_dir = {
@@ -190,7 +190,7 @@ impl Core {
                         .context("failed to parse secret key file")?,
                 )
             } else {
-                let new_key = SecretKey::generate(rand::rngs::OsRng);
+                let new_key = SecretKey::generate();
                 std::fs::write(&key_path, new_key.to_bytes())
                     .context("failed to write secret key file")?;
                 new_key
@@ -205,7 +205,7 @@ impl Core {
         let transcode_status_cache = TranscodeStatusCache::new();
         let hash_cache = HashCache::new(db.clone());
 
-        let node_id = NodeId::from(secret_key.public());
+        let endpoint_id = EndpointId::from(secret_key.public());
 
         let (res_tx, res_rx) = tokio::sync::oneshot::channel();
 
@@ -228,7 +228,7 @@ impl Core {
                             Library::new(
                                 event_handler.clone(),
                                 db.clone(),
-                                node_id,
+                                endpoint_id,
                                 transcodes_dir.clone(),
                                 transcode_status_cache.clone(),
                                 hash_cache.clone(),
@@ -386,10 +386,10 @@ impl Core {
     pub async fn connect(
         &self,
         transcode_format: Option<TranscodeFormat>,
-        node_id: &str,
+        endpoint_id: &str,
     ) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
-        let node_addr = NodeAddr::from(node_id);
+        let endpoint_id: EndpointId = endpoint_id.parse().context("failed to parse endpoint id")?;
+        let node_addr = EndpointAddr::from(endpoint_id);
 
         let (callback_tx, callback_rx) = tokio::sync::oneshot::channel();
 
@@ -418,14 +418,14 @@ impl Core {
 
     pub fn set_downloads(
         &self,
-        node_id: &str,
+        endpoint_id: &str,
         items: Vec<DownloadRequestModel>,
     ) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
+        let endpoint_id: EndpointId = endpoint_id.parse().context("failed to parse endpoint id")?;
 
         self.node
             .send(NodeCommand::SetDownloads {
-                client: node_id,
+                client: endpoint_id,
                 items,
             })
             .context("failed to send to node thread")?;
@@ -433,21 +433,23 @@ impl Core {
         Ok(())
     }
 
-    pub fn pause_downloads(&self, node_id: &str) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
+    pub fn pause_downloads(&self, endpoint_id: &str) -> Result<(), CoreError> {
+        let endpoint_id: EndpointId = endpoint_id.parse().context("failed to parse endpoint id")?;
 
         self.node
-            .send(NodeCommand::PauseDownloads { client: node_id })
+            .send(NodeCommand::PauseDownloads {
+                client: endpoint_id,
+            })
             .context("failed to send to node thread")?;
 
         Ok(())
     }
 
-    pub fn accept_connection(&self, node_id: &str) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
+    pub fn accept_connection(&self, endpoint_id: &str) -> Result<(), CoreError> {
+        let endpoint_id: EndpointId = endpoint_id.parse().context("failed to parse endpoint id")?;
 
         self.node
-            .send(NodeCommand::AcceptConnection(node_id))
+            .send(NodeCommand::AcceptConnection(endpoint_id))
             .context("failed to send to node thread")?;
 
         Ok(())
@@ -455,75 +457,75 @@ impl Core {
 
     // used by UI to accept and trust in one call
     // TODO: remove?
-    pub fn accept_connection_and_trust(&self, node_id: &str) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
+    pub fn accept_connection_and_trust(&self, endpoint_id: &str) -> Result<(), CoreError> {
+        let endpoint_id: EndpointId = endpoint_id.parse().context("failed to parse endpoint id")?;
 
         self.node
-            .send(NodeCommand::AcceptConnection(node_id))
+            .send(NodeCommand::AcceptConnection(endpoint_id))
             .context("failed to send to node thread")?;
 
         self.node
-            .send(NodeCommand::TrustNode(node_id))
-            .context("failed to send to node thread")?;
-
-        Ok(())
-    }
-
-    pub fn trust_node(&self, node_id: &str) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
-
-        self.node
-            .send(NodeCommand::TrustNode(node_id))
+            .send(NodeCommand::TrustNode(endpoint_id))
             .context("failed to send to node thread")?;
 
         Ok(())
     }
 
-    pub fn untrust_node(&self, node_id: &str) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
+    pub fn trust_node(&self, endpoint_id: &str) -> Result<(), CoreError> {
+        let endpoint_id: EndpointId = endpoint_id.parse().context("failed to parse endpoint id")?;
 
         self.node
-            .send(NodeCommand::UntrustNode(node_id))
+            .send(NodeCommand::TrustNode(endpoint_id))
             .context("failed to send to node thread")?;
 
         Ok(())
     }
 
-    pub fn deny_connection(&self, node_id: &str) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
+    pub fn untrust_node(&self, endpoint_id: &str) -> Result<(), CoreError> {
+        let endpoint_id: EndpointId = endpoint_id.parse().context("failed to parse endpoint id")?;
 
         self.node
-            .send(NodeCommand::DenyConnection(node_id))
+            .send(NodeCommand::UntrustNode(endpoint_id))
             .context("failed to send to node thread")?;
 
         Ok(())
     }
 
-    pub fn close_client(&self, node_id: &str) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
+    pub fn deny_connection(&self, endpoint_id: &str) -> Result<(), CoreError> {
+        let endpoint_id: EndpointId = endpoint_id.parse().context("failed to parse endpoint id")?;
 
         self.node
-            .send(NodeCommand::CloseClient(node_id))
+            .send(NodeCommand::DenyConnection(endpoint_id))
             .context("failed to send to node thread")?;
 
         Ok(())
     }
 
-    pub fn refresh_client_index(&self, node_id: &str) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
+    pub fn close_client(&self, endpoint_id: &str) -> Result<(), CoreError> {
+        let endpoint_id: EndpointId = endpoint_id.parse().context("failed to parse endpoint id")?;
 
         self.node
-            .send(NodeCommand::RefreshClientIndex(node_id))
+            .send(NodeCommand::CloseClient(endpoint_id))
             .context("failed to send to node thread")?;
 
         Ok(())
     }
 
-    pub fn close_server(&self, node_id: &str) -> Result<(), CoreError> {
-        let node_id: NodeId = node_id.parse().context("failed to parse node id")?;
+    pub fn refresh_client_index(&self, endpoint_id: &str) -> Result<(), CoreError> {
+        let endpoint_id: EndpointId = endpoint_id.parse().context("failed to parse endpoint id")?;
 
         self.node
-            .send(NodeCommand::CloseServer(node_id))
+            .send(NodeCommand::RefreshClientIndex(endpoint_id))
+            .context("failed to send to node thread")?;
+
+        Ok(())
+    }
+
+    pub fn close_server(&self, endpoint_id: &str) -> Result<(), CoreError> {
+        let endpoint_id: EndpointId = endpoint_id.parse().context("failed to parse endpoint id")?;
+
+        self.node
+            .send(NodeCommand::CloseServer(endpoint_id))
             .context("failed to send to node thread")?;
 
         Ok(())

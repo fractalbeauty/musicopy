@@ -42,8 +42,8 @@ fun <T> rememberPoll(
     return state
 }
 
-fun shortenNodeId(nodeId: String): String {
-    return "${nodeId.slice(0..<6)}...${nodeId.slice((nodeId.length - 6)..<(nodeId.length))}"
+fun shortenEndpointId(endpointId: String): String {
+    return "${endpointId.slice(0..<6)}...${endpointId.slice((endpointId.length - 6)..<(endpointId.length))}"
 }
 
 fun formatSize(
@@ -87,7 +87,7 @@ fun formatSize(
     }
 }
 
-fun mockNodeId(): String {
+fun mockEndpointId(): String {
     val allowedChars = ('a'..'f') + ('0'..'9')
     return (1..64)
         .map { allowedChars.random() }
@@ -95,13 +95,13 @@ fun mockNodeId(): String {
 }
 
 fun mockNodeModel(
-    nodeId: String = mockNodeId(),
+    endpointId: String = mockEndpointId(),
     homeRelay: String = "https://use1-1.relay.iroh.network./",
     servers: List<ServerModel> = emptyList(),
     clients: List<ClientModel> = emptyList(),
 ): NodeModel {
     return NodeModel(
-        nodeId = nodeId,
+        endpointId = endpointId,
         homeRelay = homeRelay,
         sendIpv4 = 12345u,
         sendIpv6 = 12345u,
@@ -111,20 +111,20 @@ fun mockNodeModel(
         recvRelay = 12345u,
         connSuccess = 4u,
         connDirect = 3u,
-        servers = servers.associateBy { it.nodeId },
-        clients = clients.associateBy { it.nodeId },
+        servers = servers.associateBy { it.endpointId },
+        clients = clients.associateBy { it.endpointId },
         trustedNodes = emptyList(),
         recentServers = emptyList(),
     )
 }
 
 fun mockServerModel(
-    nodeId: String = mockNodeId(),
+    endpointId: String = mockEndpointId(),
     transferJobs: List<TransferJobModel> = emptyList(),
 ): ServerModel {
     return ServerModel(
         name = "My Phone",
-        nodeId = nodeId,
+        endpointId = endpointId,
         connectedAt = now(),
         state = ServerStateModel.Accepted,
         connectionType = "direct",
@@ -146,209 +146,209 @@ fun mockClientModel(
     },
     paused: Boolean = false,
 ): ClientModel {
-    val nodeId = mockNodeId()
+    val endpointId = mockEndpointId()
 
     return ClientModel(
         name = "My Desktop",
-        nodeId = mockNodeId(),
+        endpointId = mockEndpointId(),
         connectedAt = now(),
         state = ClientStateModel.Accepted,
         connectionType = "direct",
         latencyMs = 42u,
         index = listOf(
             // basic example
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/a"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/a"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/a"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/a/b"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/a/b"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/a/b"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/a/b/c"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/a/b/c"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/a/b/c"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/a/d"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/a/d"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/a/d"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/e"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/e"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/e"),
-            mockIndexItemModel(nodeId = nodeId, root = "one", basePath = "/e"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/a"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/a"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/a"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/a/b"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/a/b"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/a/b"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/a/b/c"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/a/b/c"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/a/b/c"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/a/d"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/a/d"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/a/d"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/e"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/e"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/e"),
+            mockIndexItemModel(endpointId = endpointId, root = "one", basePath = "/e"),
 
             // folder collapsing example
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/a/foo/bar/baz"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/a/foo/bar/baz"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/a/foo/bar/baz"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/a/foo/bar/baz/b"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/a/foo/bar/baz/b"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/a/foo/bar/baz/b"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/a/foo/bar/baz/b/c"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/a/foo/bar/baz/b/c"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/a/foo/bar/baz/b/c"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/a/foo/bar/baz/d"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/a/foo/bar/baz/d"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/a/foo/bar/baz/d"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/e/foo/bar/baz"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/e/foo/bar/baz"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/e/foo/bar/baz"),
-            mockIndexItemModel(nodeId = nodeId, root = "two", basePath = "/e/foo/bar/baz"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/b"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/b"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/b"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/b/c"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/b/c"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/b/c"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/d"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/d"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/d"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/e/foo/bar/baz"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/e/foo/bar/baz"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/e/foo/bar/baz"),
+            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/e/foo/bar/baz"),
 
             // a more realistic example
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen1/art1/alb1"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen1/art1/alb1"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen1/art1/alb1"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen1/art1/alb2"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen1/art1/alb2"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen1/art1/alb2"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen1/art2"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen1/art2"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen1/art2"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen1/art2/alb"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen1/art2/alb"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen1/art2/alb"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen2/art3/alb1"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen2/art3/alb1"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen2/art3/alb1"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen2/art3/alb2"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen2/art3/alb2"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen2/art3/alb2"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen2/art4/alb1"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen2/art4/alb1"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen2/art4/alb1"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen2/art4/alb2"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen2/art4/alb2"),
-            mockIndexItemModel(nodeId = nodeId, root = "ex", basePath = "/gen2/art4/alb2"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen1/art1/alb1"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen1/art1/alb1"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen1/art1/alb1"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen1/art1/alb2"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen1/art1/alb2"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen1/art1/alb2"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen1/art2"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen1/art2"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen1/art2"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen1/art2/alb"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen1/art2/alb"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen1/art2/alb"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen2/art3/alb1"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen2/art3/alb1"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen2/art3/alb1"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen2/art3/alb2"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen2/art3/alb2"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen2/art3/alb2"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen2/art4/alb1"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen2/art4/alb1"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen2/art4/alb1"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen2/art4/alb2"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen2/art4/alb2"),
+            mockIndexItemModel(endpointId = endpointId, root = "ex", basePath = "/gen2/art4/alb2"),
 
             // root collapsing example
-            mockIndexItemModel(nodeId = nodeId, root = "three", basePath = "/a/b/c/d"),
-            mockIndexItemModel(nodeId = nodeId, root = "three", basePath = "/a/b/c/d"),
-            mockIndexItemModel(nodeId = nodeId, root = "three", basePath = "/a/b/c/d"),
+            mockIndexItemModel(endpointId = endpointId, root = "three", basePath = "/a/b/c/d"),
+            mockIndexItemModel(endpointId = endpointId, root = "three", basePath = "/a/b/c/d"),
+            mockIndexItemModel(endpointId = endpointId, root = "three", basePath = "/a/b/c/d"),
 
             // long text example
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "four",
                 basePath = "/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd"
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "four",
                 basePath = "/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd"
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "four",
                 basePath = "/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd"
             ),
 
             // deep nesting example
-            mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a"),
-            mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a/b"),
-            mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a/b/c"),
-            mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a/b/c/d"),
-            mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a/b/c/d/e"),
-            mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a/b/c/d/e/f"),
-            mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a/b/c/d/e/f/g"),
-            mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a/b/c/d/e/f/g/h"),
-            mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a/b/c/d/e/f/g/h/i"),
-            mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a/b/c/d/e/f/g/h/i/j"),
-            mockIndexItemModel(nodeId = nodeId, root = "five", basePath = "/a/b/c/d/e/f/g/h/i/j/k"),
+            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a"),
+            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b"),
+            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c"),
+            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d"),
+            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e"),
+            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e/f"),
+            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e/f/g"),
+            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e/f/g/h"),
+            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e/f/g/h/i"),
+            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e/f/g/h/i/j"),
+            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e/f/g/h/i/j/k"),
 
             // download status examples
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "six",
                 basePath = "",
                 downloadStatus = IndexItemDownloadStatusModel.WAITING
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "six",
                 basePath = "",
                 downloadStatus = IndexItemDownloadStatusModel.IN_PROGRESS
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "six",
                 basePath = "",
                 downloadStatus = IndexItemDownloadStatusModel.DOWNLOADED
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "six",
                 basePath = "",
                 downloadStatus = IndexItemDownloadStatusModel.FAILED
             ),
-            mockIndexItemModel(nodeId = nodeId, root = "six", basePath = "", downloadStatus = null),
+            mockIndexItemModel(endpointId = endpointId, root = "six", basePath = "", downloadStatus = null),
 
             // download status folders
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "seven",
                 basePath = "/waiting",
                 downloadStatus = IndexItemDownloadStatusModel.WAITING
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "seven",
                 basePath = "/waiting",
                 downloadStatus = IndexItemDownloadStatusModel.WAITING
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "seven",
                 basePath = "/downloaded",
                 downloadStatus = IndexItemDownloadStatusModel.DOWNLOADED
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "seven",
                 basePath = "/downloaded",
                 downloadStatus = IndexItemDownloadStatusModel.DOWNLOADED
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "seven",
                 basePath = "/failed",
                 downloadStatus = IndexItemDownloadStatusModel.FAILED
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "seven",
                 basePath = "/failed",
                 downloadStatus = IndexItemDownloadStatusModel.FAILED
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "seven",
                 basePath = "/waiting_failed",
                 downloadStatus = IndexItemDownloadStatusModel.WAITING
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "seven",
                 basePath = "/waiting_failed",
                 downloadStatus = IndexItemDownloadStatusModel.FAILED
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "seven",
                 basePath = "/waiting_inprogress",
                 downloadStatus = IndexItemDownloadStatusModel.WAITING
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "seven",
                 basePath = "/waiting_inprogress",
                 downloadStatus = IndexItemDownloadStatusModel.IN_PROGRESS
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "seven",
                 basePath = "/inprogress_downloaded",
                 downloadStatus = IndexItemDownloadStatusModel.IN_PROGRESS
             ),
             mockIndexItemModel(
-                nodeId = nodeId,
+                endpointId = endpointId,
                 root = "seven",
                 basePath = "/inprogress_downloaded",
                 downloadStatus = IndexItemDownloadStatusModel.DOWNLOADED
@@ -362,7 +362,7 @@ fun mockClientModel(
 var nextMockIndexItemCount: Int = 1
 
 fun mockIndexItemModel(
-    nodeId: String = mockNodeId(),
+    endpointId: String = mockEndpointId(),
     root: String = "library",
     basePath: String = "/a/b/c",
     downloadStatus: IndexItemDownloadStatusModel? = null,
@@ -381,7 +381,7 @@ fun mockIndexItemModel(
     }
 
     return IndexItemModel(
-        nodeId = nodeId,
+        endpointId = endpointId,
         root = root,
         path = "${basePath}/file${itemCount}.flac",
 

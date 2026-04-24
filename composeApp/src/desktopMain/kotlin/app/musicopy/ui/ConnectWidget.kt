@@ -36,7 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
-import app.musicopy.shortenNodeId
+import app.musicopy.shortenEndpointId
 import app.musicopy.toClipEntry
 import app.musicopy.ui.components.Info
 import app.musicopy.ui.components.WidgetContainer
@@ -61,9 +61,9 @@ import uniffi.musicopy.ServerStateModel
 fun ConnectWidget(
     nodeModel: NodeModel,
     showHints: Boolean,
-    onAcceptAndTrust: (remoteNodeId: String) -> Unit,
-    onAcceptOnce: (remoteNodeId: String) -> Unit,
-    onDeny: (remoteNodeId: String) -> Unit,
+    onAcceptAndTrust: (remoteEndpointId: String) -> Unit,
+    onAcceptOnce: (remoteEndpointId: String) -> Unit,
+    onDeny: (remoteEndpointId: String) -> Unit,
 
     modifier: Modifier = Modifier,
 ) {
@@ -82,7 +82,7 @@ fun ConnectWidget(
     ) {
         AnimatedContent(
             targetState = nextPending,
-            contentKey = { it -> it?.nodeId },
+            contentKey = { it -> it?.endpointId },
             transitionSpec = {
                 // Compare the incoming number with the previous number.
                 val targetConnectedAt = targetState?.connectedAt ?: 0u
@@ -106,15 +106,15 @@ fun ConnectWidget(
         ) { targetState ->
             targetState?.let {
                 PendingScreen(
-                    remoteNodeId = targetState.nodeId,
+                    remoteEndpointId = targetState.endpointId,
                     remoteNodeName = targetState.name,
-                    onAcceptAndTrust = { onAcceptAndTrust(targetState.nodeId) },
-                    onAcceptOnce = { onAcceptOnce(targetState.nodeId) },
-                    onDeny = { onDeny(targetState.nodeId) },
+                    onAcceptAndTrust = { onAcceptAndTrust(targetState.endpointId) },
+                    onAcceptOnce = { onAcceptOnce(targetState.endpointId) },
+                    onDeny = { onDeny(targetState.endpointId) },
                 )
             } ?: run {
                 DefaultScreen(
-                    localNodeId = nodeModel.nodeId,
+                    localEndpointId = nodeModel.endpointId,
                     showHints = showHints
                 )
             }
@@ -124,7 +124,7 @@ fun ConnectWidget(
 
 @Composable
 private fun DefaultScreen(
-    localNodeId: String,
+    localEndpointId: String,
     showHints: Boolean,
 ) {
     val downloadAppState = rememberDialogState(initiallyVisible = false)
@@ -138,7 +138,7 @@ private fun DefaultScreen(
     val enterManuallyState = rememberDialogState(initiallyVisible = false)
     EnterManuallyDialog(
         state = enterManuallyState,
-        localNodeId = localNodeId,
+        localEndpointId = localEndpointId,
         onClose = {
             enterManuallyState.visible = false
         }
@@ -163,7 +163,7 @@ private fun DefaultScreen(
         ) {
             Image(
                 painter = rememberQrCodePainter(
-                    QrData.text(localNodeId)
+                    QrData.text(localEndpointId)
                 ),
                 contentDescription = "QR code containing node ID",
                 modifier = Modifier.widthIn(max = 120.dp)
@@ -213,7 +213,7 @@ private fun DefaultScreen(
 
 @Composable
 private fun PendingScreen(
-    remoteNodeId: String,
+    remoteEndpointId: String,
     remoteNodeName: String,
     onAcceptAndTrust: () -> Unit,
     onAcceptOnce: () -> Unit,
@@ -232,7 +232,7 @@ private fun PendingScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(remoteNodeName, style = MaterialTheme.typography.titleMedium)
-            Text(shortenNodeId(remoteNodeId), style = MaterialTheme.typography.titleSmall)
+            Text(shortenEndpointId(remoteEndpointId), style = MaterialTheme.typography.titleSmall)
         }
 
         Column(
@@ -342,7 +342,7 @@ private fun DownloadAppDialog(
 @Composable
 private fun EnterManuallyDialog(
     state: DialogState,
-    localNodeId: String,
+    localEndpointId: String,
     onClose: () -> Unit,
 ) {
     Dialog(state = state, onDismiss = onClose) {
@@ -369,7 +369,7 @@ private fun EnterManuallyDialog(
                         style = MaterialTheme.typography.bodyMedium
                     )
 
-                    val split = localNodeId.chunked(32).joinToString("\n")
+                    val split = localEndpointId.chunked(32).joinToString("\n")
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -386,7 +386,7 @@ private fun EnterManuallyDialog(
                         IconButton(
                             onClick = {
                                 runBlocking {
-                                    val clip = toClipEntry(localNodeId)
+                                    val clip = toClipEntry(localEndpointId)
                                     clipboard.setClipEntry(clip)
                                     // not supported in CMP
                                     // Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()

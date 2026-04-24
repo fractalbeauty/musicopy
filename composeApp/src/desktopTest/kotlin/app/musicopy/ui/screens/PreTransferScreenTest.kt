@@ -1,6 +1,6 @@
 package app.musicopy.ui.screens
 
-import app.musicopy.mockNodeId
+import app.musicopy.mockEndpointId
 import io.kotest.assertions.json.shouldEqualJson
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -287,7 +287,7 @@ private fun nodeToJsonString(root: TreeNode): String {
     return json.encodeToString(nodeToJson(root))
 }
 
-private val nodeId = mockNodeId()
+private val endpointId = mockEndpointId()
 
 private fun makeIndexItems(vararg paths: Pair<String, String>): List<IndexItemModel> {
     return paths.asList().map { path ->
@@ -305,7 +305,7 @@ private fun makeIndexItem(
     downloadStatus: IndexItemDownloadStatusModel?,
 ): IndexItemModel {
     return IndexItemModel(
-        nodeId = nodeId,
+        endpointId = endpointId,
         root = root,
         path = path,
         downloadStatus = downloadStatus,

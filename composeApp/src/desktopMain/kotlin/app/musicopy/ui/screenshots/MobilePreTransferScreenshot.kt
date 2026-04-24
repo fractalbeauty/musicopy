@@ -10,7 +10,7 @@ import uniffi.musicopy.ClientStateModel
 fun MobilePreTransferScreenshot() {
     val clientModel = ClientModel(
         name = "Desktop",
-        nodeId = demoNodeId,
+        endpointId = demoEndpointId,
         connectedAt = now(),
         state = ClientStateModel.Accepted,
         connectionType = "direct",

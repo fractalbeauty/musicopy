@@ -15,13 +15,13 @@ object ConnectQR
 object ConnectManually
 
 @Serializable
-data class Waiting(val nodeId: String)
+data class Waiting(val endpointId: String)
 
 @Serializable
-data class PreTransfer(val nodeId: String)
+data class PreTransfer(val endpointId: String)
 
 @Serializable
-data class Transfer(val nodeId: String)
+data class Transfer(val endpointId: String)
 
 @Serializable
-data class Disconnected(val nodeId: String)
+data class Disconnected(val endpointId: String)

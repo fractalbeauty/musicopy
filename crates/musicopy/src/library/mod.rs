@@ -12,7 +12,7 @@ use crate::{
     node::FileSizeModel,
 };
 use anyhow::Context;
-use iroh::NodeId;
+use iroh::EndpointId;
 use itertools::Itertools;
 use log::warn;
 use std::{
@@ -71,7 +71,7 @@ enum LibraryModelUpdate {
 pub struct Library {
     event_handler: Arc<dyn EventHandler>,
     db: Arc<Mutex<Database>>,
-    local_node_id: NodeId,
+    local_endpoint_id: EndpointId,
 
     transcode_pool: TranscodePool,
 
@@ -103,7 +103,7 @@ impl Library {
     pub async fn new(
         event_handler: Arc<dyn EventHandler>,
         db: Arc<Mutex<Database>>,
-        local_node_id: NodeId,
+        local_endpoint_id: EndpointId,
         transcodes_dir: PathBuf,
         transcode_status_cache: TranscodeStatusCache,
         hash_cache: HashCache,
@@ -129,7 +129,7 @@ impl Library {
         let library = Arc::new(Self {
             event_handler,
             db,
-            local_node_id,
+            local_endpoint_id,
 
             transcode_pool,
 
@@ -200,7 +200,7 @@ impl Library {
                                 let db = self.db.lock().unwrap();
                                 let path = PathBuf::from(path);
                                 let path = path.canonicalize().context("failed to canonicalize path")?;
-                                db.add_root(self.local_node_id, &name, &path.to_string_lossy()).context("failed to add root")?;
+                                db.add_root(self.local_endpoint_id, &name, &path.to_string_lossy()).context("failed to add root")?;
                             }
 
                             // update model
@@ -213,7 +213,7 @@ impl Library {
                         LibraryCommand::RemoveRoot { name } => {
                             {
                                 let db = self.db.lock().unwrap();
-                                db.delete_root_by_name(self.local_node_id, &name).context("failed to delete root")?;
+                                db.delete_root_by_name(self.local_endpoint_id, &name).context("failed to delete root")?;
                             }
 
                             // TODO: remove files from root
@@ -239,7 +239,7 @@ impl Library {
                             // get local file paths
                             let local_files = {
                                 let db = self.db.lock().expect("failed to lock database");
-                                db.get_files_by_node_id(self.local_node_id)
+                                db.get_files_by_node_id(self.local_endpoint_id)
                                     .context("failed to get local files")?
                                     .into_iter()
                                     .map(|f| PathBuf::from(f.local_path))
@@ -283,7 +283,7 @@ impl Library {
 
         let roots = {
             let db = self.db.lock().unwrap();
-            db.get_roots_by_node_id(self.local_node_id)
+            db.get_roots_by_node_id(self.local_endpoint_id)
                 .context("failed to get local roots")?
         };
 
@@ -388,7 +388,7 @@ impl Library {
         {
             let mut db = self.db.lock().unwrap();
             db.replace_local_files(
-                self.local_node_id,
+                self.local_endpoint_id,
                 items.iter().map(|item| InsertFile {
                     root: &item.root,
                     path: &item.path,
@@ -416,7 +416,7 @@ impl Library {
     fn check_transcodes(&self) -> anyhow::Result<()> {
         let local_files = {
             let db = self.db.lock().expect("failed to lock database");
-            db.get_files_by_node_id(self.local_node_id)
+            db.get_files_by_node_id(self.local_endpoint_id)
                 .context("failed to get local files")?
         };
 
@@ -447,12 +447,12 @@ impl Library {
             LibraryModelUpdate::UpdateLocalRoots => {
                 let local_roots = {
                     let db = self.db.lock().unwrap();
-                    db.get_roots_by_node_id(self.local_node_id)
+                    db.get_roots_by_node_id(self.local_endpoint_id)
                         .expect("failed to get local roots")
                         .into_iter()
                         .map(|root| {
                             let count = db
-                                .count_files_by_root(self.local_node_id, &root.name)
+                                .count_files_by_root(self.local_endpoint_id, &root.name)
                                 .expect("failed to count files"); // TODO
 
                             // de-UNC paths on windows (\\?\C:\foo -> C:\foo)

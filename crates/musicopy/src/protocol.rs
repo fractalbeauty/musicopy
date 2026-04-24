@@ -7,7 +7,7 @@
 //! Iroh upgrade.
 
 use crate::library::transcode::TranscodeFormat;
-use iroh::NodeId;
+use iroh::EndpointId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -29,7 +29,7 @@ pub enum ServerMessageV1 {
 /// An item available for downloading from the server.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexItem {
-    pub node_id: NodeId,
+    pub endpoint_id: EndpointId,
     pub root: String,
     pub path: String,
 
@@ -40,7 +40,7 @@ pub struct IndexItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndexUpdateItem {
     FileSize {
-        node_id: NodeId,
+        endpoint_id: EndpointId,
         root: String,
         path: String,
 
@@ -82,7 +82,7 @@ pub enum ClientMessageV1 {
 pub struct DownloadItem {
     pub job_id: u64,
 
-    pub node_id: NodeId,
+    pub endpoint_id: EndpointId,
     pub root: String,
     pub path: String,
 }

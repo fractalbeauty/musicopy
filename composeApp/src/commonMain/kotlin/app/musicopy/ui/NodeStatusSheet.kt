@@ -29,7 +29,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.musicopy.formatSize
-import app.musicopy.shortenNodeId
+import app.musicopy.shortenEndpointId
 import app.musicopy.toClipEntry
 import com.composables.core.DragIndication
 import com.composables.core.ModalBottomSheet
@@ -122,9 +122,9 @@ fun NodeStatusSheet(state: NodeStatusSheetState, nodeModel: NodeModel) {
                 ) {
                     StatusDetail(
                         label = stringResource(resource = Res.string.node_id_label),
-                        value = shortenNodeId(nodeModel.nodeId),
+                        value = shortenEndpointId(nodeModel.endpointId),
                         iconPainter = painterResource(Res.drawable.network_node_24px),
-                        textToCopy = nodeModel.nodeId
+                        textToCopy = nodeModel.endpointId
                     )
 
                     StatusDetail(

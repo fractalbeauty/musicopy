@@ -4,7 +4,7 @@ compile_error!("Integration tests require the `test-hooks` feature");
 mod common;
 
 mod connect {
-    use crate::common::{TestCore, TestNodeIdExt};
+    use crate::common::{TestCore, TestEndpointIdExt};
     use musicopy::{
         device_name::device_name, library::transcode::TranscodeFormat, node::ClientStateModel,
     };
@@ -24,7 +24,7 @@ mod connect {
 
         core_1
             .core
-            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
             .await
             .expect("should connect");
 
@@ -35,7 +35,7 @@ mod connect {
         // core 2: accept connection
         core_2
             .core
-            .accept_connection(&core_1.node_id_str())
+            .accept_connection(&core_1.endpoint_id_str())
             .expect("should accept");
 
         // should be accepted
@@ -57,7 +57,7 @@ mod connect {
         // core 1: connect to core 2
         core_1
             .core
-            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
             .await
             .expect("should connect");
 
@@ -72,7 +72,7 @@ mod connect {
         // core 2: deny connection
         core_2
             .core
-            .deny_connection(&core_1.node_id_str())
+            .deny_connection(&core_1.endpoint_id_str())
             .expect("should deny");
 
         // should be closed
@@ -94,7 +94,7 @@ mod connect {
         // core 1: connect to core 2
         core_1
             .core
-            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
             .await
             .expect("should connect");
 
@@ -105,7 +105,7 @@ mod connect {
         // core 2: accept connection
         core_2
             .core
-            .accept_connection(&core_1.node_id_str())
+            .accept_connection(&core_1.endpoint_id_str())
             .expect("should accept");
 
         // should be accepted
@@ -115,7 +115,7 @@ mod connect {
         // core 1: close client
         core_1
             .core
-            .close_client(&core_2.node_id_str())
+            .close_client(&core_2.endpoint_id_str())
             .expect("should close client");
 
         // should be closed
@@ -137,7 +137,7 @@ mod connect {
         // core 1: connect to core 2
         core_1
             .core
-            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
             .await
             .expect("should connect");
 
@@ -148,7 +148,7 @@ mod connect {
         // core 2: accept connection
         core_2
             .core
-            .accept_connection(&core_1.node_id_str())
+            .accept_connection(&core_1.endpoint_id_str())
             .expect("should accept");
 
         // should be accepted
@@ -158,7 +158,7 @@ mod connect {
         // core 2: close server
         core_2
             .core
-            .close_server(&core_1.node_id_str())
+            .close_server(&core_1.endpoint_id_str())
             .expect("should close server");
 
         // should be closed
@@ -180,7 +180,7 @@ mod connect {
 
         core_1
             .core
-            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
             .await
             .expect("should connect");
 
@@ -191,7 +191,7 @@ mod connect {
         // core 2: accept connection
         core_2
             .core
-            .accept_connection(&core_1.node_id_str())
+            .accept_connection(&core_1.endpoint_id_str())
             .expect("should accept");
 
         // should be accepted
@@ -219,7 +219,7 @@ mod connect {
         // core 1: connect to core 2
         core_1
             .core
-            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
             .await
             .expect("should connect");
 
@@ -230,7 +230,7 @@ mod connect {
         // core 2: accept connection
         core_2
             .core
-            .accept_connection(&core_1.node_id_str())
+            .accept_connection(&core_1.endpoint_id_str())
             .expect("should accept");
 
         // should be accepted
@@ -252,28 +252,28 @@ mod connect {
         // core 2: trust core 1
         core_2
             .core
-            .trust_node(&core_1.node_id_str())
+            .trust_node(&core_1.endpoint_id_str())
             .expect("should trust");
         core_2
             .wait_for_node_model_condition("trusted nodes contains core 1", |model| {
                 model
                     .trusted_nodes
                     .iter()
-                    .any(|trusted_node| trusted_node.node_id == core_1.node_id_str())
+                    .any(|trusted_node| trusted_node.endpoint_id == core_1.endpoint_id_str())
             })
             .await;
 
         // core 2: untrust core 1
         core_2
             .core
-            .untrust_node(&core_1.node_id_str())
+            .untrust_node(&core_1.endpoint_id_str())
             .expect("should untrust");
         core_2
             .wait_for_node_model_condition("trusted nodes does not contain core 1", |model| {
                 !model
                     .trusted_nodes
                     .iter()
-                    .any(|trusted_node| trusted_node.node_id == core_1.node_id_str())
+                    .any(|trusted_node| trusted_node.endpoint_id == core_1.endpoint_id_str())
             })
             .await;
     }
@@ -286,7 +286,7 @@ mod connect {
         // core 2: trust core 1
         core_2
             .core
-            .trust_node(&core_1.node_id_str())
+            .trust_node(&core_1.endpoint_id_str())
             .expect("should trust");
 
         // core 1: connect to core 2
@@ -298,7 +298,7 @@ mod connect {
 
         core_1
             .core
-            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
             .await
             .expect("should connect");
 
@@ -312,13 +312,13 @@ mod connect {
         let core_2 = TestCore::start("core 2").await;
 
         // first run
-        let core_1_node_id = {
+        let core_1_endpoint_id = {
             let core_1 = TestCore::start("core 1").await;
 
             // core 2: trust core 1
             core_2
                 .core
-                .trust_node(&core_1.node_id_str())
+                .trust_node(&core_1.endpoint_id_str())
                 .expect("should trust");
 
             // core 1: connect to core 2
@@ -330,7 +330,7 @@ mod connect {
 
             core_1
                 .core
-                .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+                .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
                 .await
                 .expect("should connect");
 
@@ -338,15 +338,15 @@ mod connect {
             core_1.wait_for_client_accepted(&core_2).await;
             core_2.wait_for_server_accepted(&core_1).await;
 
-            // shutdown and store node id
+            // shutdown and store endpoint id
             core_1.core.shutdown().expect("should shutdown");
-            core_1.node_id()
+            core_1.endpoint_id()
         };
 
         // core 2: untrust core 1
         core_2
             .core
-            .untrust_node(&core_1_node_id.to_string())
+            .untrust_node(&core_1_endpoint_id.to_string())
             .expect("should untrust");
 
         // second run
@@ -354,7 +354,7 @@ mod connect {
             let core_1 = TestCore::start("core 1").await;
 
             // should be reusing state
-            assert_eq!(core_1.node_id(), core_1_node_id);
+            assert_eq!(core_1.endpoint_id(), core_1_endpoint_id);
 
             // core 1: connect to core 2
             core_1.wait_for_relay().await;
@@ -365,7 +365,7 @@ mod connect {
 
             core_1
                 .core
-                .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+                .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
                 .await
                 .expect("should connect");
 
@@ -391,7 +391,7 @@ mod connect {
         // core 2: trust core 1
         core_2
             .core
-            .trust_node(&core_1.node_id_str())
+            .trust_node(&core_1.endpoint_id_str())
             .expect("should trust");
 
         // core 1: connect to core 2
@@ -403,7 +403,7 @@ mod connect {
 
         core_1
             .core
-            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
             .await
             .expect("should connect");
 
@@ -417,7 +417,7 @@ mod connect {
                 "trusted nodes contains core 1 with connected_at",
                 |model| {
                     model.trusted_nodes.iter().any(|trusted_node| {
-                        trusted_node.node_id == core_1.node_id_str()
+                        trusted_node.endpoint_id == core_1.endpoint_id_str()
                             && trusted_node.connected_at.is_some()
                     })
                 },
@@ -429,7 +429,7 @@ mod connect {
         core_2
             .wait_for_node_model_condition("trusted nodes contains core 1 with name", |model| {
                 model.trusted_nodes.iter().any(|trusted_node| {
-                    trusted_node.node_id == core_1.node_id_str()
+                    trusted_node.endpoint_id == core_1.endpoint_id_str()
                         && trusted_node.name != "unknown"
                         && trusted_node.name == device_name()
                 })
@@ -451,7 +451,7 @@ mod connect {
 
         core_1
             .core
-            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
             .await
             .expect("should connect");
 
@@ -465,14 +465,14 @@ mod connect {
                 !model
                     .recent_servers
                     .iter()
-                    .any(|recent_server| recent_server.node_id == core_2.node_id_str())
+                    .any(|recent_server| recent_server.endpoint_id == core_2.endpoint_id_str())
             })
             .await;
 
         // core 2: accept connection
         core_2
             .core
-            .accept_connection(&core_1.node_id_str())
+            .accept_connection(&core_1.endpoint_id_str())
             .expect("should accept");
 
         // core 1: should have recent server entry for core 2
@@ -481,7 +481,7 @@ mod connect {
                 model
                     .recent_servers
                     .iter()
-                    .any(|recent_server| recent_server.node_id == core_2.node_id_str())
+                    .any(|recent_server| recent_server.endpoint_id == core_2.endpoint_id_str())
             })
             .await;
 
@@ -489,7 +489,7 @@ mod connect {
         core_1
             .wait_for_node_model_condition("recent servers contains core 2 with name", |model| {
                 model.recent_servers.iter().any(|recent_server| {
-                    recent_server.node_id == core_2.node_id_str()
+                    recent_server.endpoint_id == core_2.endpoint_id_str()
                         && recent_server.name != "unknown"
                         && recent_server.name == device_name()
                 })
@@ -707,7 +707,7 @@ mod library {
 }
 
 mod transfer {
-    use crate::common::{LibraryFixture, TestCore, TestNodeIdExt};
+    use crate::common::{LibraryFixture, TestCore, TestEndpointIdExt};
     use musicopy::{
         library::transcode::TranscodeFormat,
         node::{DownloadRequestModel, IndexItemDownloadStatusModel, TransferJobProgressModel},
@@ -760,7 +760,7 @@ mod transfer {
 
         core_1
             .core
-            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
             .await
             .expect("should connect");
 
@@ -771,7 +771,7 @@ mod transfer {
         // core 2: accept connection
         core_2
             .core
-            .accept_connection(&core_1.node_id_str())
+            .accept_connection(&core_1.endpoint_id_str())
             .expect("should accept");
 
         // should be accepted
@@ -805,7 +805,7 @@ mod transfer {
             .unwrap()
             .into_iter()
             .map(|item| DownloadRequestModel {
-                node_id: item.node_id.clone(),
+                endpoint_id: item.endpoint_id.clone(),
                 root: item.root.clone(),
                 path: item.path.clone(),
             })
@@ -826,14 +826,14 @@ mod transfer {
             let model = core_1.core.get_node_model().expect("should get node model");
             let client = model
                 .clients
-                .get(&core_2.node_id_str())
+                .get(&core_2.endpoint_id_str())
                 .expect("should have client");
 
             let index = client.index.as_ref().expect("should have index");
             assert_eq!(index.len(), 1);
 
             let item = index.first().unwrap();
-            assert_eq!(item.node_id, core_2.node_id_str());
+            assert_eq!(item.endpoint_id, core_2.endpoint_id_str());
             assert_eq!(item.root, "foo");
             assert_eq!(item.path, "test.mp3");
             assert!(item.download_status.is_none());
@@ -843,9 +843,9 @@ mod transfer {
         core_1
             .core
             .set_downloads(
-                &core_2.node_id_str(),
+                &core_2.endpoint_id_str(),
                 vec![DownloadRequestModel {
-                    node_id: core_2.node_id_str(),
+                    endpoint_id: core_2.endpoint_id_str(),
                     root: "foo".into(),
                     path: "test.mp3".into(),
                 }],
@@ -875,9 +875,10 @@ mod transfer {
             .await;
 
         // file should exist in download directory
-        let downloaded_file_path = core_1
-            .download_dir
-            .join(format!("musicopy-{}-foo/test.ogg", core_2.node_id_str()));
+        let downloaded_file_path = core_1.download_dir.join(format!(
+            "musicopy-{}-foo/test.ogg",
+            core_2.endpoint_id_str()
+        ));
         assert!(downloaded_file_path.exists());
     }
 
@@ -908,7 +909,7 @@ mod transfer {
         // request both items
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items.clone())
+            .set_downloads(&core_2.endpoint_id_str(), download_items.clone())
             .expect("should set downloads");
 
         // both jobs should reach Ready
@@ -924,7 +925,7 @@ mod transfer {
         // both index items should reach Waiting
         core_1
             .core
-            .refresh_client_index(&core_2.node_id_str())
+            .refresh_client_index(&core_2.endpoint_id_str())
             .expect("should refresh client index");
         core_1
             .wait_for_client_condition("both index items are Waiting", &core_2, |client| {
@@ -968,7 +969,7 @@ mod transfer {
         // finished index item should reach Downloaded, other should still be Waiting
         core_1
             .core
-            .refresh_client_index(&core_2.node_id_str())
+            .refresh_client_index(&core_2.endpoint_id_str())
             .expect("should refresh client index");
         core_1
             .wait_for_client_condition(
@@ -1005,7 +1006,7 @@ mod transfer {
         // pause downloads
         core_1
             .core
-            .pause_downloads(&core_2.node_id_str())
+            .pause_downloads(&core_2.endpoint_id_str())
             .expect("should pause downloads");
 
         // paused should become true
@@ -1029,7 +1030,7 @@ mod transfer {
         // finished index item should still be Downloaded
         core_1
             .core
-            .refresh_client_index(&core_2.node_id_str())
+            .refresh_client_index(&core_2.endpoint_id_str())
             .expect("should refresh client index");
         core_1
             .wait_for_client_condition(
@@ -1068,7 +1069,7 @@ mod transfer {
         // other index item should still be Waiting
         core_1
             .core
-            .refresh_client_index(&core_2.node_id_str())
+            .refresh_client_index(&core_2.endpoint_id_str())
             .expect("should refresh client index");
         core_1
             .wait_for_client_condition("other index item is Waiting", &core_2, |client| {
@@ -1094,7 +1095,7 @@ mod transfer {
             .unwrap();
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), vec![not_finished_download_item])
+            .set_downloads(&core_2.endpoint_id_str(), vec![not_finished_download_item])
             .expect("should set downloads");
 
         // paused should become false
@@ -1118,7 +1119,7 @@ mod transfer {
         // other index item should be Waiting
         core_1
             .core
-            .refresh_client_index(&core_2.node_id_str())
+            .refresh_client_index(&core_2.endpoint_id_str())
             .expect("should refresh client index");
         core_1
             .wait_for_client_condition("other index item is Waiting", &core_2, |client| {
@@ -1156,7 +1157,7 @@ mod transfer {
         // other index item should reach Downloaded
         core_1
             .core
-            .refresh_client_index(&core_2.node_id_str())
+            .refresh_client_index(&core_2.endpoint_id_str())
             .expect("should refresh client index");
         core_1
             .wait_for_client_condition("other index item is Downloaded", &core_2, |client| {
@@ -1189,7 +1190,7 @@ mod transfer {
         // request both items
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items.clone())
+            .set_downloads(&core_2.endpoint_id_str(), download_items.clone())
             .expect("should set downloads");
 
         // should have two Ready jobs
@@ -1206,7 +1207,7 @@ mod transfer {
         // request both items again
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items.clone())
+            .set_downloads(&core_2.endpoint_id_str(), download_items.clone())
             .expect("should set downloads");
 
         // should still have two Ready jobs
@@ -1238,7 +1239,7 @@ mod transfer {
         // request both items
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items.clone())
+            .set_downloads(&core_2.endpoint_id_str(), download_items.clone())
             .expect("should set downloads");
 
         // should have two Ready jobs
@@ -1255,7 +1256,7 @@ mod transfer {
         // pause downloads
         core_1
             .core
-            .pause_downloads(&core_2.node_id_str())
+            .pause_downloads(&core_2.endpoint_id_str())
             .expect("should pause downloads");
 
         // paused should become true
@@ -1277,7 +1278,7 @@ mod transfer {
         // request both items again
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items.clone())
+            .set_downloads(&core_2.endpoint_id_str(), download_items.clone())
             .expect("should set downloads");
 
         // paused should become false
@@ -1312,7 +1313,7 @@ mod transfer {
         // request both items
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items.clone())
+            .set_downloads(&core_2.endpoint_id_str(), download_items.clone())
             .expect("should set downloads");
 
         // should have two Ready jobs
@@ -1343,7 +1344,7 @@ mod transfer {
         // request both items again
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items.clone())
+            .set_downloads(&core_2.endpoint_id_str(), download_items.clone())
             .expect("should set downloads");
 
         // should still have two Finished jobs
@@ -1373,7 +1374,7 @@ mod transfer {
         // request first item
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), vec![download_items[0].clone()])
+            .set_downloads(&core_2.endpoint_id_str(), vec![download_items[0].clone()])
             .expect("should set downloads");
 
         // should have one Ready job
@@ -1390,7 +1391,7 @@ mod transfer {
         // request second item
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items.clone())
+            .set_downloads(&core_2.endpoint_id_str(), download_items.clone())
             .expect("should set downloads");
 
         // should have two Ready jobs
@@ -1438,7 +1439,7 @@ mod transfer {
         // request first item
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), vec![download_items[0].clone()])
+            .set_downloads(&core_2.endpoint_id_str(), vec![download_items[0].clone()])
             .expect("should set downloads");
 
         // should have one Ready job
@@ -1455,7 +1456,7 @@ mod transfer {
         // pause downloads
         core_1
             .core
-            .pause_downloads(&core_2.node_id_str())
+            .pause_downloads(&core_2.endpoint_id_str())
             .expect("should pause downloads");
 
         // paused should become true
@@ -1477,7 +1478,7 @@ mod transfer {
         // request second item (should unpause)
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items.clone())
+            .set_downloads(&core_2.endpoint_id_str(), download_items.clone())
             .expect("should set downloads");
 
         // paused should become false
@@ -1528,7 +1529,7 @@ mod transfer {
         // request first item
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), vec![download_items[0].clone()])
+            .set_downloads(&core_2.endpoint_id_str(), vec![download_items[0].clone()])
             .expect("should set downloads");
 
         // should have one Ready job
@@ -1559,7 +1560,7 @@ mod transfer {
         // request second item
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), vec![download_items[1].clone()])
+            .set_downloads(&core_2.endpoint_id_str(), vec![download_items[1].clone()])
             .expect("should set downloads");
 
         // first job should still be Finished, second should be Ready
@@ -1617,7 +1618,7 @@ mod transfer {
         // request both items
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items.clone())
+            .set_downloads(&core_2.endpoint_id_str(), download_items.clone())
             .expect("should set downloads");
 
         // should have two Ready jobs
@@ -1634,7 +1635,7 @@ mod transfer {
         // request only first item
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), vec![download_items[0].clone()])
+            .set_downloads(&core_2.endpoint_id_str(), vec![download_items[0].clone()])
             .expect("should set downloads");
 
         // should still have two jobs, since we only remove jobs when paused
@@ -1662,7 +1663,7 @@ mod transfer {
         // request both items
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items.clone())
+            .set_downloads(&core_2.endpoint_id_str(), download_items.clone())
             .expect("should set downloads");
 
         // should have two Ready jobs
@@ -1679,7 +1680,7 @@ mod transfer {
         // pause downloads
         core_1
             .core
-            .pause_downloads(&core_2.node_id_str())
+            .pause_downloads(&core_2.endpoint_id_str())
             .expect("should pause downloads");
 
         // paused should become true
@@ -1701,7 +1702,7 @@ mod transfer {
         // request only first item
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), vec![download_items[0].clone()])
+            .set_downloads(&core_2.endpoint_id_str(), vec![download_items[0].clone()])
             .expect("should set downloads");
 
         // paused should become false
@@ -1741,7 +1742,7 @@ mod transfer {
         // request both items
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items.clone())
+            .set_downloads(&core_2.endpoint_id_str(), download_items.clone())
             .expect("should set downloads");
 
         // should have two Ready jobs
@@ -1772,7 +1773,7 @@ mod transfer {
         // request only first item
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), vec![download_items[0].clone()])
+            .set_downloads(&core_2.endpoint_id_str(), vec![download_items[0].clone()])
             .expect("should set downloads");
 
         // should still have two Finished jobs, since we don't remove finished jobs
@@ -1789,7 +1790,7 @@ mod transfer {
 }
 
 mod stats {
-    use crate::common::{LibraryFixture, TestCore, TestNodeIdExt};
+    use crate::common::{LibraryFixture, TestCore, TestEndpointIdExt};
     use musicopy::{
         library::transcode::TranscodeFormat,
         node::{DownloadRequestModel, TransferJobProgressModel},
@@ -1839,7 +1840,7 @@ mod stats {
     ) -> (TestCore, TestCore, Vec<DownloadRequestModel>) {
         core_1
             .core
-            .connect(Some(TranscodeFormat::Opus128), &core_2.node_id_str())
+            .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
             .await
             .expect("should connect");
 
@@ -1848,7 +1849,7 @@ mod stats {
 
         core_2
             .core
-            .accept_connection(&core_1.node_id_str())
+            .accept_connection(&core_1.endpoint_id_str())
             .expect("should accept");
 
         core_1.wait_for_client_accepted(&core_2).await;
@@ -1869,7 +1870,7 @@ mod stats {
             .unwrap()
             .into_iter()
             .map(|item| DownloadRequestModel {
-                node_id: item.node_id.clone(),
+                endpoint_id: item.endpoint_id.clone(),
                 root: item.root.clone(),
                 path: item.path.clone(),
             })
@@ -1902,7 +1903,7 @@ mod stats {
 
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items)
+            .set_downloads(&core_2.endpoint_id_str(), download_items)
             .expect("should set downloads");
 
         // Wait for client transfer to finish
@@ -1950,7 +1951,7 @@ mod stats {
 
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), download_items)
+            .set_downloads(&core_2.endpoint_id_str(), download_items)
             .expect("should set downloads");
 
         // Wait for both transfers to finish
@@ -2005,7 +2006,7 @@ mod stats {
         // Download first item
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), vec![first_index_item])
+            .set_downloads(&core_2.endpoint_id_str(), vec![first_index_item])
             .expect("should set downloads");
 
         // Wait for transfer to finish
@@ -2035,11 +2036,11 @@ mod stats {
         // Disconnect
         core_1
             .core
-            .close_client(&core_2.node_id_str())
+            .close_client(&core_2.endpoint_id_str())
             .expect("should disconnect");
         core_2
             .core
-            .close_server(&core_1.node_id_str())
+            .close_server(&core_1.endpoint_id_str())
             .expect("should disconnect");
 
         // Reconnect
@@ -2048,7 +2049,7 @@ mod stats {
         // Download second item
         core_1
             .core
-            .set_downloads(&core_2.node_id_str(), vec![second_index_item])
+            .set_downloads(&core_2.endpoint_id_str(), vec![second_index_item])
             .expect("should set downloads");
 
         // Wait for client transfer to finish again
