@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../components/BaseLayout.astro";
 import Footer from "../../components/Footer.astro";
-import DownloadTiles from "../../components/fragments/DownloadTiles.astro";
+import ManualInstructions from "../../components/fragments/ManualInstructions.astro";
 import Main from "../../components/Main.astro";
 import Nav from "../../components/Nav.astro";
 ---
@@ -12,74 +12,7 @@ import Nav from "../../components/Nav.astro";
   <Main>
     <h1>Manual</h1>
 
-    <h2>1. Install both apps</h2>
-
-    <DownloadTiles />
-
-    <h2>2. Add your music</h2>
-
-    <div class="clearfix">
-      <img src="/static/manual/desktop_home.png" class="right" />
-
-      <p>In the desktop app, add folders to your library.</p>
-
-      <p>
-        Added folders will be scanned and their contents will be available for
-        download in the mobile app.
-      </p>
-
-      <p>
-        Musicopy can automatically convert files to improve file size or
-        compatibility, or transfer the original files. You can change this
-        setting in the mobile app. <a href="/manual/transcoding"
-          >More information</a
-        >
-      </p>
-    </div>
-
-    <h2>3. Connect your phone</h2>
-
-    <div class="clearfix">
-      <img src="/static/manual/mobile_home.png" class="left" />
-
-      <p>
-        In the mobile app, scan the QR code shown in the desktop app to connect.
-      </p>
-
-      <p>
-        After clicking accept, Musicopy will create a direct end-to-end
-        encrypted connection for fast and private transfers. Both devices can
-        even be on different networks.
-      </p>
-
-      <p>
-        Next time, Musicopy will list recent connections to reconnect quickly.
-      </p>
-    </div>
-
-    <h2>4. Transfer your files</h2>
-
-    <div class="clearfix">
-      <img src="/static/manual/mobile_transfer.png" class="right" />
-      <img src="/static/manual/mobile_pretransfer.png" class="right" />
-
-      <p>Choose files from your library and start the transfer.</p>
-
-      <p>
-        Downloaded files will be saved to your chosen folder, mirroring your
-        folder structure on desktop.
-      </p>
-
-      <p>
-        Next time, Musicopy will remember which files have already been
-        transferred.
-      </p>
-
-      <p>
-        On Android, transfers continue in the background. On iOS, keep the app
-        open until the transfer finishes.
-      </p>
-    </div>
+    <ManualInstructions includeDownloadTiles={true} />
 
     <h2>More information</h2>
 
@@ -92,35 +25,3 @@ import Nav from "../../components/Nav.astro";
 
   <Footer />
 </BaseLayout>
-
-<style>
-  img {
-    background-color: var(--color-secondary-container);
-    border: 1px solid var(--color-outline-variant);
-  }
-
-  .left {
-    float: left;
-    max-height: 300px;
-    margin-right: 16px;
-    margin-bottom: 16px;
-  }
-  .right {
-    float: right;
-    max-height: 300px;
-    margin-left: 16px;
-    margin-bottom: 16px;
-  }
-  @media screen and (max-width: 800px) {
-    .left,
-    .right {
-      width: 50%;
-    }
-  }
-
-  .clearfix::after {
-    content: "";
-    clear: both;
-    display: table;
-  }
-</style>

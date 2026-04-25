@@ -2,6 +2,8 @@
 import BaseLayout from "../components/BaseLayout.astro";
 import FilledButtonLink from "../components/FilledButtonLink.astro";
 import Footer from "../components/Footer.astro";
+import InfoTiles from "../components/fragments/InfoTiles.astro";
+import ManualInstructions from "../components/fragments/ManualInstructions.astro";
 import Main from "../components/Main.astro";
 import Nav from "../components/Nav.astro";
 ---
@@ -28,31 +30,16 @@ import Nav from "../components/Nav.astro";
       </div>
     </div>
 
-    <h2>Features</h2>
-    <div>
-      <div>
-        <h3>Magic connectivity</h3>
-        <span>
-          Scan a QR code to connect. Don't bother with cables, local IP
-          addresses, or cloud services.
-        </span>
-      </div>
+    <ManualInstructions includeDownloadTiles={false} />
 
-      <div>
-        <h3>Transcoding</h3>
-        <span>
-          Configure perceptually-lossless compression to fit more songs on your
-          device.
-        </span>
-      </div>
+    <div class="tagline">
+      <FilledButtonLink href="/download" size="lg">
+        <div class="row">
+          Try Musicopy&nbsp;
 
-      <div>
-        <h3>No nonsense</h3>
-        <span>
-          No accounts, servers, ads, or subscriptions. Just download both apps
-          to get started.
-        </span>
-      </div>
+          <span class="material-symbols-outlined"> arrow_forward </span>
+        </div>
+      </FilledButtonLink>
     </div>
   </Main>
 
@@ -97,6 +84,19 @@ import Nav from "../components/Nav.astro";
     .tagline h2 {
       margin: 0;
       padding: 0;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--color-outline-variant);
+      margin: 40px 16px;
+    }
+
+    .row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
     }
   </style>
 </BaseLayout>

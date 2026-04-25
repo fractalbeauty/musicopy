@@ -1,11 +1,10 @@
 ---
 import BaseLayout from "../components/BaseLayout.astro";
-import FilledButtonLink from "../components/FilledButtonLink.astro";
 import Footer from "../components/Footer.astro";
 import DownloadTiles from "../components/fragments/DownloadTiles.astro";
+import InfoTiles from "../components/fragments/InfoTiles.astro";
 import Main from "../components/Main.astro";
 import Nav from "../components/Nav.astro";
-import Tile from "../components/Tile.astro";
 ---
 
 <BaseLayout title="Musicopy | Download">
@@ -18,156 +17,10 @@ import Tile from "../components/Tile.astro";
 
     <br />
 
-    <div class="tile-grid">
-      <Tile outlined class="span-2">
-        <h2>Features</h2>
-
-        <p>
-          <span class="features">
-            <span
-              ><strong>Magic connectivity:</strong> scan a QR code to connect.</span
-            >
-            <span
-              ><strong>Automatic transcoding</strong> to fit more songs on your device.</span
-            >
-            <span
-              ><strong>No cloud services, ads, or subscriptions:</strong> just two
-              apps.</span
-            >
-          </span>
-        </p>
-      </Tile>
-
-      <Tile outlined>
-        <h3>Demo</h3>
-
-        <p>Try the mobile app without installing the desktop app.</p>
-
-        <div class="flex-1"></div>
-
-        <div class="cta">
-          <FilledButtonLink href="/demo" size="md" outlined>
-            <div class="row">
-              Try the demo
-
-              <span class="material-symbols-outlined"> arrow_forward </span>
-            </div>
-          </FilledButtonLink>
-        </div>
-      </Tile>
-
-      <Tile outlined>
-        <h3>Source</h3>
-
-        <p>
-          Source code is available under the <a
-            href="https://github.com/fractalbeauty/musicopy/blob/main/LICENSE"
-            target="_blank">GNU AGPLv3</a
-          >.
-        </p>
-
-        <div class="flex-1"></div>
-
-        <div class="cta">
-          <FilledButtonLink
-            href="https://github.com/fractalbeauty/musicopy"
-            target="_blank"
-            size="md"
-            outlined
-          >
-            <div class="row">
-              View on GitHub
-
-              <span class="material-symbols-outlined"> arrow_forward </span>
-            </div>
-          </FilledButtonLink>
-        </div>
-      </Tile>
-
-      <Tile outlined class="span-2">
-        <h3>License</h3>
-
-        <p>
-          Musicopy is free to try, with no restrictions. Buying a lifetime
-          license helps support its development. ♥
-        </p>
-
-        <div class="flex-1"></div>
-
-        <div class="cta cta-right">
-          <FilledButtonLink href="/license" size="md" outlined>
-            <div class="row">
-              Purchase a license&nbsp;
-
-              <span class="material-symbols-outlined"> arrow_forward </span>
-            </div>
-          </FilledButtonLink>
-        </div>
-      </Tile>
-    </div>
+    <InfoTiles />
   </Main>
 
   <div class="flex-1"></div>
 
   <Footer />
 </BaseLayout>
-
-<style>
-  .tile-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 20px;
-    width: 100%;
-  }
-  .tile-grid :global(.span-2) {
-    grid-column: span 2;
-  }
-
-  .row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .label {
-    font-size: 12pt;
-  }
-
-  .center {
-    flex: 1;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-  }
-
-  @media screen and (max-width: 800px) {
-    .tile-grid {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .center {
-      margin-top: 20px;
-    }
-  }
-
-  .cta-right {
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-end;
-  }
-  @media screen and (max-width: 800px) {
-    .cta {
-      display: block;
-    }
-  }
-
-  .features {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-</style>
