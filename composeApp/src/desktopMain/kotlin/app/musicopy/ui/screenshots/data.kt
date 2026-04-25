@@ -241,7 +241,7 @@ val screenshotTransferJobs = buildList {
             )
         )
     }
-    
+
     // finished: boneyard 0 1
     for (i in listOf(0, 1)) {
         add(
@@ -253,6 +253,30 @@ val screenshotTransferJobs = buildList {
                 progress = TransferJobProgressModel.Finished(
                     finishedAt = now()
                 )
+            )
+        )
+    }
+}
+
+val emptyScreenshotIndex = buildList {
+    var nextSizeIdx = 0
+    val nextSize = { FileSizeModel.Actual(sizes[nextSizeIdx++].toULong()) }
+
+    val titles = listOf(
+        "boneyard",
+        "Poplife",
+        "Wallsocket",
+        "Fishmonger"
+    )
+
+    for (title in titles) {
+        add(
+            IndexItemModel(
+                endpointId = demoEndpointId,
+                root = "Favorites",
+                path = "underscores/$title/placeholder.flac",
+                fileSize = nextSize(),
+                downloadStatus = null
             )
         )
     }

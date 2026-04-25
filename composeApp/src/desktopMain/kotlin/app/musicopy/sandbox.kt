@@ -43,8 +43,11 @@ import app.musicopy.ui.screens.TransferScreenFinishedSandbox
 import app.musicopy.ui.screens.TransferScreenSandbox
 import app.musicopy.ui.screens.WaitingScreenSandbox
 import app.musicopy.ui.screenshots.DesktopHeroScreenshot
+import app.musicopy.ui.screenshots.DesktopHomeEmptyScreenshot
 import app.musicopy.ui.screenshots.MobileHeroScreenshot
+import app.musicopy.ui.screenshots.MobileHomeEmptyScreenshot
 import app.musicopy.ui.screenshots.MobileHomeScreenshot
+import app.musicopy.ui.screenshots.MobilePreTransferEmptyScreenshot
 import app.musicopy.ui.screenshots.MobilePreTransferScreenshot
 import app.musicopy.ui.screenshots.MobileTransferScreenshot
 import com.composeunstyled.Text
@@ -104,7 +107,7 @@ class ScreenshotConfig(
     val content: @Composable () -> Unit,
 )
 
-const val initialConfig = 12 - 1
+const val initialConfig = 15 - 1
 val screenshotConfigs = listOf(
     // web hero images
     ScreenshotConfig(
@@ -206,6 +209,29 @@ val screenshotConfigs = listOf(
         dimensions = 2064 to 2752,
         density = 2f,
         content = { MobileHomeScreenshot() }
+    ),
+
+    // manual
+    ScreenshotConfig(
+        file = "web/public/static/manual/desktop_home.png",
+        dimensions = 800 to 550,
+        content = { DesktopHomeEmptyScreenshot() }
+    ),
+    ScreenshotConfig(
+        file = "web/public/static/manual/mobile_home.png",
+        dimensions = 400 to 600,
+        content = { MobileHomeEmptyScreenshot() }
+    ),
+    ScreenshotConfig(
+        file = "web/public/static/manual/mobile_pretransfer.png",
+        dimensions = 400 to 600,
+        content = { MobilePreTransferEmptyScreenshot() }
+    ),
+    ScreenshotConfig(
+        file = "web/public/static/manual/mobile_transfer.png",
+        description = "transfer - expand all",
+        dimensions = 400 to 600,
+        content = { MobileTransferScreenshot() }
     ),
 )
 

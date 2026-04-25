@@ -2,6 +2,7 @@
 import BaseLayout from "../components/BaseLayout.astro";
 import FilledButtonLink from "../components/FilledButtonLink.astro";
 import Footer from "../components/Footer.astro";
+import DownloadTiles from "../components/fragments/DownloadTiles.astro";
 import Main from "../components/Main.astro";
 import Nav from "../components/Nav.astro";
 import Tile from "../components/Tile.astro";
@@ -13,39 +14,7 @@ import Tile from "../components/Tile.astro";
   <Main>
     <h1>Download</h1>
 
-    <div class="tile-row">
-      <Tile class="desktop">
-        <h2>Desktop</h2>
-
-        <FilledButtonLink
-          href="https://download.musicopy.app/download.html"
-          size="lg"
-          outlined
-        >
-          <div class="row">
-            Download
-
-            <span class="material-symbols-outlined"> arrow_forward </span>
-          </div>
-        </FilledButtonLink>
-
-        <span class="label">Available for Windows, MacOS, and Linux.</span>
-      </Tile>
-
-      <Tile>
-        <h2>Mobile</h2>
-
-        <div class="app-store-badges">
-          <a href="https://play.google.com/store/apps/details?id=app.musicopy">
-            <img height="50px" src="/static/3rdparty/googleplay_en.png" />
-          </a>
-
-          <a href="https://apps.apple.com/us/app/musicopy/id6754856938">
-            <img height="50px" src="/static/3rdparty/appstore_en.svg" />
-          </a>
-        </div>
-      </Tile>
-    </div>
+    <DownloadTiles />
 
     <br />
 
@@ -144,17 +113,6 @@ import Tile from "../components/Tile.astro";
 </BaseLayout>
 
 <style>
-  .tile-row :global(.desktop) {
-    gap: 20px;
-  }
-
-  .tile-row {
-    display: flex;
-    flex-direction: row;
-    gap: 20px;
-    width: 100%;
-  }
-
   .tile-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -186,10 +144,6 @@ import Tile from "../components/Tile.astro";
   }
 
   @media screen and (max-width: 800px) {
-    .tile-row {
-      flex-direction: column-reverse;
-    }
-
     .tile-grid {
       display: flex;
       flex-direction: column;
@@ -215,20 +169,5 @@ import Tile from "../components/Tile.astro";
     display: flex;
     flex-direction: column;
     gap: 8px;
-  }
-
-  .app-store-badges {
-    flex: 1;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 16px;
-  }
-  @media screen and (max-width: 800px) {
-    .app-store-badges {
-      flex-direction: column;
-    }
   }
 </style>

@@ -178,15 +178,51 @@ fun mockClientModel(
             mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz"),
             mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz"),
             mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz"),
-            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/b"),
-            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/b"),
-            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/b"),
-            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/b/c"),
-            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/b/c"),
-            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/b/c"),
-            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/d"),
-            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/d"),
-            mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/a/foo/bar/baz/d"),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "two",
+                basePath = "/a/foo/bar/baz/b"
+            ),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "two",
+                basePath = "/a/foo/bar/baz/b"
+            ),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "two",
+                basePath = "/a/foo/bar/baz/b"
+            ),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "two",
+                basePath = "/a/foo/bar/baz/b/c"
+            ),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "two",
+                basePath = "/a/foo/bar/baz/b/c"
+            ),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "two",
+                basePath = "/a/foo/bar/baz/b/c"
+            ),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "two",
+                basePath = "/a/foo/bar/baz/d"
+            ),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "two",
+                basePath = "/a/foo/bar/baz/d"
+            ),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "two",
+                basePath = "/a/foo/bar/baz/d"
+            ),
             mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/e/foo/bar/baz"),
             mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/e/foo/bar/baz"),
             mockIndexItemModel(endpointId = endpointId, root = "two", basePath = "/e/foo/bar/baz"),
@@ -248,10 +284,26 @@ fun mockClientModel(
             mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e"),
             mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e/f"),
             mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e/f/g"),
-            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e/f/g/h"),
-            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e/f/g/h/i"),
-            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e/f/g/h/i/j"),
-            mockIndexItemModel(endpointId = endpointId, root = "five", basePath = "/a/b/c/d/e/f/g/h/i/j/k"),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "five",
+                basePath = "/a/b/c/d/e/f/g/h"
+            ),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "five",
+                basePath = "/a/b/c/d/e/f/g/h/i"
+            ),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "five",
+                basePath = "/a/b/c/d/e/f/g/h/i/j"
+            ),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "five",
+                basePath = "/a/b/c/d/e/f/g/h/i/j/k"
+            ),
 
             // download status examples
             mockIndexItemModel(
@@ -278,7 +330,12 @@ fun mockClientModel(
                 basePath = "",
                 downloadStatus = IndexItemDownloadStatusModel.FAILED
             ),
-            mockIndexItemModel(endpointId = endpointId, root = "six", basePath = "", downloadStatus = null),
+            mockIndexItemModel(
+                endpointId = endpointId,
+                root = "six",
+                basePath = "",
+                downloadStatus = null
+            ),
 
             // download status folders
             mockIndexItemModel(
@@ -431,12 +488,15 @@ fun mockTransferJobProgressModelFailed() = TransferJobProgressModel.Failed(
 
 fun mockLibraryModel(
     localRoots: List<LibraryRootModel> = emptyList(),
+    cachedTranscodes: Boolean = true,
     transcoding: Boolean = false,
 ): LibraryModel {
     return LibraryModel(
         localRoots = localRoots,
         transcodesDir = "~/.cache/musicopy/transcodes",
-        transcodesDirSize = FileSizeModel.Actual(534_000_000uL),
+        transcodesDirSize = if (cachedTranscodes) FileSizeModel.Actual(534_000_000uL) else FileSizeModel.Actual(
+            0uL
+        ),
         transcodeCountQueued = if (transcoding) CounterModel(27uL) else CounterModel(0uL),
         transcodeCountInprogress = if (transcoding) CounterModel(8uL) else CounterModel(0uL),
         transcodeCountReady = if (transcoding) CounterModel(143uL) else CounterModel(0uL),

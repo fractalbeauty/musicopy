@@ -1,0 +1,60 @@
+---
+import BaseLayout from "../../components/BaseLayout.astro";
+import Footer from "../../components/Footer.astro";
+import Main from "../../components/Main.astro";
+import Nav from "../../components/Nav.astro";
+---
+
+<BaseLayout title="Musicopy | Manual: Transcoding">
+  <Nav />
+
+  <Main>
+    <h1>Manual: Transcoding</h1>
+
+    <p>
+      Musicopy supports automatic transcoding of audio files to reduce file size
+      and fit more songs when space is limited. The desktop app converts files
+      on demand. Musicopy also supports transferring original files without
+      converting.
+    </p>
+
+    <p>
+      Musicopy defaults to Opus 128kb/s, a modern audio codec with efficient
+      compression and high quality even at lower bitrates, which is
+      transparent/perceptually-lossless for most listeners.
+    </p>
+
+    <p>
+      Some apps don't support certain formats, so transcoding can also help with
+      compatibility. MP3 is the most widely supported format, but creates larger
+      files than Opus. Prefer Opus for higher quality and efficient storage if
+      it's supported by your device or app.
+    </p>
+
+    <h3>Supported formats</h3>
+
+    <ul>
+      <li>
+        Opus 128kb/s: Best quality and efficient storage. ~300 songs per GB,
+        default.
+      </li>
+      <li>
+        Opus 64kb/s: Good quality and very efficient storage. ~600 songs per GB.
+      </li>
+      <li>MP3 V0: For compatibility and best quality. ~150 songs per GB.</li>
+      <li>
+        MP3 V5: For compatibility, good quality, and efficient storage. ~300
+        songs per GB.
+      </li>
+      <li>Original: No conversion when transferring.</li>
+    </ul>
+
+    <hr />
+
+    <a href="/manual">Back to manual</a>
+  </Main>
+
+  <div class="flex-1"></div>
+
+  <Footer />
+</BaseLayout>
