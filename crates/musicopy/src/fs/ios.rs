@@ -18,6 +18,7 @@ use anyhow::Context;
 use base64::{Engine, prelude::BASE64_STANDARD};
 use objc2_core_foundation::{CFData, CFRetained, CFURL, CFURLBookmarkResolutionOptions};
 use std::path::PathBuf;
+use tracing::{error, warn};
 
 /// Resolves a bookmark base64 string, returning the file path and an access
 /// guard. The guard should be held until access is no longer needed.
@@ -46,7 +47,7 @@ pub fn resolve_bookmark(bookmark: String) -> anyhow::Result<(PathBuf, IosUrlAcce
     };
 
     if is_stale == 1 {
-        log::warn!("resolved bookmark is stale");
+        warn!("resolved bookmark is stale");
 
         // TODO: handle refreshing the bookmark. annoying bc we should update
         // references to the stale bookmark in the database, and the bookmark
@@ -74,7 +75,7 @@ impl IosUrlAccessGuard {
     pub fn new(url: CFRetained<CFURL>) -> Self {
         let success = unsafe { url.start_accessing_security_scoped_resource() };
         if !success {
-            log::error!(
+            error!(
                 "IosUrlAccessGuard::new: CFURLStartAccessingSecurityScopedResource returned false"
             );
         }
@@ -95,7 +96,7 @@ impl Clone for IosUrlAccessGuard {
     fn clone(&self) -> Self {
         let success = unsafe { self.url.start_accessing_security_scoped_resource() };
         if !success {
-            log::error!(
+            error!(
                 "IosUrlAccessGuard::clone: CFURLStartAccessingSecurityScopedResource returned false"
             );
         }

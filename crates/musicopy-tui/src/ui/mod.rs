@@ -9,7 +9,7 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::Stylize,
     symbols::border,
-    text::{Line, Text},
+    text::{Line, Span, Text},
     widgets::{Block, Paragraph, Tabs, Widget},
 };
 use std::time::SystemTime;
@@ -587,27 +587,135 @@ impl<'a> App<'a> {
             .title_top(instructions.right_aligned())
             .border_set(border::THICK);
 
+        let key = |k: &'static str| k.blue().bold();
+        let cmd = |k: &'static str| k.yellow().bold();
+        
+        let format_command = |left: &[Span<'static>], right: &[Span<'static>]| {
+            let left_max_width = 30;
+
+            let left_width = left.iter().map(|s| s.width()).sum::<usize>();
+
+            let padding = if left_width < left_max_width {
+                " ".repeat(left_max_width - left_width)
+            } else {
+                "".to_string()
+            };
+
+            Line::from(
+                std::iter::once(Span::from(" - "))
+                    .chain(left.iter().cloned())
+                    .chain(std::iter::once(Span::from(padding)))
+                    .chain(right.iter().cloned())
+                    .collect::<Vec<_>>(),
+            )
+        };
+
         let lines = vec![
             Line::from("Navigation".bold()),
             Line::from(vec![
                 " - ".into(),
-                "<1>".blue(),
-                " and ".into(),
-                "<2>".blue(),
+                key("<1>"),
+                ", ".into(),
+                key("<2>"),
+                ", ".into(),
+                key("<3>"),
+                ", ".into(),
+                key("<?>"),
                 " to change screens.".into(),
             ]),
             Line::from(vec![
                 " - ".into(),
-                "<:>".blue(),
+                key("<:>"),
+                " or ".into(),
+                key("</>"),
                 " to open the command prompt.".into(),
             ]),
             Line::from(vec![
                 " - ".into(),
-                "<q>".blue(),
-                " or ".into(),
-                "<ctrl + c>".blue(),
+                key("<q>"),
+                ", ".into(),
+                key("<esc>"),
+                ", or ".into(),
+                key("<ctrl+c>"),
                 " to quit.".into(),
             ]),
+            Line::from(""),
+            Line::from("Commands".bold()),
+            format_command(&[cmd("q"), ", ".into(), cmd("quit")], &["quit".into()]),
+            format_command(&[cmd("resetdb")], &["clear database".into()]),
+            format_command(&[cmd("resetcaches")], &["clear caches".into()]),
+            Line::from(""),
+            Line::from("Library".italic()),
+            format_command(
+                &[cmd("addlibrary"), " <name> <path>".into()],
+                &["add a library folder".into()],
+            ),
+            format_command(
+                &[cmd("removelibrary"), " <name>".into()],
+                &["remove a library folder".into()],
+            ),
+            format_command(&[cmd("rescan")], &["rescan library for changes".into()]),
+            format_command(
+                &[cmd("delete-unused-transcodes")],
+                &["delete transcodes with no original".into()],
+            ),
+            format_command(
+                &[cmd("delete-all-transcodes")],
+                &["delete all transcodes".into()],
+            ),
+            Line::from(""),
+            Line::from("Connections".italic()),
+            format_command(
+                &[
+                    cmd("c"),
+                    ", ".into(),
+                    cmd("connect"),
+                    " <endpoint id>".into(),
+                ],
+                &["connect to a device".into()],
+            ),
+            format_command(
+                &[cmd("dc"), ", ".into(), cmd("disconnect")],
+                &["close all connections".into()],
+            ),
+            format_command(
+                &[cmd("a"), ", ".into(), cmd("accept")],
+                &["accept all pending connections".into()],
+            ),
+            format_command(
+                &[cmd("t"), ", ".into(), cmd("trust")],
+                &["accept and trust all pending connections".into()],
+            ),
+            format_command(&[cmd("connectinfo")], &["show connection info".into()]),
+            Line::from(""),
+            Line::from("Transfers".italic()),
+            format_command(
+                &[
+                    cmd("dl"),
+                    ", ".into(),
+                    cmd("download"),
+                    " <client #>".into(),
+                ],
+                &["download all from client".into()],
+            ),
+            format_command(
+                &[cmd("dlrand"), " <client #>".into()],
+                &["download random subset from client".into()],
+            ),
+            format_command(
+                &[cmd("p"), ", ".into(), cmd("pause")],
+                &["pause all downloads".into()],
+            ),
+            format_command(
+                &[cmd("format"), " <format>".into()],
+                &["set transcode format".into()],
+            ),
+            Line::from(""),
+            Line::from("Debugging".italic()),
+            format_command(
+                &[cmd("exportlogs")],
+                &["export logs to a temp directory".into()],
+            ),
         ];
 
         Paragraph::new(lines)

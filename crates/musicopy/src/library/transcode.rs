@@ -18,6 +18,7 @@ use std::{
     },
 };
 use tokio::sync::mpsc;
+use tracing::{debug, error, info, trace, warn};
 
 /// The transcode status of a file.
 ///
@@ -410,7 +411,7 @@ impl TranscodePool {
                 )
                 .await
                 {
-                    log::error!("error running transcode pool: {e:#}");
+                    error!("error running transcode pool: {e:#}");
                 }
             }
         });
@@ -430,7 +431,7 @@ impl TranscodePool {
     fn read_transcodes_dir(transcodes_dir: &Path, status_cache: &TranscodeStatusCache) {
         // create transcode cache directory if it doesn't exist
         if let Err(e) = std::fs::create_dir_all(transcodes_dir) {
-            log::error!(
+            error!(
                 "failed to create transcode cache directory at {}: {}",
                 transcodes_dir.display(),
                 e
@@ -441,7 +442,7 @@ impl TranscodePool {
         let items = match std::fs::read_dir(transcodes_dir) {
             Ok(entries) => entries,
             Err(e) => {
-                log::error!(
+                error!(
                     "failed to read transcode cache directory at {}: {}",
                     transcodes_dir.display(),
                     e
@@ -455,14 +456,14 @@ impl TranscodePool {
             .filter_map(|entry| match entry {
                 Ok(entry) => Some(entry),
                 Err(e) => {
-                    log::error!("failed to read entry in transcode cache directory: {e:#}");
+                    error!("failed to read entry in transcode cache directory: {e:#}");
                     None
                 }
             })
             .filter_map(|entry| match Self::parse_transcodes_dir_entry(&entry) {
                 Ok(res) => res,
                 Err(e) => {
-                    log::error!(
+                    error!(
                         "failed to parse transcode cache directory entry at {}: {}",
                         entry.path().display(),
                         e
@@ -504,14 +505,14 @@ impl TranscodePool {
             Some(ext) if ext == "ogg" || ext == "mp3" => {}
             Some(ext) if ext == "tmp" => {
                 // remove temp files from previous runs
-                log::info!("removing old temp file: {}", path.display());
+                info!("removing old temp file: {}", path.display());
 
                 let _ = std::fs::remove_file(path);
 
                 return Ok(None);
             }
             _ => {
-                log::warn!("unexpected file in transcodes dir: {}", path.display());
+                warn!("unexpected file in transcodes dir: {}", path.display());
 
                 return Ok(None);
             }
@@ -602,7 +603,7 @@ impl TranscodePool {
                                     Err(_) => {
                                         // This is probably unrecoverable, but we still queue it so
                                         // it can reach the Failed state once processed.
-                                        log::warn!("TranscodePool: failed to read cache key for {}, assuming not cached", item.display());
+                                        warn!("TranscodePool: failed to read cache key for {}, assuming not cached", item.display());
                                         return true;
                                     },
                                 };
@@ -615,7 +616,7 @@ impl TranscodePool {
                                     }
 
                                     Err(e) => {
-                                        log::warn!("TranscodePool: failed to get cached hash for {}: {e:#}", item.display());
+                                        warn!("TranscodePool: failed to get cached hash for {}: {e:#}", item.display());
 
                                         // add to queue
                                         return true;
@@ -626,7 +627,7 @@ impl TranscodePool {
                                 let status = status_cache.get(format, &hash_kind, hash);
                                 match status {
                                     Some(status) => {
-                                        log::trace!("TranscodePool: skipping file {} (status: {:?})", item.display(), *status);
+                                        trace!("TranscodePool: skipping file {} (status: {:?})", item.display(), *status);
 
                                         // don't add to queue
                                         false
@@ -648,22 +649,22 @@ impl TranscodePool {
                                     let items = items.iter().cloned().collect::<Vec<_>>();
                                     async move {
                                         let start = std::time::Instant::now();
-                                        log::info!("TranscodePool: getting durations for {} files", items.len());
+                                        info!("TranscodePool: getting durations for {} files", items.len());
 
                                         let Ok(res) = tokio::task::spawn_blocking(move || {
                                             hash_cache.batch_get_durations(items)
                                         }).await else {
-                                            log::error!("TranscodePool: failed to join file duration task");
+                                            error!("TranscodePool: failed to join file duration task");
                                             return;
                                         };
 
                                         match res {
                                             Ok(_) => {
                                                 let elapsed = (start.elapsed().as_millis() as f64) / 1000.0;
-                                                log::info!("TranscodePool: finished getting file durations in {elapsed:?}s");
+                                                info!("TranscodePool: finished getting file durations in {elapsed:?}s");
                                             },
                                             Err(e) => {
-                                                log::error!("TranscodePool: failed to get file durations: {e:#}");
+                                                error!("TranscodePool: failed to get file durations: {e:#}");
                                             }
                                         }
                                     }
@@ -749,7 +750,7 @@ impl TranscodePool {
         items: Vec<PathBuf>,
     ) {
         let start = std::time::Instant::now();
-        log::debug!(
+        debug!(
             "TranscodePool::delete_missing: hashing library of {} items",
             items.len()
         );
@@ -757,13 +758,13 @@ impl TranscodePool {
         let hashes = match hash_cache.batch_get_hash(items) {
             Ok(hashes) => hashes,
             Err(e) => {
-                log::error!("TranscodePool::delete_missing: failed to get file hashes: {e:#}");
+                error!("TranscodePool::delete_missing: failed to get file hashes: {e:#}");
                 return;
             }
         };
 
         let elapsed = start.elapsed().as_secs_f64();
-        log::debug!("TranscodePool::delete_missing: hashed library in {elapsed:.2}s",);
+        debug!("TranscodePool::delete_missing: hashed library in {elapsed:.2}s",);
 
         let mut count_deleted = 0;
         let mut bytes_deleted = 0;
@@ -778,7 +779,7 @@ impl TranscodePool {
             if !hashes.contains(&(hash_kind.into(), *hash)) {
                 // try to delete transcode file
                 if let Err(e) = std::fs::remove_file(transcode_path) {
-                    log::error!(
+                    error!(
                         "TranscodePool::delete_missing: failed to delete transcode file at {}: {e:#}",
                         transcode_path.display()
                     );
@@ -795,7 +796,7 @@ impl TranscodePool {
             }
         });
 
-        log::info!(
+        info!(
             "TranscodePool::delete_missing: deleted {count_deleted} transcode files, {bytes_deleted} bytes total"
         );
     }
@@ -816,7 +817,7 @@ impl TranscodePool {
 
             // try to delete transcode file
             if let Err(e) = std::fs::remove_file(transcode_path) {
-                log::error!(
+                error!(
                     "TranscodePool::delete_all: failed to delete transcode file at {}: {e:#}",
                     transcode_path.display()
                 );
@@ -829,7 +830,7 @@ impl TranscodePool {
             false
         });
 
-        log::info!(
+        info!(
             "TranscodePool::delete_all: deleted {count_deleted} transcode files, {bytes_deleted} bytes total"
         );
     }
@@ -854,7 +855,7 @@ impl TranscodeWorker {
                 queue,
                 inprogress_counter,
             ) {
-                log::error!("transcode worker failed: {e:#}");
+                error!("transcode worker failed: {e:#}");
             }
         });
 
@@ -881,7 +882,7 @@ impl TranscodeWorker {
                 Ok((hash_kind, hash)) => (hash_kind, hash),
 
                 Err(e) => {
-                    log::error!(
+                    error!(
                         "failed to compute file hash for transcoding: {}: {e:#}",
                         job.display()
                     );
@@ -898,7 +899,7 @@ impl TranscodeWorker {
             if let Some(TranscodeStatus::Ready { .. }) =
                 status_cache.get(format, &hash_kind, hash).as_deref()
             {
-                log::info!(
+                info!(
                     "skipping already transcoded file: {format} {}",
                     job.display()
                 );
@@ -915,7 +916,7 @@ impl TranscodeWorker {
                 hex::encode(hash)
             ));
 
-            log::info!("transcoding file: {format} {}", job.display());
+            info!("transcoding file: {format} {}", job.display());
             let transcode_preset = match format {
                 TranscodeFormat::Opus128 => TranscodePreset::Opus(OpusPreset::Opus128),
                 TranscodeFormat::Opus64 => TranscodePreset::Opus(OpusPreset::Opus64),
@@ -926,7 +927,7 @@ impl TranscodeWorker {
                 Ok(file_size) => file_size,
 
                 Err(e) => {
-                    log::error!(
+                    error!(
                         "failed to transcode file: {format} {} -> {}: {e:#}",
                         job.display(),
                         temp_path.display()
@@ -951,7 +952,7 @@ impl TranscodeWorker {
             // rename the temp file
             let final_path = temp_path.with_extension(format.extension());
             if let Err(e) = std::fs::rename(&temp_path, &final_path) {
-                log::error!(
+                error!(
                     "failed to rename temp file: {} -> {}: {e:#}",
                     temp_path.display(),
                     final_path.display()
@@ -971,7 +972,7 @@ impl TranscodeWorker {
                 continue;
             };
 
-            log::info!(
+            info!(
                 "finished transcoding file: {format} {} -> {}",
                 job.display(),
                 final_path.display()

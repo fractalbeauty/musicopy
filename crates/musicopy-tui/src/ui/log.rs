@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Margin, Rect},
     style::Stylize,
     symbols::border,
-    text::Line,
+    text::{Line, Span},
     widgets::{Block, Scrollbar, ScrollbarOrientation, ScrollbarState, Widget},
 };
 
@@ -131,12 +131,45 @@ impl<'a> App<'a> {
         // update viewport height
         self.log_state.viewport_height = inner_area.height as usize;
 
-        // build entries from messages
-        // TODO: more formatting w/ metadata, line wrapping
+        // build entries from messages and wrap long lines
         let entries = self
             .messages
             .iter()
-            .map(|s| vec![Line::from(s.as_str())])
+            .map(|entry| {
+                let level_span = if entry.level == tracing::Level::ERROR {
+                    Span::raw("ERROR").red().bold()
+                } else if entry.level == tracing::Level::WARN {
+                    Span::raw("WARN ").yellow().bold()
+                } else if entry.level == tracing::Level::INFO {
+                    Span::raw("INFO ").green()
+                } else if entry.level == tracing::Level::DEBUG {
+                    Span::raw("DEBUG").cyan()
+                } else {
+                    Span::raw("TRACE").dark_gray()
+                };
+
+                let prefix_width = 5 + 1 + entry.target.chars().count() + 2;
+                let first_width = (inner_area.width as usize).saturating_sub(prefix_width);
+                let cont_width = (inner_area.width as usize).saturating_sub(2);
+                let indent = "  ";
+
+                let wrapped = word_wrap(&entry.message, first_width, cont_width);
+                let first = wrapped.first().cloned().unwrap_or_default();
+
+                let mut lines = vec![Line::from(vec![
+                    level_span,
+                    Span::raw(" "),
+                    Span::raw(entry.target.as_str()).dim(),
+                    Span::raw(": "),
+                    Span::raw(first),
+                ])];
+
+                for chunk in wrapped.into_iter().skip(1) {
+                    lines.push(Line::from(vec![Span::raw(indent), Span::raw(chunk)]));
+                }
+
+                lines
+            })
             .collect::<Vec<_>>();
 
         // count total height of all entries
@@ -208,4 +241,60 @@ impl<'a> App<'a> {
             &mut self.log_state.scrollbar_state,
         );
     }
+}
+
+/// Wrap `text` breaking at word boundaries. The first line uses `first_width` and all
+/// continuation lines use `cont_width`. Words longer than the available width are hard-broken.
+fn word_wrap(text: &str, first_width: usize, cont_width: usize) -> Vec<String> {
+    if text.is_empty() {
+        return vec![String::new()];
+    }
+
+    let mut lines: Vec<String> = Vec::new();
+    let mut current = String::new();
+
+    for word in text.split_whitespace() {
+        let width = if lines.is_empty() {
+            first_width
+        } else {
+            cont_width
+        };
+        let sep = if current.is_empty() { 0 } else { 1 };
+        if current.chars().count() + sep + word.chars().count() <= width {
+            if !current.is_empty() {
+                current.push(' ');
+            }
+            current.push_str(word);
+        } else {
+            if !current.is_empty() {
+                lines.push(std::mem::take(&mut current));
+            }
+
+            let mut remaining = word;
+            loop {
+                let width = if lines.is_empty() {
+                    first_width
+                } else {
+                    cont_width
+                };
+                if remaining.chars().count() <= width {
+                    break;
+                }
+                let split = remaining
+                    .char_indices()
+                    .nth(width)
+                    .map(|(i, _)| i)
+                    .unwrap_or(remaining.len());
+                lines.push(remaining[..split].to_string());
+                remaining = &remaining[split..];
+            }
+            current.push_str(remaining);
+        }
+    }
+
+    if !current.is_empty() {
+        lines.push(current);
+    }
+
+    lines
 }

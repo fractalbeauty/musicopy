@@ -5,6 +5,7 @@ use musicopy::{
     node::{ClientModel, ClientStateModel, NodeModel, ServerModel, ServerStateModel},
 };
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use tracing::{debug, warn};
 
 #[derive(Debug, Clone, Copy)]
 pub enum LibraryFixture {
@@ -37,7 +38,7 @@ impl LibraryFixture {
 }
 
 async fn wait_until(msg: &str, condition: impl Fn() -> bool, on_fail: impl Fn()) {
-    log::debug!("wait_until: waiting for condition: {}", msg);
+    debug!("wait_until: waiting for condition: {}", msg);
     let start = std::time::Instant::now();
     while !condition() {
         if start.elapsed().as_secs_f64() > 10.0 {
@@ -74,7 +75,12 @@ pub struct TestCore {
 
 impl TestCore {
     pub async fn start(label: &str) -> Self {
-        let _ = env_logger::builder().is_test(true).try_init();
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn,musicopy=debug")),
+            )
+            .try_init();
 
         let event_handler = Arc::new(TestEventHandler);
 
@@ -149,7 +155,7 @@ impl TestCore {
                 condition(&model)
             },
             || {
-                log::warn!(
+                warn!(
                     "wait_for_node_model_condition: {full_msg}: failed, node model: {:?}",
                     self.core.get_node_model(),
                 );
@@ -175,7 +181,7 @@ impl TestCore {
                 condition(&model)
             },
             || {
-                log::warn!(
+                warn!(
                     "wait_for_library_model_condition: {full_msg}: failed, library model: {:?}",
                     self.core.get_library_model(),
                 );
@@ -194,7 +200,7 @@ impl TestCore {
                 model.clients.contains_key(&other.endpoint_id_str())
             },
             || {
-                log::warn!(
+                warn!(
                     "wait_for_client: {full_msg}: failed, node model: {:?}",
                     self.core.get_node_model(),
                 );
@@ -236,7 +242,7 @@ impl TestCore {
                 }
             },
             || {
-                log::warn!(
+                warn!(
                     "wait_for_client_condition: {full_msg}: failed, node model: {:?}",
                     self.core.get_node_model(),
                 );
@@ -279,7 +285,7 @@ impl TestCore {
                 model.servers.contains_key(&other.endpoint_id_str())
             },
             || {
-                log::warn!(
+                warn!(
                     "wait_for_server: {full_msg}: failed, node model: {:?}",
                     self.core.get_node_model(),
                 );
@@ -321,7 +327,7 @@ impl TestCore {
                 }
             },
             || {
-                log::warn!(
+                warn!(
                     "wait_for_server_condition: {full_msg}: failed, node model: {:?}",
                     self.core.get_node_model(),
                 );
@@ -393,7 +399,7 @@ impl TestCore {
                 condition(&stats)
             },
             || {
-                log::warn!(
+                warn!(
                     "wait_for_stats_condition: {full_msg}: failed, stats: {:?}",
                     self.core.get_stats_model(),
                 );

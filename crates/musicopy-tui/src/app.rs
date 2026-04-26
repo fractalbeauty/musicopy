@@ -5,10 +5,7 @@ use crate::{
 use anyhow::Context;
 use musicopy::{
     Core, CoreOptions, StatsModel,
-    library::{
-        LibraryModel,
-        transcode::{TranscodeFormat},
-    },
+    library::{LibraryModel, transcode::TranscodeFormat},
     node::{ClientStateModel, DownloadRequestModel, NodeModel, ServerStateModel},
 };
 use ratatui::{
@@ -16,6 +13,7 @@ use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
 };
 use std::{sync::Arc, time::SystemTime};
+use tracing::{error, info};
 use tui_widgets::prompts::{State, Status, TextState};
 
 /// Application.
@@ -29,7 +27,7 @@ pub struct App<'a> {
     pub mode: AppMode,
     pub screen: AppScreen,
 
-    pub messages: Vec<String>,
+    pub messages: Vec<LogMessage>,
 
     pub log_state: LogState,
     pub command_state: TextState<'a>,
@@ -60,7 +58,7 @@ pub enum AppMode {
 /// Application events.
 #[derive(Debug)]
 pub enum AppEvent {
-    Log(String),
+    Log(LogMessage),
 
     Exit,
 
@@ -73,12 +71,12 @@ pub enum AppEvent {
     StatsModel(Box<StatsModel>),
 }
 
-macro_rules! app_log {
-    ($($arg:tt)*) => {
-        let _ = crate::event::app_send!(crate::app::AppEvent::Log(format!($($arg)*)));
-    };
+#[derive(Debug)]
+pub struct LogMessage {
+    pub level: tracing::Level,
+    pub target: String,
+    pub message: String,
 }
-pub(crate) use app_log;
 
 impl<'a> App<'a> {
     /// Constructs a new instance of [`App`].
@@ -98,7 +96,7 @@ impl<'a> App<'a> {
 
         // spawn auto accept task
         if auto_accept {
-            app_log!("ran with --auto-accept, will automatically accept incoming connections");
+            info!("ran with --auto-accept, will automatically accept incoming connections");
             let core = core.clone();
             tokio::spawn(async move {
                 loop {
@@ -107,19 +105,16 @@ impl<'a> App<'a> {
                     let node_model = match core.get_node_model() {
                         Ok(model) => model,
                         Err(e) => {
-                            app_log!("auto accept: error getting node model: {e:#}");
+                            error!("auto accept: error getting node model: {e:#}");
                             continue;
                         }
                     };
 
                     for server in node_model.servers.values() {
                         if matches!(server.state, ServerStateModel::Pending) {
-                            app_log!("auto accepting server: {}", server.endpoint_id);
+                            info!("auto accepting server: {}", server.endpoint_id);
                             if let Err(e) = core.accept_connection(&server.endpoint_id) {
-                                app_log!(
-                                    "error auto accepting server {}: {e:#}",
-                                    server.endpoint_id
-                                );
+                                error!("error auto accepting server {}: {e:#}", server.endpoint_id);
                             }
                         }
                     }
@@ -232,7 +227,7 @@ impl<'a> App<'a> {
                         let command = self.command_state.value().to_string();
 
                         if let Err(e) = self.handle_command(command) {
-                            app_log!("Error: {e:#}");
+                            error!("{e:#}");
                         }
 
                         self.events.send(AppEvent::ExitMode);
@@ -251,7 +246,7 @@ impl<'a> App<'a> {
 
     pub fn handle_app_events(&mut self, app_event: AppEvent) -> anyhow::Result<()> {
         match app_event {
-            AppEvent::Log(s) => self.messages.push(s),
+            AppEvent::Log(message) => self.messages.push(message),
 
             AppEvent::Exit => self.exit(),
 
@@ -289,7 +284,7 @@ impl<'a> App<'a> {
         }
 
         match parts[0] {
-            "q" => self.events.send(AppEvent::Exit),
+            "q" | "quit" => self.events.send(AppEvent::Exit),
 
             "addlibrary" => {
                 if parts.len() < 3 {
@@ -324,22 +319,22 @@ impl<'a> App<'a> {
             }
 
             "a" | "accept" => {
-                app_log!("accepting pending servers");
+                info!("accepting pending servers");
 
                 for server in self.node_model.servers.values() {
                     if matches!(server.state, ServerStateModel::Pending) {
-                        app_log!("accepting server: {}", server.endpoint_id);
+                        info!("accepting server: {}", server.endpoint_id);
                         self.core.accept_connection(&server.endpoint_id)?;
                     }
                 }
             }
 
             "t" | "trust" => {
-                app_log!("accepting and trusting pending servers");
+                info!("accepting and trusting pending servers");
 
                 for server in self.node_model.servers.values() {
                     if matches!(server.state, ServerStateModel::Pending) {
-                        app_log!("accepting and trusting server: {}", server.endpoint_id);
+                        info!("accepting and trusting server: {}", server.endpoint_id);
                         self.core.accept_connection_and_trust(&server.endpoint_id)?;
                     }
                 }
@@ -352,19 +347,19 @@ impl<'a> App<'a> {
 
                 let endpoint_id = parts[1].to_string();
 
-                app_log!("connecting to node: {}", endpoint_id);
+                info!("connecting to node: {}", endpoint_id);
 
                 let core = self.core.clone();
                 let transcode_format = self.transcode_format;
                 tokio::spawn(async move {
                     if let Err(e) = core.connect(transcode_format, &endpoint_id).await {
-                        app_log!("error connecting to node {}: {e:#}", endpoint_id);
+                        error!("error connecting to node {}: {e:#}", endpoint_id);
                     }
                 });
             }
 
             "dc" | "disconnect" => {
-                app_log!("disconnecting everything");
+                info!("disconnecting everything");
 
                 for client in self.node_model.clients.values() {
                     self.core.close_client(&client.endpoint_id)?;
@@ -409,7 +404,7 @@ impl<'a> App<'a> {
                     })
                     .collect::<Vec<_>>();
 
-                app_log!(
+                info!(
                     "downloading all {} items from client: {}",
                     download_requests.len(),
                     client_num
@@ -418,12 +413,12 @@ impl<'a> App<'a> {
                 let core = self.core.clone();
                 tokio::spawn(async move {
                     if let Err(e) = core.set_download_directory("/tmp/musicopy-dl") {
-                        app_log!("error setting download directory: {e:#}");
+                        error!("error setting download directory: {e:#}");
                         return;
                     }
 
                     if let Err(e) = core.set_downloads(&endpoint_id, download_requests) {
-                        app_log!("error downloading from client {}: {e:#}", client_num);
+                        error!("error downloading from client {}: {e:#}", client_num);
                     }
                 });
             }
@@ -475,7 +470,7 @@ impl<'a> App<'a> {
                     })
                     .collect::<Vec<_>>();
 
-                app_log!(
+                info!(
                     "downloading {} random items from client: {}",
                     download_requests.len(),
                     client_num
@@ -484,18 +479,18 @@ impl<'a> App<'a> {
                 let core = self.core.clone();
                 tokio::spawn(async move {
                     if let Err(e) = core.set_download_directory("/tmp/musicopy-dl") {
-                        app_log!("error setting download directory: {e:#}");
+                        error!("error setting download directory: {e:#}");
                         return;
                     }
 
                     if let Err(e) = core.set_downloads(&endpoint_id, download_requests) {
-                        app_log!("error downloading from client {}: {e:#}", client_num);
+                        error!("error downloading from client {}: {e:#}", client_num);
                     }
                 });
             }
 
             "p" | "pause" => {
-                app_log!("pausing all downloads");
+                info!("pausing all downloads");
 
                 for client in self.node_model.clients.values() {
                     if matches!(client.state, ClientStateModel::Accepted) {
@@ -529,22 +524,34 @@ impl<'a> App<'a> {
 
             "connectinfo" => {
                 for server in self.node_model.servers.values() {
-                    app_log!(
+                    info!(
                         "server {}: status={:?} remote_addr={} latency_ms={:?}",
-                        server.endpoint_id,
-                        server.state,
-                        server.connection_type,
-                        server.latency_ms,
+                        server.endpoint_id, server.state, server.connection_type, server.latency_ms,
                     );
                 }
 
                 for client in self.node_model.clients.values() {
-                    app_log!(
+                    info!(
                         "client {}: status={:?} remote_addr={} latency_ms={:?}",
-                        client.endpoint_id,
-                        client.state,
-                        client.connection_type,
-                        client.latency_ms
+                        client.endpoint_id, client.state, client.connection_type, client.latency_ms
+                    );
+                }
+            }
+
+            "exportlogs" => {
+                let bytes = self.core.export_logs()?;
+                if bytes.is_empty() {
+                    error!("exportlogs: log data is empty");
+                } else {
+                    let timestamp = SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)?
+                        .as_secs();
+                    let path = std::env::temp_dir().join(format!("musicopy-logs-{timestamp}.txt"));
+                    std::fs::write(&path, &bytes).context("failed to write log export")?;
+                    info!(
+                        "exportlogs: wrote {} bytes to {}. note that this only includes logs from desktop runs. the tui does not collect logs",
+                        bytes.len(),
+                        path.display()
                     );
                 }
             }

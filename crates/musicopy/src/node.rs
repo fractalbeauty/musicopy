@@ -34,7 +34,6 @@ use iroh::{
     endpoint::{Connection, presets::N0},
     protocol::{AcceptError, ProtocolHandler, Router},
 };
-use log::error;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
@@ -54,6 +53,7 @@ use tokio_util::{
     bytes::Bytes,
     codec::{FramedRead, FramedWrite, LengthDelimitedCodec},
 };
+use tracing::{debug, error, info, warn};
 
 /// Model of progress for a transfer job.
 #[derive(Debug, Clone, uniffi::Enum)]
@@ -542,11 +542,11 @@ impl Node {
                         NodeCommand::Connect { transcode_format, addr, callback } => {
                             let node = self.clone();
                             tokio::task::spawn(async move {
-                                log::debug!("starting connect");
+                                debug!("starting connect");
                                 let res = node.connect(transcode_format, addr).await;
-                                log::debug!("connect result: {res:?}");
+                                debug!("connect result: {res:?}");
                                 if let Err(e) = callback.send(res) {
-                                    log::error!("failed to send res: {e:?}");
+                                    error!("failed to send res: {e:?}");
                                 }
                             });
                         },
@@ -556,7 +556,7 @@ impl Node {
                             if let Some(server_handle) = servers.get(&endpoint_id) {
                                 server_handle.tx.send(ServerCommand::Accept).expect("failed to send ServerCommand::Accept");
                             } else {
-                                log::error!("AcceptConnection: no server found with endpoint_id: {endpoint_id}");
+                                error!("AcceptConnection: no server found with endpoint_id: {endpoint_id}");
                             }
                         },
                         NodeCommand::DenyConnection(endpoint_id) => {
@@ -564,7 +564,7 @@ impl Node {
                             if let Some(server_handle) = servers.get(&endpoint_id) {
                                 server_handle.tx.send(ServerCommand::Close).expect("failed to send ServerCommand::Close");
                             } else {
-                                log::error!("DenyConnection: no server found with endpoint_id: {endpoint_id}");
+                                error!("DenyConnection: no server found with endpoint_id: {endpoint_id}");
                             }
                         },
 
@@ -573,7 +573,7 @@ impl Node {
                             if let Some(client_handle) = clients.get(&endpoint_id) {
                                 client_handle.tx.send(ClientCommand::Close).expect("failed to send ClientCommand::Close");
                             } else {
-                                log::error!("CloseClient: no client found with endpoint_id: {endpoint_id}");
+                                error!("CloseClient: no client found with endpoint_id: {endpoint_id}");
                             }
                         }
                         NodeCommand::CloseServer(endpoint_id) => {
@@ -581,7 +581,7 @@ impl Node {
                             if let Some(server_handle) = servers.get(&endpoint_id) {
                                 server_handle.tx.send(ServerCommand::Close).expect("failed to send ServerCommand::Close");
                             } else {
-                                log::error!("CloseServer: no server found with endpoint_id: {endpoint_id}");
+                                error!("CloseServer: no server found with endpoint_id: {endpoint_id}");
                             }
                         },
 
@@ -597,7 +597,7 @@ impl Node {
                             {
                                 let download_directory = self.download_directory.lock().unwrap();
                                 if download_directory.is_none() {
-                                    log::error!("SetDownloads: download directory not set");
+                                    error!("SetDownloads: download directory not set");
                                     continue;
                                 }
                             };
@@ -606,7 +606,7 @@ impl Node {
                             if let Some(client_handle) = clients.get(&client) {
                                 client_handle.tx.send(ClientCommand::SetDownloads { items }).expect("failed to send ClientCommand::SetDownloads");
                             } else {
-                                log::error!("SetDownloads: no client found with endpoint_id: {client}");
+                                error!("SetDownloads: no client found with endpoint_id: {client}");
                             }
                         }
                         NodeCommand::PauseDownloads { client } => {
@@ -614,7 +614,7 @@ impl Node {
                             if let Some(client_handle) = clients.get(&client) {
                                 client_handle.tx.send(ClientCommand::PauseDownloads).expect("failed to send ClientCommand::PauseDownloads");
                             } else {
-                                log::error!("PauseDownloads: no client found with endpoint_id: {client}");
+                                error!("PauseDownloads: no client found with endpoint_id: {client}");
                             }
                         }
 
@@ -623,7 +623,7 @@ impl Node {
                             {
                                 let db = self.db.lock().unwrap();
                                 if let Err(e) = db.add_trusted_node(endpoint_id) {
-                                    log::error!("failed to add trusted node to database: {e:#}");
+                                    error!("failed to add trusted node to database: {e:#}");
                                 }
                             }
 
@@ -635,7 +635,7 @@ impl Node {
                             {
                                 let db = self.db.lock().unwrap();
                                 if let Err(e) = db.remove_trusted_node(endpoint_id) {
-                                    log::error!("failed to remove trusted node from database: {e:#}");
+                                    error!("failed to remove trusted node from database: {e:#}");
                                 }
                             }
 
@@ -649,21 +649,21 @@ impl Node {
                         }
 
                         NodeCommand::WriteTestFile(root) => {
-                            log::warn!("core: received NodeCommand::WriteTestFile");
+                            warn!("core: received NodeCommand::WriteTestFile");
 
                             tokio::spawn(async move {
-                                log::debug!("core: inside WriteTestFile task");
+                                debug!("core: inside WriteTestFile task");
 
                                 let mut path = match crate::fs::TreePath::from_root(root) {
                                     Ok(p) => p,
                                     Err(e) => {
-                                        log::error!("core: WriteTestFile failed to create TreePath from root: {e:#}");
+                                        error!("core: WriteTestFile failed to create TreePath from root: {e:#}");
                                         return;
                                     }
                                 };
                                 path.push("test.txt");
 
-                                log::debug!("core: WriteTestFile opening or creating file at {:?}", path);
+                                debug!("core: WriteTestFile opening or creating file at {:?}", path);
 
                                 let mut file = match crate::fs::TreeFile::open_or_create(
                                     &path,
@@ -673,19 +673,19 @@ impl Node {
                                 {
                                     Ok(f) => f,
                                     Err(e) => {
-                                        log::error!("core: WriteTestFile failed to open or create file: {e:#}");
+                                        error!("core: WriteTestFile failed to open or create file: {e:#}");
                                         return;
                                     }
                                 };
 
-                                log::debug!("core: WriteTestFile opened or created file successfully");
+                                debug!("core: WriteTestFile opened or created file successfully");
 
                                 if let Err(e) = file.write_all(b"meow meow").await {
-                                    log::error!("core: WriteTestFile failed to write to file: {e:#}");
+                                    error!("core: WriteTestFile failed to write to file: {e:#}");
                                     return;
                                 }
 
-                                log::debug!("core: WriteTestFile wrote to file successfully");
+                                debug!("core: WriteTestFile wrote to file successfully");
                             });
                         }
 
@@ -777,7 +777,7 @@ impl Node {
                 }
 
                 else => {
-                    log::warn!("all senders dropped in Node::run, shutting down");
+                    warn!("all senders dropped in Node::run, shutting down");
                     break
                 }
             }
@@ -858,7 +858,7 @@ impl Node {
                             })
                             .collect(),
                         Err(e) => {
-                            log::error!("failed to get recent servers from database: {e:#}");
+                            error!("failed to get recent servers from database: {e:#}");
                             Vec::new()
                         }
                     }
@@ -905,9 +905,7 @@ impl Node {
 
                 let mut model = self.model.lock().unwrap();
                 let Some(server) = model.servers.get_mut(&endpoint_id_string) else {
-                    log::warn!(
-                        "failed to apply NodeModelUpdate::UpdateServer: no server model found"
-                    );
+                    warn!("failed to apply NodeModelUpdate::UpdateServer: no server model found");
                     return;
                 };
 
@@ -925,7 +923,7 @@ impl Node {
                     ServerModelUpdate::UpdateTransferJobs => {
                         let server_handles = self.servers.lock().unwrap();
                         let Some(server_handle) = server_handles.get(&endpoint_id) else {
-                            log::warn!(
+                            warn!(
                                 "failed to apply ServerModelUpdate::UpdateTransferJobs: no server handle found"
                             );
                             return;
@@ -1033,9 +1031,7 @@ impl Node {
 
                 let mut model = self.model.lock().unwrap();
                 let Some(client) = model.clients.get_mut(&endpoint_id_string) else {
-                    log::warn!(
-                        "failed to apply NodeModelUpdate::UpdateClient: no client model found"
-                    );
+                    warn!("failed to apply NodeModelUpdate::UpdateClient: no client model found");
                     return;
                 };
 
@@ -1053,7 +1049,7 @@ impl Node {
                     ClientModelUpdate::UpdateIndex => {
                         let client_handles = self.clients.lock().unwrap();
                         let Some(client_handle) = client_handles.get(&endpoint_id) else {
-                            log::warn!(
+                            warn!(
                                 "failed to apply ClientModelUpdate::UpdateIndex: no client handle found"
                             );
                             return;
@@ -1134,14 +1130,14 @@ impl Node {
 
                             client.index = Some(index);
                         } else {
-                            log::warn!("ClientModelUpdate::UpdateIndex: no index found");
+                            warn!("ClientModelUpdate::UpdateIndex: no index found");
                             client.index = None;
                         }
                     }
                     ClientModelUpdate::UpdateTransferJobs => {
                         let client_handles = self.clients.lock().unwrap();
                         let Some(client_handle) = client_handles.get(&endpoint_id) else {
-                            log::warn!(
+                            warn!(
                                 "failed to apply ClientModelUpdate::UpdateTransferJobs: no client handle found"
                             );
                             return;
@@ -1216,7 +1212,7 @@ impl Node {
                     ClientModelUpdate::UpdatePaused => {
                         let client_handles = self.clients.lock().unwrap();
                         let Some(client_handle) = client_handles.get(&endpoint_id) else {
-                            log::warn!(
+                            warn!(
                                 "failed to apply ClientModelUpdate::UpdatePaused: no client handle found"
                             );
                             return;
@@ -1258,7 +1254,7 @@ impl Node {
         let connection = self.router.endpoint().connect(addr, Protocol::ALPN).await?;
 
         let endpoint_id = connection.remote_id();
-        log::info!("opened connection to {endpoint_id}");
+        info!("opened connection to {endpoint_id}");
 
         let db = self.db.clone();
         let event_tx = self.event_tx.clone();
@@ -1278,7 +1274,7 @@ impl Node {
 
             let res = client.run().await;
             if let Err(e) = &res {
-                log::error!("error during client.run(): {e:#}");
+                error!("error during client.run(): {e:#}");
             }
 
             // notify node
@@ -1311,7 +1307,7 @@ impl Node {
 
             // check for error without failing
             if let Err(e) = &path {
-                log::warn!("check_remote_files: failed to create TreePath: {e:#}");
+                warn!("check_remote_files: failed to create TreePath: {e:#}");
             }
 
             if !path.is_ok_and(|p| p.exists()) {
@@ -1321,7 +1317,7 @@ impl Node {
 
         // remove from db
         if !missing_files.is_empty() {
-            log::warn!(
+            warn!(
                 "removing {} missing remote files from database",
                 missing_files.len()
             );
@@ -1367,7 +1363,7 @@ impl Protocol {
 impl ProtocolHandler for Protocol {
     async fn accept(&self, connection: iroh::endpoint::Connection) -> Result<(), AcceptError> {
         let endpoint_id = connection.remote_id();
-        log::info!("accepted connection from {endpoint_id}");
+        info!("accepted connection from {endpoint_id}");
 
         let server = Server::new(
             self.db.clone(),
@@ -1379,7 +1375,7 @@ impl ProtocolHandler for Protocol {
 
         let res = server.run().await;
         if let Err(e) = &res {
-            log::error!("error during server.run(): {e:#}");
+            error!("error during server.run(): {e:#}");
         }
 
         // notify node
@@ -1553,7 +1549,7 @@ impl Server {
 
         // wait for client Identify
         let Some(Ok(message)) = recv.next().await else {
-            log::error!("failed to receive Identify message");
+            error!("failed to receive Identify message");
             return Ok(());
         };
         let (client_name, transcode_format) = match message {
@@ -1562,7 +1558,7 @@ impl Server {
                 transcode_format,
             } => (name, transcode_format),
             _ => {
-                log::error!("unexpected message, expected Identify: {message:?}");
+                error!("unexpected message, expected Identify: {message:?}");
                 return Ok(());
             }
         };
@@ -1595,10 +1591,10 @@ impl Server {
         };
 
         if is_trusted {
-            log::info!("accepting connection from trusted node {remote_endpoint_id}");
+            info!("accepting connection from trusted node {remote_endpoint_id}");
         } else {
             // waiting loop, wait for user to accept or deny the connection
-            log::info!(
+            info!(
                 "waiting for accept or deny of connection from untrusted node {remote_endpoint_id}",
             );
             loop {
@@ -1624,13 +1620,13 @@ impl Server {
                     next_message = recv.next() => {
                         match next_message {
                             Some(Ok(message)) => {
-                                log::debug!("unexpected message (not accepted): {message:?}");
+                                debug!("unexpected message (not accepted): {message:?}");
                             },
                             Some(Err(e)) => {
-                                log::error!("error receiving message: {e}");
+                                error!("error receiving message: {e}");
                             },
                             None => {
-                                log::info!("control stream closed, shutting down server");
+                                info!("control stream closed, shutting down server");
                                 return Ok(());
                             },
                         }
@@ -1734,11 +1730,7 @@ impl Server {
 
                                 // if transcode status is Failed, set job status to Failed
                                 TranscodeStatus::Failed { error } => {
-                                    log::error!(
-                                        "transcoding failed for job {}: {}",
-                                        job.key(),
-                                        error
-                                    );
+                                    error!("transcoding failed for job {}: {}", job.key(), error);
 
                                     failed_jobs.push((
                                         *job.key(),
@@ -1792,7 +1784,7 @@ impl Server {
                         if let Err(e) = tx.send(ServerCommand::ServerMessage(
                             ServerMessageV1::JobStatus(status_changes),
                         )) {
-                            log::warn!("transcode watcher failed to send JobStatus message: {e}");
+                            warn!("transcode watcher failed to send JobStatus message: {e}");
                         }
 
                         // update model
@@ -1822,7 +1814,7 @@ impl Server {
                 Some(command) = rx.recv() => {
                     match command {
                         ServerCommand::Accept => {
-                            log::warn!("unexpected Accept command in main loop");
+                            warn!("unexpected Accept command in main loop");
                         },
                         ServerCommand::Close => {
                             self.connection.close(0u32.into(), b"close");
@@ -1841,7 +1833,7 @@ impl Server {
                         Some(Ok(message)) => {
                             match message {
                                 ClientMessageV1::Identify { .. } => {
-                                    log::warn!("unexpected ClientMessageV1::Identify in main loop");
+                                    warn!("unexpected ClientMessageV1::Identify in main loop");
                                 }
 
                                 ClientMessageV1::Download(items) => {
@@ -2002,10 +1994,10 @@ impl Server {
                             }
                         },
                         Some(Err(e)) => {
-                            log::error!("error receiving message: {e}");
+                            error!("error receiving message: {e}");
                         },
                         None => {
-                            log::info!("control stream closed, shutting down server");
+                            info!("control stream closed, shutting down server");
                             break;
                         },
                     }
@@ -2116,7 +2108,7 @@ impl Server {
                         }
 
                         Err(e) => {
-                            log::error!("accept_bi error: {e}");
+                            error!("accept_bi error: {e}");
                         }
                     }
                 }
@@ -2179,7 +2171,7 @@ impl Server {
                 }
 
                 else => {
-                    log::warn!("all senders dropped in Server::run, shutting down");
+                    warn!("all senders dropped in Server::run, shutting down");
                     break;
                 }
             }
@@ -2360,7 +2352,7 @@ impl Client {
 
                             // check job exists: it may have been removed while paused
                             if jobs.get(&job_id).is_none() {
-                                log::debug!("job {job_id} removed while paused, skipping");
+                                debug!("job {job_id} removed while paused, skipping");
                                 continue;
                             }
 
@@ -2406,7 +2398,7 @@ impl Client {
                                 )
                             };
 
-                            log::debug!("downloading file: {file_root}/{file_path}");
+                            debug!("downloading file: {file_root}/{file_path}");
 
                             // open a bidirectional stream
                             let (mut send, mut recv) = connection.open_bi().await?;
@@ -2538,7 +2530,7 @@ impl Client {
                                 is_first_transfer,
                             });
 
-                            log::debug!("saved file to {local_path:?}");
+                            debug!("saved file to {local_path:?}");
 
                             Ok::<(), anyhow::Error>(())
                         }
@@ -2550,7 +2542,7 @@ impl Client {
                 // poll the stream to download items with limited concurrency
                 while let Some(res) = buffer.next().await {
                     if let Err(e) = res {
-                        log::error!("error downloading item: {e:#}");
+                        error!("error downloading item: {e:#}");
                     }
                 }
             }
@@ -2642,13 +2634,13 @@ impl Client {
         // wait for server Identify
         // TODO: also wait for commands
         let Some(Ok(message)) = recv.next().await else {
-            log::error!("failed to receive Identify message");
+            error!("failed to receive Identify message");
             return Ok(());
         };
         let server_name = match message {
             ServerMessageV1::Identify(name) => name,
             _ => {
-                log::error!("unexpected message, expected Identify: {message:?}");
+                error!("unexpected message, expected Identify: {message:?}");
                 return Ok(());
             }
         };
@@ -2681,10 +2673,10 @@ impl Client {
                         }
 
                         ClientCommand::SetDownloads { .. } => {
-                            log::warn!("unexpected SetDownloads command in waiting loop");
+                            warn!("unexpected SetDownloads command in waiting loop");
                         }
                         ClientCommand::PauseDownloads => {
-                            log::warn!("unexpected PauseDownloads command in waiting loop");
+                            warn!("unexpected PauseDownloads command in waiting loop");
                         }
                     }
                 }
@@ -2694,18 +2686,18 @@ impl Client {
                         Some(Ok(message)) => {
                             match message {
                                 ServerMessageV1::Accepted => {
-                                    log::info!("server accepted the connection");
+                                    info!("server accepted the connection");
 
                                     // continue to next state
                                     break;
                                 }
                                 _ => {
-                                    log::debug!("unexpected message (waiting for Accepted): {message:?}");
+                                    debug!("unexpected message (waiting for Accepted): {message:?}");
                                 }
                             }
                         }
                         Some(Err(e)) => {
-                            log::error!("error receiving message: {e}");
+                            error!("error receiving message: {e}");
                         }
                         None => {
                             anyhow::bail!("control stream closed, shutting down client");
@@ -2748,7 +2740,7 @@ impl Client {
                         }
 
                         ClientCommand::SetDownloads { items } => {
-                            log::info!("setting downloads: {} items", items.len());
+                            info!("setting downloads: {} items", items.len());
 
                             // get index
                             let index = {
@@ -2756,7 +2748,7 @@ impl Client {
                                 index.clone()
                             };
                             let Some(index) = index else {
-                                log::error!("SetDownloads: no index available");
+                                error!("SetDownloads: no index available");
                                 continue;
                             };
 
@@ -2788,7 +2780,7 @@ impl Client {
 
                                 for job_id in jobs_to_remove {
                                     if let Some((_, job)) = self.jobs.remove(&job_id) {
-                                        log::debug!("removed job {job_id}: {}/{}", job.file_root, job.file_path);
+                                        debug!("removed job {job_id}: {}/{}", job.file_root, job.file_path);
                                     }
                                 }
                             }
@@ -2812,7 +2804,7 @@ impl Client {
                                 let db = self.db.lock().unwrap();
                                 items.into_iter().flat_map(|item| {
                                     let Ok(file_endpoint_id) = item.endpoint_id.parse() else {
-                                        log::warn!("SetDownloads: invalid endpoint ID");
+                                        warn!("SetDownloads: invalid endpoint ID");
                                         return None;
                                     };
 
@@ -2825,7 +2817,7 @@ impl Client {
                                     let Some(_index_item) = index.iter().find(|i| {
                                         i.endpoint_id == file_endpoint_id && i.root == item.root && i.path == item.path
                                     }) else {
-                                        log::warn!("SetDownloads: item not found in index: {item:?}");
+                                        warn!("SetDownloads: item not found in index: {item:?}");
                                         return None;
                                     };
 
@@ -2885,7 +2877,7 @@ impl Client {
                         }
 
                         ClientCommand::PauseDownloads => {
-                            log::info!("pausing downloads");
+                            info!("pausing downloads");
 
                             // pause
                             self.paused.store(true, Ordering::Relaxed);
@@ -2913,7 +2905,7 @@ impl Client {
                         Some(Ok(message)) => {
                             match message {
                                 ServerMessageV1::Index(new_index) => {
-                                    log::info!("received index with {} items", new_index.len());
+                                    info!("received index with {} items", new_index.len());
                                     {
                                         let mut index = self.index.lock().unwrap();
                                         *index = Some(new_index);
@@ -2927,7 +2919,7 @@ impl Client {
                                 }
 
                                 ServerMessageV1::IndexUpdate(updates) => {
-                                    log::info!("received index update with {} items", updates.len());
+                                    info!("received index update with {} items", updates.len());
                                     {
                                         let mut index = self.index.lock().unwrap();
                                         if let Some(index) = index.as_mut() {
@@ -2944,7 +2936,7 @@ impl Client {
                                                 }
                                             }
                                         } else {
-                                            log::warn!("received index update but index is None, ignoring");
+                                            warn!("received index update but index is None, ignoring");
                                         }
                                     }
 
@@ -2993,27 +2985,27 @@ impl Client {
                                 }
 
                                 _ => {
-                                    log::debug!("unexpected message in main loop: {message:?}");
+                                    debug!("unexpected message in main loop: {message:?}");
                                 }
                             }
                         }
                         Some(Err(e)) => {
-                            log::error!("error receiving message: {e}");
+                            error!("error receiving message: {e}");
                         }
                         None => {
-                            log::info!("control stream closed, shutting down client");
+                            info!("control stream closed, shutting down client");
                             break;
                         }
                     }
                 }
 
                 _ = self.connection.closed() => {
-                    log::info!("connection closed");
+                    info!("connection closed");
                     break;
                 }
 
                 else => {
-                    log::warn!("all senders dropped in Client::run, shutting down");
+                    warn!("all senders dropped in Client::run, shutting down");
                     break;
                 }
             }

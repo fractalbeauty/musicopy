@@ -9,6 +9,7 @@ use iroh::EndpointId;
 use itertools::Itertools;
 use rusqlite::OptionalExtension;
 use std::{borrow::Cow, collections::HashMap, path::Path};
+use tracing::warn;
 
 pub struct Root {
     pub id: u64,
@@ -96,7 +97,7 @@ impl Database {
 
     /// Open the database in memory.
     pub fn open_in_memory() -> anyhow::Result<Self> {
-        log::warn!("using in-memory database");
+        warn!("using in-memory database");
         let conn = rusqlite::Connection::open_in_memory()?;
         Self::new_from_connection(conn)
     }

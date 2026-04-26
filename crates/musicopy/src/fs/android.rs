@@ -22,6 +22,7 @@ use jni::{
 };
 use std::{borrow::Cow, collections::HashMap, mem::ManuallyDrop, ops::Deref, os::fd::FromRawFd};
 use tokio::fs::File as TokioFile;
+use tracing::error;
 
 const MIME_TYPE_DIR: &str = "vnd.android.document/directory";
 
@@ -218,7 +219,7 @@ impl Drop for FileHandle {
         let mut env = match vm.attach_current_thread() {
             Ok(env) => env,
             Err(e) => {
-                log::error!(
+                error!(
                     "android::FileHandle::Drop failed to attach current thread: {}",
                     e
                 );
@@ -228,7 +229,7 @@ impl Drop for FileHandle {
 
         // close the ParcelFileDescriptor
         if let Err(e) = env.call_method(&self.parcel, "close", "()V", &[]) {
-            log::error!("android::FileHandle::Drop failed to close parcel: {}", e);
+            error!("android::FileHandle::Drop failed to close parcel: {}", e);
         }
     }
 }

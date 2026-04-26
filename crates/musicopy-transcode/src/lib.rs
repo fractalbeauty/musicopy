@@ -21,6 +21,8 @@ use symphonia::core::{
     io::MediaSourceStream,
     meta::{MetadataRevision, StandardTag, StandardVisualKey, Visual},
 };
+#[cfg(feature = "transcode")]
+use tracing::debug;
 
 pub enum TranscodePreset {
     Opus(OpusPreset),
@@ -382,7 +384,7 @@ fn transcode_opus(
                     BASE64_STANDARD.encode(&picture)
                 );
 
-                log::debug!(
+                debug!(
                     "adding visual to opus tags, image size = {}, comment size = {}",
                     image_buf.len(),
                     comment.len(),

@@ -3,10 +3,11 @@ mod event;
 mod ui;
 
 use crate::{
-    app::{App, AppEvent},
+    app::{App, AppEvent, LogMessage},
     event::app_send,
 };
 use clap::Parser;
+use tracing_subscriber::{EnvFilter, Registry, prelude::*};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -23,13 +24,16 @@ struct Args {
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
+    // Forward `log` records to `tracing`
+    let _ = tracing_log::LogTracer::init();
+
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("warn,musicopy_tui=debug,musicopy=debug"));
+
+    tracing::subscriber::set_global_default(Registry::default().with(filter).with(TuiLayer))?;
+
     // initialize app
     let app = App::new(args.in_memory, args.auto_accept).await?;
-
-    // set up global logger
-    let logger = AppLogger::new_with_default("warn,musicopy_tui=debug,musicopy=debug");
-    log::set_boxed_logger(Box::new(logger))?;
-    log::set_max_level(log::LevelFilter::Debug);
 
     // run tui
     let terminal = ratatui::init();
@@ -38,36 +42,48 @@ async fn main() -> anyhow::Result<()> {
     app_result
 }
 
-/// Logger implementation that logs to the TUI.
-struct AppLogger {
-    filter: env_filter::Filter,
+/// Tracing layer that forwards log events to the TUI.
+struct TuiLayer;
+
+impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for TuiLayer {
+    fn on_event(
+        &self,
+        event: &tracing::Event<'_>,
+        _ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        let metadata = event.metadata();
+        let level = *metadata.level();
+        let target = metadata.target().to_string();
+
+        let mut visitor = MessageVisitor(String::new());
+        event.record(&mut visitor);
+
+        app_send!(AppEvent::Log(LogMessage {
+            level,
+            target,
+            message: visitor.0,
+        }));
+    }
 }
 
-impl AppLogger {
-    fn new_with_default(default: &str) -> Self {
-        let mut filter_builder = env_filter::Builder::new();
-        if let Ok(filter) = &std::env::var("RUST_LOG") {
-            filter_builder.parse(filter);
+struct MessageVisitor(String);
+
+impl tracing::field::Visit for MessageVisitor {
+    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+        if field.name() == "message" {
+            self.0 = format!("{value:?}");
+        } else if self.0.is_empty() {
+            self.0 = format!("{} = {value:?}", field.name());
         } else {
-            filter_builder.parse(default);
-        }
-        Self {
-            filter: filter_builder.build(),
-        }
-    }
-}
-
-impl log::Log for AppLogger {
-    fn enabled(&self, _metadata: &log::Metadata) -> bool {
-        true
-    }
-
-    fn log(&self, record: &log::Record) {
-        if self.filter.matches(record) {
-            let s = record.args().to_string();
-            app_send!(AppEvent::Log(s));
+            self.0 = format!("{}, {} = {value:?}", self.0, field.name());
         }
     }
 
-    fn flush(&self) {}
+    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+        if field.name() == "message" {
+            self.0 = value.to_string();
+        } else {
+            self.record_debug(field, &value);
+        }
+    }
 }

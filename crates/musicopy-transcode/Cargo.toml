@@ -5,7 +5,7 @@ edition = "2024"
 
 [features]
 default = ["transcode"]
-transcode = ["base64", "id3", "image", "log", "mp3lame-encoder", "ogg", "opus", "rubato", "symphonia"]
+transcode = ["base64", "id3", "image", "tracing", "mp3lame-encoder", "ogg", "opus", "rubato", "symphonia"]
 
 [dependencies]
 anyhow = "1.0.98"
@@ -13,7 +13,7 @@ anyhow = "1.0.98"
 base64 = { version = "0.22.1", optional = true }
 id3 = { version = "1.16.4", optional = true }
 image = { version = "0.25.6", optional = true }
-log = { version = "0.4.27", optional = true }
+tracing = { version = "0.1.44", optional = true }
 mp3lame-encoder = { version = "0.2.3", optional = true }
 ogg = { version = "0.9.2", optional = true }
 opus = { git = "https://github.com/fractalbeauty/opus-rs.git", branch = "unsafe-libopus", optional = true }

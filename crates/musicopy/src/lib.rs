@@ -4,6 +4,7 @@ pub mod error;
 pub mod file_dialog;
 pub mod fs;
 pub mod library;
+pub mod logging;
 pub mod model;
 pub mod node;
 pub mod protocol;
@@ -20,12 +21,12 @@ use crate::{
 };
 use anyhow::Context;
 use iroh::{EndpointAddr, EndpointId, SecretKey};
-use log::{debug, error};
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
     time::Duration,
 };
+use tracing::{debug, error, info, trace, warn};
 
 uniffi::setup_scaffolding!();
 
@@ -73,6 +74,9 @@ pub struct Core {
 
     node: Arc<Node>,
     library: Arc<Library>,
+
+    log_dir: Option<PathBuf>,
+    _log_guard: Option<tracing_appender::non_blocking::WorkerGuard>,
 }
 
 // stub debug implementation
@@ -93,43 +97,46 @@ impl Core {
         options: CoreOptions,
         #[cfg(feature = "test-hooks")] test_hooks: Arc<TestHooks>,
     ) -> Result<Arc<Self>, CoreError> {
-        if options.init_logging {
-            #[cfg(target_os = "android")]
-            {
-                android_logger::init_once(
-                    android_logger::Config::default()
-                        .with_max_level(log::LevelFilter::Trace) // limit log level
-                        .with_tag("musicopy")
-                        .with_filter(
-                            android_logger::FilterBuilder::new()
-                                .try_parse("musicopy=debug")
-                                .expect("failed to parse log filter")
-                                .build(),
-                        ),
+        let dirs: Option<(PathBuf, PathBuf)> = if options.in_memory {
+            None
+        } else {
+            let (data_dir, cache_dir) = match &options.project_dirs {
+                Some(project_dirs) => (
+                    PathBuf::from(&project_dirs.data_dir),
+                    PathBuf::from(&project_dirs.cache_dir),
+                ),
+                None => {
+                    let project_dirs = directories_next::ProjectDirs::from("", "", "musicopy")
+                        .context("failed to get project directories")?;
+                    let data_dir = project_dirs.data_local_dir().to_owned();
+                    let cache_dir = project_dirs.cache_dir().to_owned();
+                    (data_dir, cache_dir)
+                }
+            };
+
+            // try to create data and cache dirs
+            if let Err(e) = std::fs::create_dir_all(&data_dir) {
+                eprintln!(
+                    "core: failed to create data directory at {}: {e:#}",
+                    data_dir.display()
+                );
+            }
+            if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+                eprintln!(
+                    "core: failed to create cache directory at {}: {e:#}",
+                    cache_dir.display()
                 );
             }
 
-            #[cfg(target_os = "ios")]
-            {
-                let os_logger =
-                    oslog::OsLogger::new("app.musicopy").level_filter(log::LevelFilter::Debug);
-                let logger = env_filter::FilteredLog::new(
-                    os_logger,
-                    env_filter::Builder::new().parse("musicopy=debug").build(),
-                );
-                log::set_boxed_logger(Box::new(logger)).expect("failed to initialize logger");
-            }
+            Some((data_dir, cache_dir))
+        };
 
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            {
-                env_logger::Builder::from_env(
-                    env_logger::Env::default().default_filter_or("musicopy=debug"),
-                )
-                .init();
-            }
-
-            log_panics::init();
-        }
+        let log_dir = dirs.as_ref().map(|(d, _)| d.join("logs"));
+        let log_guard = if options.init_logging {
+            logging::init(log_dir.as_deref()).context("failed to initialize logging")?
+        } else {
+            None
+        };
 
         debug!("core: starting core");
 
@@ -148,34 +155,7 @@ impl Core {
 
             (db, secret_key, transcodes_dir)
         } else {
-            let (data_dir, cache_dir) = match options.project_dirs {
-                Some(project_dirs) => (
-                    PathBuf::from(project_dirs.data_dir),
-                    PathBuf::from(project_dirs.cache_dir),
-                ),
-                None => {
-                    let project_dirs = directories_next::ProjectDirs::from("", "", "musicopy")
-                        .context("failed to get project directories")?;
-                    let data_dir = project_dirs.data_local_dir().to_owned();
-                    let cache_dir = project_dirs.cache_dir().to_owned();
-
-                    (data_dir, cache_dir)
-                }
-            };
-
-            // try to create data and cache dirs
-            if let Err(e) = std::fs::create_dir_all(&data_dir) {
-                error!(
-                    "core: failed to create data directory at {}: {e:#}",
-                    data_dir.display()
-                );
-            }
-            if let Err(e) = std::fs::create_dir_all(&cache_dir) {
-                error!(
-                    "core: failed to create cache directory at {}: {e:#}",
-                    cache_dir.display()
-                );
-            }
+            let (data_dir, cache_dir) = dirs.unwrap();
 
             let db_path = data_dir.join("musicopy_v1.db");
             let db = Database::open_file(&db_path).context("failed to open database")?;
@@ -319,7 +299,13 @@ impl Core {
             })?
             .context("core components failed to initialize")?;
 
-        Ok(Arc::new(Self { db, library, node }))
+        Ok(Arc::new(Self {
+            db,
+            library,
+            node,
+            log_dir,
+            _log_guard: log_guard,
+        }))
     }
 }
 
@@ -613,6 +599,56 @@ impl Core {
             .context("failed to send to node thread")?;
         Ok(())
     }
+
+    /// Export all log files as a combined byte buffer.
+    pub fn export_logs(&self) -> Result<Vec<u8>, CoreError> {
+        // running in-memory, no logs written to files
+        let Some(log_dir) = &self.log_dir else {
+            return Ok(Vec::new());
+        };
+
+        if !log_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut log_files: Vec<PathBuf> = std::fs::read_dir(log_dir)
+            .context("failed to read log dir")?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_file())
+            .map(|e| e.path())
+            .collect();
+        log_files.sort();
+
+        let mut combined = Vec::new();
+        for path in &log_files {
+            let content = match std::fs::read(path) {
+                Ok(content) => content,
+                Err(e) => {
+                    let err = format!("Failed to read log file {}: {e:#}", path.display());
+                    error!(err);
+                    combined.extend_from_slice(err.as_bytes());
+                    continue;
+                }
+            };
+
+            if path.extension().is_some_and(|e| e == "gz") {
+                let mut decoder = flate2::read::GzDecoder::new(content.as_slice());
+                match std::io::Read::read_to_end(&mut decoder, &mut combined) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        let err =
+                            format!("Failed to decompress log file {}: {e:#}", path.display());
+                        error!(err);
+                        combined.extend_from_slice(err.as_bytes());
+                    }
+                }
+            } else {
+                combined.extend_from_slice(&content);
+            }
+        }
+
+        Ok(combined)
+    }
 }
 
 /// Hooks for integration tests.
@@ -711,27 +747,27 @@ pub extern "system" fn Java_app_musicopy_RustNdkContext_init(
 
 #[uniffi::export]
 pub fn log_trace(message: String) {
-    log::trace!("compose: {}", message);
+    trace!("compose: {}", message);
 }
 
 #[uniffi::export]
 pub fn log_debug(message: String) {
-    log::debug!("compose: {}", message);
+    debug!("compose: {}", message);
 }
 
 #[uniffi::export]
 pub fn log_info(message: String) {
-    log::info!("compose: {}", message);
+    info!("compose: {}", message);
 }
 
 #[uniffi::export]
 pub fn log_warn(message: String) {
-    log::warn!("compose: {}", message);
+    warn!("compose: {}", message);
 }
 
 #[uniffi::export]
 pub fn log_error(message: String) {
-    log::error!("compose: {}", message);
+    error!("compose: {}", message);
 }
 
 // don't look too closely at this

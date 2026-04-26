@@ -14,6 +14,7 @@ use symphonia::core::{
     formats::{TrackType, probe::Hint},
     io::MediaSourceStream,
 };
+use tracing::warn;
 use twox_hash::XxHash3_64;
 
 pub(crate) struct CacheKey<'a> {
@@ -153,7 +154,7 @@ impl HashCache {
                 let key = match CacheKey::read_metadata(path) {
                     Ok(key) => key,
                     Err(e) => {
-                        log::warn!(
+                        warn!(
                             "failed to read metadata for file: {}: {:#}",
                             path.display(),
                             e
@@ -174,7 +175,7 @@ impl HashCache {
                 let (hash_kind, hash) = match get_file_hash(path) {
                     Ok(v) => v,
                     Err(e) => {
-                        log::warn!("failed to get hash for file: {}: {:#}", path.display(), e);
+                        warn!("failed to get hash for file: {}: {:#}", path.display(), e);
                         return None;
                     }
                 };
@@ -270,7 +271,7 @@ impl HashCache {
                 let key = match CacheKey::read_metadata(path) {
                     Ok(key) => key,
                     Err(e) => {
-                        log::warn!(
+                        warn!(
                             "failed to read metadata for file: {}: {:#}",
                             path.display(),
                             e
@@ -290,7 +291,7 @@ impl HashCache {
                 let duration = match get_file_duration(path) {
                     Ok(v) => v,
                     Err(e) => {
-                        log::warn!(
+                        warn!(
                             "failed to get file duration for {}: {:#}",
                             path.display(),
                             e
@@ -417,7 +418,7 @@ fn get_file_duration(path: &Path) -> anyhow::Result<f64> {
 
         // TODO: check if this actually happens in practice. it is probably slow to decode the whole file
         _ => {
-            log::warn!(
+            warn!(
                 "file missing time_base or num_frames, decoding to find duration: {}",
                 path.display()
             );

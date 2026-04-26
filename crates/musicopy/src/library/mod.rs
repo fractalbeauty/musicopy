@@ -14,7 +14,6 @@ use crate::{
 use anyhow::Context;
 use iroh::EndpointId;
 use itertools::Itertools;
-use log::warn;
 use std::{
     collections::HashSet,
     path::PathBuf,
@@ -22,6 +21,7 @@ use std::{
     time::Duration,
 };
 use tokio::sync::{Notify, mpsc};
+use tracing::{debug, error, info, warn};
 
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct LibraryRootModel {
@@ -157,14 +157,14 @@ impl Library {
                     library.scan_notify.notified().await;
 
                     let start = std::time::Instant::now();
-                    log::debug!("Library: starting scan");
+                    debug!("Library: starting scan");
 
                     if let Err(e) = library.scan().await {
-                        log::error!("Library: error during scan: {e:#}");
+                        error!("Library: error during scan: {e:#}");
                     }
 
                     let elapsed = start.elapsed().as_secs_f64();
-                    log::debug!("Library: finished library scan in {elapsed:.2}s");
+                    debug!("Library: finished library scan in {elapsed:.2}s");
 
                     // update root file counts in model
                     library.update_model(LibraryModelUpdate::UpdateLocalRoots);
@@ -269,7 +269,7 @@ impl Library {
                 }
 
                 else => {
-                    log::warn!("all senders dropped in Library::run, shutting down");
+                    warn!("all senders dropped in Library::run, shutting down");
                     break;
                 }
             }
@@ -287,7 +287,7 @@ impl Library {
                 .context("failed to get local roots")?
         };
 
-        log::info!("scan: scanning {} roots", roots.len());
+        info!("scan: scanning {} roots", roots.len());
 
         // remove roots that don't exist
         let roots = roots
@@ -322,7 +322,7 @@ impl Library {
             })
             .partition_result();
 
-        log::info!("scan: found {} files", entries.len());
+        info!("scan: found {} files", entries.len());
 
         // extend errors
         errors.extend(
@@ -382,7 +382,7 @@ impl Library {
         );
 
         for error in errors {
-            log::error!("error scanning library: {error:#}");
+            error!("error scanning library: {error:#}");
         }
 
         {
@@ -399,7 +399,7 @@ impl Library {
             .context("failed to insert files into database")?;
         }
 
-        log::info!("scan: inserted {} files into database", items.len());
+        info!("scan: inserted {} files into database", items.len());
 
         // send local files to transcode pool
         let items = items
