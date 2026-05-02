@@ -1,4 +1,5 @@
 import gobley.gradle.GobleyHost
+import gobley.gradle.cargo.dsl.appleMobile
 import gobley.gradle.cargo.dsl.jvm
 import gobley.gradle.rust.targets.RustAndroidTarget
 import gobley.gradle.rust.targets.RustTarget
@@ -196,6 +197,18 @@ cargo {
     // skip if GOBLEY_RUST_SKIP is set, otherwise build desktop for the host target only
     builds.jvm {
         embedRustLibrary = !gobleyRustSkip && (rustTarget == GobleyHost.current.rustTarget)
+    }
+
+    builds.appleMobile {
+        variants {
+            buildTaskProvider.configure {
+                when (rustTarget.cinteropName) {
+                    // Set the iOS deployment target to match XCode. Without this we get linking errors.
+                    "ios" -> additionalEnvironment.put("IPHONEOS_DEPLOYMENT_TARGET", "16.0.0")
+                    else -> {}
+                }
+            }
+        }
     }
 }
 

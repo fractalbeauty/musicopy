@@ -62,6 +62,8 @@ ndk-context = "0.1.1"
 tracing-android = "0.2.0"
 
 [target.'cfg(target_os = "ios")'.dependencies]
+musicopy-transcode = { path = "../musicopy-transcode", default-features = false, features = [] }
+
 base64 = "0.22.1"
 objc2 = "0.6.3"
 objc2-core-foundation = "0.3.2"
