@@ -63,6 +63,8 @@ fun TopBar(
             expanded = expanded,
             onDismissRequest = onDismiss
         ) {
+            extraMenuItems(onDismiss)
+
             DropdownMenuItem(
                 leadingIcon = {
                     Icon(
@@ -78,8 +80,6 @@ fun TopBar(
                     onShowNodeStatus()
                 }
             )
-
-            extraMenuItems(onDismiss)
         }
     }
 

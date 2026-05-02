@@ -13,13 +13,25 @@ import platform.UIKit.UIDevice
 actual val isAndroid = false
 
 actual class PlatformAppContext {
-    actual val name: String =
-        UIDevice.currentDevice.systemName() + " " + UIDevice.currentDevice.systemVersion
+    actual val systemDetails
+        get() = buildString {
+            appendLine("Platform: ${UIDevice.currentDevice.systemName} ${UIDevice.currentDevice.systemVersion}")
+            appendLine("Device: ${UIDevice.currentDevice.model}")
+        }
 
     actual val settingsFactory: Settings.Factory = NSUserDefaultsSettings.Factory()
 }
 
 actual class PlatformActivityContext
+
+actual fun PlatformActivityContext.sendFeedbackEmail(
+    description: String,
+    logs: ByteArray,
+    filename: String,
+) {
+    // TODO: iOS implementation
+    throw Exception("Not supported on this platform")
+}
 
 actual object CoreProvider : ICoreProvider
 

@@ -14,7 +14,17 @@ import java.text.DecimalFormat
 actual val isAndroid = false
 
 actual class PlatformAppContext {
-    actual val name: String = "Java ${System.getProperty("java.version")}"
+    actual val systemDetails
+        get() = buildString {
+            appendLine(
+                "Platform: ${System.getProperty("os.name")} ${System.getProperty("os.version")} (${
+                    System.getProperty(
+                        "os.arch"
+                    )
+                })"
+            )
+            appendLine("Java: ${System.getProperty("java.version")}")
+        }
 
     actual val settingsFactory: Settings.Factory = PreferencesSettings.Factory()
 }
@@ -25,6 +35,14 @@ actual class PlatformActivityContext {
     constructor(mainWindow: Window) {
         this.mainWindow = mainWindow
     }
+}
+
+actual fun PlatformActivityContext.sendFeedbackEmail(
+    description: String,
+    logs: ByteArray,
+    filename: String,
+) {
+    throw Exception("Not supported on this platform")
 }
 
 actual object CoreProvider : ICoreProvider {

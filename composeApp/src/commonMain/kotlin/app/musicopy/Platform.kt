@@ -14,7 +14,7 @@ expect val isAndroid: Boolean
  * Platform-specific application/process-scoped context.
  */
 expect class PlatformAppContext {
-    val name: String
+    val systemDetails: String
 
     val settingsFactory: Settings.Factory
 }
@@ -35,6 +35,12 @@ interface ICoreProvider {
 }
 
 expect object CoreProvider : ICoreProvider;
+
+expect fun PlatformActivityContext.sendFeedbackEmail(
+    description: String,
+    logs: ByteArray,
+    filename: String,
+)
 
 expect fun toClipEntry(string: String): ClipEntry
 

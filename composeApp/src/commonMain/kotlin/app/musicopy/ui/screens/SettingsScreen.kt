@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TriStateCheckbox
@@ -25,6 +27,9 @@ import app.musicopy.AppSettings
 import app.musicopy.ui.components.SectionHeader
 import app.musicopy.ui.components.TopBar
 import app.musicopy.ui.components.aboutText
+import musicopy_root.musicopy.generated.resources.Res
+import musicopy_root.musicopy.generated.resources.arrow_forward_24px
+import org.jetbrains.compose.resources.painterResource
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -35,6 +40,7 @@ fun SettingsScreen(
     snackbarHost: @Composable () -> Unit,
     onShowNodeStatus: () -> Unit,
 
+    onShowFeedback: () -> Unit,
     onClearData: () -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -57,9 +63,41 @@ fun SettingsScreen(
                 modifier = Modifier.padding(16.dp)
             ) {
                 Text(
-                    text = aboutText(),
+                    text = aboutText(
+                        supportText = false
+                    ),
                     style = MaterialTheme.typography.bodyMedium
                 )
+            }
+
+            HorizontalDivider(thickness = 1.dp)
+
+            SectionHeader("SUPPORT")
+
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onShowFeedback,
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Send feedback with logs",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        Icon(
+                            painter = painterResource(Res.drawable.arrow_forward_24px),
+                            contentDescription = null
+                        )
+                    }
+                }
             }
 
             HorizontalDivider(thickness = 1.dp)
@@ -119,6 +157,7 @@ fun SettingsScreenSandbox() {
         snackbarHost = {},
         onShowNodeStatus = {},
 
+        onShowFeedback = {},
         onClearData = {},
         onCancel = {},
     )

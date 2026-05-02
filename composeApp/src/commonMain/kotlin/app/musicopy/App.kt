@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package app.musicopy
 
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -28,6 +30,8 @@ import app.musicopy.ui.screens.ConnectQR
 import app.musicopy.ui.screens.ConnectQRScreen
 import app.musicopy.ui.screens.Disconnected
 import app.musicopy.ui.screens.DisconnectedScreen
+import app.musicopy.ui.screens.Feedback
+import app.musicopy.ui.screens.FeedbackScreen
 import app.musicopy.ui.screens.Home
 import app.musicopy.ui.screens.HomeScreen
 import app.musicopy.ui.screens.PreTransfer
@@ -40,10 +44,18 @@ import app.musicopy.ui.screens.Waiting
 import app.musicopy.ui.screens.WaitingScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.format
+import kotlinx.datetime.format.char
+import kotlinx.datetime.toLocalDateTime
+import musicopy_root.musicopy.BuildConfig
 import uniffi.musicopy.ClientStateModel
 import uniffi.musicopy.CoreException
-import uniffi.musicopy.TranscodeFormat
+import uniffi.musicopy.logError
 import uniffi.musicopy.parseTranscodeFormat
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 @Composable
 fun App(
@@ -75,11 +87,19 @@ fun App(
     var connectingTo by remember { mutableStateOf<String?>(null) }
     val isConnecting = connectingTo !== null
 
-    val showErrorSnackbar = fun(message: String, e: CoreException) {
+    val showErrorSnackbar = fun(message: String, e: Exception) {
         scope.launch {
+            val errorString = if (e is CoreException) {
+                e.message()
+            } else {
+                e.toString()
+            }
+
+            logError("Showing error: $message (error: $errorString)")
+
             if (appSettings.detailedErrors) {
                 snackbarHostState.showSnackbar(
-                    message = message + "\n\nError: ${e.message()}",
+                    message = "$message\n\nError: $errorString",
                     duration = SnackbarDuration.Indefinite,
                     withDismissAction = true
                 )
@@ -197,6 +217,9 @@ fun App(
                     onConnectRecent = { endpointId -> onConnect(endpointId, false) },
                     onShowSettings = {
                         navController.navigate(Settings)
+                    },
+                    onShowFeedback = {
+                        navController.navigate(Feedback)
                     }
                 )
             }
@@ -207,6 +230,7 @@ fun App(
                     snackbarHost = snackbarHost,
                     onShowNodeStatus = onShowNodeStatus,
 
+                    onShowFeedback = { navController.navigate(Feedback) },
                     onClearData = {
                         coreInstance.instance.resetCaches()
                         coreInstance.instance.resetDatabase()
@@ -215,6 +239,59 @@ fun App(
                     onCancel = {
                         navController.popBackStack(Home, inclusive = false)
                     }
+                )
+            }
+            composable<Feedback> {
+                var isSending by remember { mutableStateOf(false) }
+                FeedbackScreen(
+                    snackbarHost = snackbarHost,
+                    onShowNodeStatus = onShowNodeStatus,
+                    isSending = isSending,
+                    onSubmit = { description ->
+                        scope.launch {
+                            isSending = true
+                            try {
+                                val now = Clock.System.now()
+                                    .toLocalDateTime(TimeZone.currentSystemDefault())
+                                val timestamp = now.format(LocalDateTime.Format {
+                                    year()
+                                    char('-')
+                                    monthNumber()
+                                    char('-')
+                                    day()
+                                    char('_')
+                                    hour()
+                                    minute()
+                                    second()
+                                })
+                                val filename = "musicopy_$timestamp.txt"
+
+                                val systemInfo = buildString {
+                                    appendLine("Version: ${BuildConfig.APP_VERSION}")
+                                    append(platformAppContext.systemDetails)
+                                }
+
+                                val body = "$description\n\n---\n$systemInfo"
+
+                                val logs = coreInstance.instance.exportLogs()
+
+                                platformActivityContext.sendFeedbackEmail(body, logs, filename)
+                            } catch (e: CoreException) {
+                                showErrorSnackbar(
+                                    "Failed to export logs. Please email support@musicopy.app.",
+                                    e
+                                )
+                            } catch (e: Exception) {
+                                showErrorSnackbar(
+                                    "Failed to send feedback. Please email support@musicopy.app.",
+                                    e
+                                )
+                            } finally {
+                                isSending = false
+                            }
+                        }
+                    },
+                    onCancel = { navController.popBackStack() }
                 )
             }
             composable<ConnectQR> { backStackEntry ->

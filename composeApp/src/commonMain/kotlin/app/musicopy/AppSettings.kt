@@ -11,6 +11,7 @@ import com.russhwolf.settings.coroutines.getStringFlow
 import com.russhwolf.settings.coroutines.getStringOrNullFlow
 import com.russhwolf.settings.observable.makeObservable
 import kotlinx.coroutines.flow.Flow
+import uniffi.musicopy.logInfo
 
 const val DOWNLOAD_DIRECTORY_KEY = "downloadDirectory"
 const val DOWNLOAD_DIRECTORY_NAME_KEY = "downloadDirectoryName"
@@ -33,12 +34,13 @@ class AppSettings private constructor(private val settings: ObservableSettings) 
     }
 
     fun clearSettings() {
+        // License key is not cleared
         settings.remove(DOWNLOAD_DIRECTORY_KEY)
         settings.remove(DOWNLOAD_DIRECTORY_NAME_KEY)
         settings.remove(DETAILED_ERRORS_KEY)
         settings.remove(TRANSCODE_FORMAT_KEY)
 
-        // License key is not cleared
+        logInfo("AppSettings: cleared settings")
     }
 
     var downloadDirectory: String?

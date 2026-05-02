@@ -20,7 +20,9 @@ import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
 @Composable
-fun aboutText(): AnnotatedString = buildAnnotatedString {
+fun aboutText(
+    supportText: Boolean = true,
+): AnnotatedString = buildAnnotatedString {
     withUrl(
         "https://musicopy.app/manual",
     ) {
@@ -68,8 +70,15 @@ fun aboutText(): AnnotatedString = buildAnnotatedString {
         "."
     )
 
-    appendLine()
+    if (supportText) {
+        appendLine()
 
+        appendSupportText()
+    }
+}.trimAnnotated()
+
+@Composable
+private fun AnnotatedString.Builder.appendSupportText() {
     append("For support, email ")
     withUrl("mailto:support@musicopy.app") {
         append("support@musicopy.app")
@@ -95,4 +104,11 @@ internal fun AnnotatedString.Builder.withUrl(
     ) {
         content()
     }
+}
+
+internal fun AnnotatedString.trimAnnotated(): AnnotatedString {
+    return this.subSequence(
+        startIndex = this.text.indexOfFirst { !it.isWhitespace() },
+        endIndex = this.text.indexOfLast { !it.isWhitespace() } + 1
+    )
 }

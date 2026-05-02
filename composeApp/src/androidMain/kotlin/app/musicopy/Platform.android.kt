@@ -2,6 +2,8 @@ package app.musicopy
 
 import android.Manifest
 import android.content.ClipData
+import android.content.ComponentName
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.icu.text.DecimalFormat
 import android.os.Build
@@ -16,15 +18,22 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.toClipEntry
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.SharedPreferencesSettings
 import uniffi.musicopy.CoreOptions
 import uniffi.musicopy.ProjectDirsOptions
+import java.io.File
 
 actual val isAndroid = true
 
 actual class PlatformAppContext {
-    actual val name: String = "Android ${Build.VERSION.SDK_INT}"
+    actual val systemDetails
+        get() = buildString {
+            appendLine("Platform: Android ${Build.VERSION.SDK_INT}")
+            appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
+        }
 
     actual val settingsFactory: Settings.Factory
 
@@ -55,6 +64,56 @@ actual object CoreProvider : ICoreProvider {
             cacheDir = platformAppContext.application.cacheDir.path
         )
         return options
+    }
+}
+
+actual fun PlatformActivityContext.sendFeedbackEmail(
+    description: String,
+    logs: ByteArray,
+    filename: String,
+) {
+    // Write log bytes to a file in the cache dir and get a URI to attach to the intent
+    val file = File(mainActivity.cacheDir, filename)
+    file.writeBytes(logs)
+    val uri = FileProvider.getUriForFile(
+        mainActivity, "app.musicopy.fileprovider", file
+    )
+
+    // Query for activities supporting email intents. This ensures we only show dedicated email
+    // clients and not other apps that can also send things.
+    val selectorIntent = Intent(Intent.ACTION_SENDTO, "mailto:".toUri())
+    val resolvedActivities = mainActivity.packageManager.queryIntentActivities(selectorIntent, 0)
+
+    // Map each resolved activities to an intent for that activity.
+    //
+    // Without this (using a single intent without EXTRA_INITIAL_INTENTS, and setting a selector
+    // instead of querying activities), Thunderbird was not attaching the file. Gmail and Outlook
+    // worked, but something about the selector and chooser intents caused Thunderbird to not get
+    // the file.
+    val intents = resolvedActivities.map { resolveInfo ->
+        Intent(Intent.ACTION_SEND).apply {
+            type = "message/rfc822"
+            putExtra(Intent.EXTRA_EMAIL, arrayOf("support@musicopy.app"))
+            putExtra(Intent.EXTRA_SUBJECT, "Feedback")
+            putExtra(Intent.EXTRA_TEXT, description)
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            component = ComponentName(
+                resolveInfo.activityInfo.packageName,
+                resolveInfo.activityInfo.name
+            )
+        }
+    }
+
+    // Create a chooser intent from the resolved activities.
+    if (intents.isNotEmpty()) {
+        val chooser = Intent.createChooser(intents.first(), "Send email")
+        if (intents.size > 1) {
+            chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, intents.drop(1).toTypedArray())
+        }
+        mainActivity.startActivity(chooser)
+    } else {
+        throw Exception("No activity available to send email")
     }
 }
 

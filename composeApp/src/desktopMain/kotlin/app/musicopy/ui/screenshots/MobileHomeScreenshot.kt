@@ -45,5 +45,6 @@ fun MobileHomeScreenshot() {
         onConnectManuallyButtonClicked = {},
         onConnectRecent = {},
         onShowSettings = {},
+        onShowFeedback = {},
     )
 }

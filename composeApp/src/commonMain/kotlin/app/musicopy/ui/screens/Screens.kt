@@ -9,6 +9,9 @@ object Home
 object Settings
 
 @Serializable
+object Feedback
+
+@Serializable
 object ConnectQR
 
 @Serializable

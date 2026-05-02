@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Include the cache directory in the file provider -->
+    <cache-path
+        name="cache"
+        path="." />
+</paths>

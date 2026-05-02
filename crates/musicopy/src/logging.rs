@@ -11,8 +11,8 @@ use tracing_subscriber::{EnvFilter, Registry, fmt, prelude::*};
 /// On Android and iOS, logs will also be forwarded to the platform logging systems. On other
 /// platforms, logs will also be written to stdout.
 pub fn init(log_dir: Option<&Path>) -> anyhow::Result<Option<WorkerGuard>> {
-    let filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn,musicopy=debug"));
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("warn,iroh=error,musicopy=debug"));
 
     let guard = if let Some(log_dir) = log_dir {
         if let Err(e) = std::fs::create_dir_all(log_dir) {
@@ -23,7 +23,9 @@ pub fn init(log_dir: Option<&Path>) -> anyhow::Result<Option<WorkerGuard>> {
         }
 
         let roller = logroller::LogRollerBuilder::new(log_dir, Path::new("musicopy.log"))
-            .rotation(logroller::Rotation::SizeBased(logroller::RotationSize::MB(5)))
+            .rotation(logroller::Rotation::SizeBased(logroller::RotationSize::MB(
+                5,
+            )))
             .max_keep_files(5)
             .compression(logroller::Compression::Gzip)
             .build()?;

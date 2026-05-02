@@ -47,6 +47,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.arrow_forward_24px
+import musicopy_root.musicopy.generated.resources.feedback_24px
 import musicopy_root.musicopy.generated.resources.input_24px
 import musicopy_root.musicopy.generated.resources.qr_code_scanner_24px
 import musicopy_root.musicopy.generated.resources.settings_24px
@@ -68,6 +69,7 @@ fun HomeScreen(
     onConnectManuallyButtonClicked: () -> Unit,
     onConnectRecent: (endpointId: String) -> Unit,
     onShowSettings: () -> Unit,
+    onShowFeedback: () -> Unit,
 ) {
     val transcodeFormatSheetState = rememberTranscodeFormatSheetState()
     TranscodeFormatSheet(appSettings, transcodeFormatSheetState)
@@ -84,6 +86,14 @@ fun HomeScreen(
                         onClick = {
                             onDismiss()
                             onShowSettings()
+                        }
+                    )
+                    TopBarMenuItem(
+                        icon = Res.drawable.feedback_24px,
+                        text = "Feedback",
+                        onClick = {
+                            onDismiss()
+                            onShowFeedback()
                         }
                     )
                 }
@@ -346,6 +356,7 @@ fun HomeScreenSandbox() {
         onConnectManuallyButtonClicked = {},
         onConnectRecent = onConnectRecent,
         onShowSettings = {},
+        onShowFeedback = {},
     )
 }
 
