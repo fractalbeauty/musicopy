@@ -533,7 +533,6 @@ impl Core {
         Ok(())
     }
 
-    // TODO: async wait for completion or return progress somehow
     pub fn rescan_library(&self) -> Result<(), CoreError> {
         self.library
             .send(LibraryCommand::Rescan)

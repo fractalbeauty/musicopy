@@ -253,7 +253,11 @@ impl<'a> App<'a> {
             Line::from(vec!["Active Clients: ".into(), active_clients.yellow()]),
             Line::from(vec!["Closed Clients: ".into(), closed_clients.yellow()]),
             Line::from(""),
-            Line::from("Library".bold()),
+            if self.library_model.is_scanning {
+                Line::from(vec!["Library".bold(), " (Scanning...)".green().into()])
+            } else {
+                Line::from("Library".bold())
+            },
         ];
 
         if self.library_model.local_roots.is_empty() {

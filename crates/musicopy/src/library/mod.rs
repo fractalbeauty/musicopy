@@ -35,6 +35,8 @@ pub struct LibraryRootModel {
 /// Needs to be Clone to send snapshots to the UI.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct LibraryModel {
+    pub is_scanning: bool,
+
     pub local_roots: Vec<LibraryRootModel>,
 
     pub transcodes_dir: String,
@@ -66,6 +68,7 @@ pub enum LibraryCommand {
 enum LibraryModelUpdate {
     UpdateLocalRoots,
     UpdateTranscodesDirSize,
+    SetScanning(bool),
 }
 
 pub struct Library {
@@ -115,6 +118,8 @@ impl Library {
         let (command_tx, command_rx) = mpsc::unbounded_channel();
 
         let model = LibraryModel {
+            is_scanning: false,
+
             local_roots: Vec::new(),
 
             transcodes_dir: transcode_pool.transcodes_dir(),
@@ -156,6 +161,9 @@ impl Library {
                 loop {
                     library.scan_notify.notified().await;
 
+                    // set scanning flag in model
+                    library.update_model(LibraryModelUpdate::SetScanning(true));
+
                     let start = std::time::Instant::now();
                     debug!("Library: starting scan");
 
@@ -166,8 +174,9 @@ impl Library {
                     let elapsed = start.elapsed().as_secs_f64();
                     debug!("Library: finished library scan in {elapsed:.2}s");
 
-                    // update root file counts in model
+                    // update root file counts and clear scanning flag in model
                     library.update_model(LibraryModelUpdate::UpdateLocalRoots);
+                    library.update_model(LibraryModelUpdate::SetScanning(false));
                 }
             }
         });
@@ -477,6 +486,13 @@ impl Library {
             LibraryModelUpdate::UpdateTranscodesDirSize => {
                 let mut model = self.model.lock().unwrap();
                 model.transcodes_dir_size = self.transcode_pool.transcodes_dir_size();
+
+                self.event_handler.on_library_model_snapshot(model.clone());
+            }
+
+            LibraryModelUpdate::SetScanning(scanning) => {
+                let mut model = self.model.lock().unwrap();
+                model.is_scanning = scanning;
 
                 self.event_handler.on_library_model_snapshot(model.clone());
             }
