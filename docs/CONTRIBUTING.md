@@ -4,6 +4,7 @@
 
 Install:
 - Android Studio (also Android NDK)
+  - Kotlin Multiplatform plugin
 - rustup
 - Just
 
@@ -21,8 +22,23 @@ For iOS:
 
 ## Developing
 
-- Run Rust tests with `just test-rust` 
-- Run Kotlin tests with `just test-gradle` (open report HTML with `just test-gradle-report`)
+- Run all tests and checks with `just test`
+  - Run Rust tests with `just test-rust` 
+  - Run Kotlin tests with `just test-gradle` (open report HTML with `just test-gradle-report`)
+
+### Using the TUI
+
+The `musicopy-tui` crate wraps the `musicopy` crate which contains the core app logic.
+Run it with `just tui`.
+Press `?` for a list of commands, and press `:` to open the command line.
+
+For testing transfers, start two instances and connect them:
+- `just tui` (will persist the keypair and database to disk)
+- `just tui -m` to run in-memory
+- In the first instance, add a library folder: `:addlibrary music /absolute/path/to/your/music` (`~` will not be expanded)
+- In the second instance, copy the endpoint ID and run `:connect <endpoint id>`
+- In the first, run `:accept`
+- In the second, run `:download 1` to download all files from the first client or `:dlrand 1` to download a random subset of files
 
 ## Commit style
 
