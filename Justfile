@@ -3,6 +3,9 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 default:
   just --list
 
+tui *FLAGS:
+  cargo run --package musicopy-tui --release -- {{FLAGS}}
+
 test:
   cargo check --workspace
   cargo fmt --check
