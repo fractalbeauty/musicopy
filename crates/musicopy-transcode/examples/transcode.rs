@@ -1,12 +1,21 @@
 use musicopy_transcode::{Mp3Preset, OpusPreset, TranscodePreset, transcode};
 use std::{path::Path, process};
+use tracing::{error, info};
+use tracing_subscriber::EnvFilter;
 
 fn main() {
+    tracing_subscriber::fmt()
+        .without_time()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug")),
+        )
+        .init();
+
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() < 3 || args.len() > 4 {
-        eprintln!("usage: transcode <input> <output> [format]");
-        eprintln!("  format: opus128 (default), opus64, mp3v0, mp3v5");
+        error!("usage: transcode <input> <output> [format]");
+        error!("  format: opus128 (default), opus64, mp3v0, mp3v5");
         process::exit(1);
     }
 
@@ -17,18 +26,18 @@ fn main() {
     let format = match parse_format(format_str) {
         Ok(format) => format,
         Err(error) => {
-            eprintln!("error: {error}");
+            error!("error: {error}");
             process::exit(1);
         }
     };
 
     match transcode(format, input_path, output_path) {
-        Ok(file_size) => println!(
+        Ok(file_size) => info!(
             "transcoded to {} ({file_size} bytes)",
             output_path.display()
         ),
         Err(error) => {
-            eprintln!("error: {error:#}");
+            error!("error: {error:#}");
             process::exit(1);
         }
     }

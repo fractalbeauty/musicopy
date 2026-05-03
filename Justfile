@@ -17,6 +17,14 @@ run-desktop *FLAGS:
   GOBLEY_UNIFFI_TARGET=`rustc -vV | grep 'host:' | cut -d' ' -f2` \
   ./gradlew desktopRun -DmainClass=app.musicopy.MainKt {{FLAGS}}
 
+[positional-arguments]
+run-example-transcode *args:
+  cargo run --package musicopy-transcode --example transcode --release -- "$@"
+
+[positional-arguments]
+run-example-hash *args:
+  cargo run --package musicopy-transcode --example hash --release -- "$@"
+
 test:
   cargo check --workspace
   cargo fmt --check

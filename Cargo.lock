@@ -3321,6 +3321,7 @@ dependencies = [
  "rubato",
  "symphonia",
  "tracing",
+ "tracing-subscriber",
  "twox-hash",
 ]
 
