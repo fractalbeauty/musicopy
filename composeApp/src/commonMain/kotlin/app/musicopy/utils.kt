@@ -492,6 +492,7 @@ fun mockLibraryModel(
     transcoding: Boolean = false,
 ): LibraryModel {
     return LibraryModel(
+        isScanning = false,
         localRoots = localRoots,
         transcodesDir = "~/.cache/musicopy/transcodes",
         transcodesDirSize = if (cachedTranscodes) FileSizeModel.Actual(534_000_000uL) else FileSizeModel.Actual(

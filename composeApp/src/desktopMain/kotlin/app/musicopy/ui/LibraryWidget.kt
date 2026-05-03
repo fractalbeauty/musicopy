@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -161,12 +162,20 @@ fun LibraryWidget(
 
                     OutlinedButton(
                         onClick = onRescan,
+                        enabled = !libraryModel.isScanning
                     ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.cell_tower_24px),
-                            contentDescription = "Rescan library icon",
-                            modifier = Modifier.size(20.dp)
-                        )
+                        if (libraryModel.isScanning) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp).padding(2.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(
+                                painter = painterResource(Res.drawable.cell_tower_24px),
+                                contentDescription = "Rescan library icon",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
 
                         Text("Scan", modifier = Modifier.padding(start = 8.dp))
                     }
