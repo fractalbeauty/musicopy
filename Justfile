@@ -9,8 +9,13 @@ opener := if os() == "macos" {
 default:
   just --list
 
-tui *FLAGS:
+run-tui *FLAGS:
   cargo run --package musicopy-tui -- {{FLAGS}}
+
+run-desktop *FLAGS:
+  # Build UniFFI bindings using the host target
+  GOBLEY_UNIFFI_TARGET=`rustc -vV | grep 'host:' | cut -d' ' -f2` \
+  ./gradlew desktopRun -DmainClass=app.musicopy.MainKt {{FLAGS}}
 
 test:
   cargo check --workspace

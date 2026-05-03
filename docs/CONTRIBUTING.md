@@ -29,12 +29,12 @@ For iOS:
 ### Using the TUI
 
 The `musicopy-tui` crate wraps the `musicopy` crate which contains the core app logic.
-Run it with `just tui`.
+Run it with `just run-tui`.
 Press `?` for a list of commands, and press `:` to open the command line.
 
 For testing transfers, start two instances and connect them:
-- `just tui` (will persist the keypair and database to disk)
-- `just tui -m` to run in-memory
+- `just run-tui` (will persist the keypair and database to disk)
+- `just run-tui -m` to run in-memory
 - In the first instance, add a library folder: `:addlibrary music /absolute/path/to/your/music` (`~` will not be expanded)
 - In the second instance, copy the endpoint ID and run `:connect <endpoint id>`
 - In the first, run `:accept`
