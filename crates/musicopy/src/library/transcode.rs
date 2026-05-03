@@ -1056,6 +1056,33 @@ pub fn estimate_file_size(format: TranscodeFormat, duration: f64) -> u64 {
     estimated_size as u64
 }
 
+/// Estimates the file size in bytes of a transcode, given the transcode format,
+/// using an arbitrary duration.
+pub fn estimate_file_size_without_duration(format: TranscodeFormat) -> u64 {
+    /// 3:30 is probably a reasonable estimate, but we overestimate a bit so
+    /// that the size is more likely to decrease when actual sizes stream in.
+    const DEFAULT_DURATION: f64 = 4.0 * 60.0;
+
+    estimate_file_size(format, DEFAULT_DURATION)
+}
+
+/// Estimates the file size in bytes of an input file using its extension.
+pub fn estimate_original_file_size(path: &Path) -> u64 {
+    match path
+        .extension()
+        .unwrap_or_default()
+        .to_str()
+        .unwrap_or_default()
+    {
+        "mp3" | "aac" | "ogg" | "opus" => 10 * 1_000_000,
+        "m4a" => 20 * 1_000_000,
+        "flac" | "alac" => 30 * 1_000_000,
+        "wav" | "aif" | "aiff" => 40 * 1_000_000,
+
+        _ => 30 * 1_000_000,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::AtomicBool;

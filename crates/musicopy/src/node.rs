@@ -18,7 +18,10 @@ use crate::{
     library::{
         Library, LibraryCommand,
         hash::HashCache,
-        transcode::{TranscodeFormat, TranscodeStatus, TranscodeStatusCache, estimate_file_size},
+        transcode::{
+            TranscodeFormat, TranscodeStatus, TranscodeStatusCache, estimate_file_size,
+            estimate_file_size_without_duration, estimate_original_file_size,
+        },
     },
     model::CounterModel,
     protocol::{
@@ -2210,7 +2213,11 @@ impl Server {
                         Ok(Some(duration)) => {
                             FileSize::Estimated(estimate_file_size(transcode_format, duration))
                         }
-                        _ => FileSize::Unknown,
+                        // When we don't have a cached duration, we still want to provide a guess
+                        // since we display Unknown as 0 on mobile.
+                        _ => FileSize::Estimated(estimate_file_size_without_duration(
+                            transcode_format,
+                        )),
                     }
                 } else {
                     // Get cached original file size without accessing the file.
@@ -2221,7 +2228,9 @@ impl Server {
                         // This could be stale if the files were modified, so we set the size to
                         // Estimated, and the periodic index update will send the actual size shortly after.
                         Ok(Some(size)) => FileSize::Estimated(size),
-                        _ => FileSize::Unknown,
+                        // When we don't have a cached duration, we still want to provide a guess
+                        // since we display Unknown as 0 on mobile.
+                        _ => FileSize::Estimated(estimate_original_file_size(&local_path)),
                     }
                 };
 
