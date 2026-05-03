@@ -4,6 +4,8 @@ default:
   just --list
 
 test:
+  cargo check --workspace
+  cargo fmt --check
   just test-rust
   just test-gradle
 

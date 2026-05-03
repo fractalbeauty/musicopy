@@ -589,7 +589,7 @@ impl<'a> App<'a> {
 
         let key = |k: &'static str| k.blue().bold();
         let cmd = |k: &'static str| k.yellow().bold();
-        
+
         let format_command = |left: &[Span<'static>], right: &[Span<'static>]| {
             let left_max_width = 30;
 
