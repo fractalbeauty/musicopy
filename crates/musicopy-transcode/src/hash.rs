@@ -1,12 +1,16 @@
 use anyhow::Context;
 use std::{hash::Hasher, path::Path};
+
+#[cfg(feature = "transcode")]
 use symphonia::core::{
     codecs::audio::VerificationCheck,
     formats::{TrackType, probe::Hint},
     io::MediaSourceStream,
     units::Timestamp,
 };
+#[cfg(feature = "transcode")]
 use tracing::warn;
+#[cfg(feature = "transcode")]
 use twox_hash::XxHash3_64;
 
 /// Get the hash of a file.
@@ -174,12 +178,12 @@ pub fn get_file_duration(path: &Path) -> anyhow::Result<f64> {
 
 /// Stub implementation when compiled without the `transcode` feature.
 #[cfg(not(feature = "transcode"))]
-pub fn get_file_hash(path: &Path) -> anyhow::Result<(&'static str, [u8; 16])> {
+pub fn get_file_hash(_path: &Path) -> anyhow::Result<(&'static str, [u8; 16])> {
     anyhow::bail!("get_file_hash is not supported without the transcode feature")
 }
 
 /// Stub implementation when compiled without the `transcode` feature.
 #[cfg(not(feature = "transcode"))]
-pub fn get_file_duration(path: &Path) -> anyhow::Result<f64> {
+pub fn get_file_duration(_path: &Path) -> anyhow::Result<f64> {
     anyhow::bail!("get_file_duration is not supported without the transcode feature")
 }
