@@ -2,6 +2,12 @@ use std::path::Path;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{EnvFilter, Registry, fmt, prelude::*};
 
+/// Default filter:
+/// - `warn`` by default
+/// - `musicopy=debug`: include debug logs from us
+/// - `iroh=error`: suppress noisy warnings from Iroh
+const DEFAULT_ENV_FILTER: &str = "warn,musicopy=debug,iroh=error";
+
 /// Initialize logging.
 ///
 /// If `log_dir` is provided, logs will be written to files, rotated at 5 MB per file with 5 files
@@ -11,8 +17,8 @@ use tracing_subscriber::{EnvFilter, Registry, fmt, prelude::*};
 /// On Android and iOS, logs will also be forwarded to the platform logging systems. On other
 /// platforms, logs will also be written to stdout.
 pub fn init(log_dir: Option<&Path>) -> anyhow::Result<Option<WorkerGuard>> {
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("warn,iroh=error,musicopy=debug"));
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_ENV_FILTER));
 
     let guard = if let Some(log_dir) = log_dir {
         if let Err(e) = std::fs::create_dir_all(log_dir) {
@@ -29,27 +35,24 @@ pub fn init(log_dir: Option<&Path>) -> anyhow::Result<Option<WorkerGuard>> {
             .max_keep_files(5)
             .compression(logroller::Compression::Gzip)
             .build()?;
-
         let (non_blocking, guard) = tracing_appender::non_blocking(roller);
+        let roller_layer = fmt::Layer::new().with_writer(non_blocking).with_ansi(false);
 
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         {
             let subscriber = Registry::default()
+                .with(console_subscriber::spawn())
                 .with(filter)
-                .with(fmt::Layer::new().with_writer(non_blocking).with_ansi(false))
+                .with(roller_layer)
                 .with(fmt::Layer::new().with_writer(std::io::stdout));
             let _ = tracing::subscriber::set_global_default(subscriber);
         }
 
         #[cfg(target_os = "android")]
         {
-            let subscriber = Registry::default()
-                .with(filter)
-                .with(fmt::Layer::new().with_writer(non_blocking).with_ansi(false))
-                .with(
-                    tracing_android::layer("musicopy")
-                        .expect("failed to init android tracing layer"),
-                );
+            let subscriber = Registry::default().with(filter).with(roller_layer).with(
+                tracing_android::layer("musicopy").expect("failed to init android tracing layer"),
+            );
             let _ = tracing::subscriber::set_global_default(subscriber);
         }
 
@@ -57,7 +60,7 @@ pub fn init(log_dir: Option<&Path>) -> anyhow::Result<Option<WorkerGuard>> {
         {
             let subscriber = Registry::default()
                 .with(filter)
-                .with(fmt::Layer::new().with_writer(non_blocking).with_ansi(false))
+                .with(roller_layer)
                 .with(tracing_oslog::OsLogger::new("app.musicopy", "default"));
             let _ = tracing::subscriber::set_global_default(subscriber);
         }
