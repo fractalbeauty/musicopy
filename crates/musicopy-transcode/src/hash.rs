@@ -4,12 +4,12 @@ use std::{hash::Hasher, path::Path};
 #[cfg(feature = "transcode")]
 use symphonia::core::{
     codecs::audio::VerificationCheck,
-    formats::{TrackType, probe::Hint},
+    formats::{Track, TrackType, probe::Hint},
     io::MediaSourceStream,
     units::Timestamp,
 };
 #[cfg(feature = "transcode")]
-use tracing::warn;
+use tracing::{trace, warn};
 #[cfg(feature = "transcode")]
 use twox_hash::XxHash3_64;
 
@@ -105,75 +105,91 @@ pub fn get_file_duration(path: &Path) -> anyhow::Result<f64> {
     let audio_track_id = audio_track.id;
 
     // get time base and duration from the audio track
-    let duration_secs = match (audio_track.time_base, audio_track.duration) {
-        (Some(time_base), Some(duration)) => {
-            let end_timestamp = duration
-                .timestamp_from(Timestamp::ZERO)
-                .ok_or_else(|| anyhow::anyhow!("failed to calculate duration"))?;
-            let time = time_base
-                .calc_time(end_timestamp)
-                .ok_or_else(|| anyhow::anyhow!("failed to calculate duration"))?;
-            time.as_secs_f64()
-        }
-
+    trace!(
+        "audio_track has: time_base? {}, duration? {}, num_frames? {}",
+        audio_track.time_base.is_some(),
+        audio_track.duration.is_some(),
+        audio_track.num_frames.is_some()
+    );
+    let duration_secs = if let Some(duration) = get_audio_track_duration(&audio_track) {
+        duration
+    } else {
         // TODO: check if this actually happens in practice. it is probably slow to decode the whole file
-        _ => {
-            warn!(
-                "file missing time_base or num_frames, decoding to find duration: {}",
-                path.display()
-            );
+        warn!(
+            "file missing time_base or num_frames/duration, decoding to find duration: {}",
+            path.display()
+        );
 
-            // get codec parameters for the audio track
-            let codec_params = audio_track
-                .codec_params
-                .as_ref()
-                .context("failed to get codec parameters")?;
-            let audio_codec_params = codec_params
-                .audio()
-                .context("codec parameters are not audio")?;
+        // get codec parameters for the audio track
+        let codec_params = audio_track
+            .codec_params
+            .as_ref()
+            .context("failed to get codec parameters")?;
+        let audio_codec_params = codec_params
+            .audio()
+            .context("codec parameters are not audio")?;
 
-            // get sample rate
-            let sample_rate = audio_codec_params
-                .sample_rate
-                .context("failed to get sample rate from codec params")?;
+        // get sample rate
+        let sample_rate = audio_codec_params
+            .sample_rate
+            .context("failed to get sample rate from codec params")?;
 
-            let mut decoder = symphonia::default::get_codecs()
-                .make_audio_decoder(audio_codec_params, &Default::default())
-                .context("failed to create decoder")?;
+        let mut decoder = symphonia::default::get_codecs()
+            .make_audio_decoder(audio_codec_params, &Default::default())
+            .context("failed to create decoder")?;
 
-            // decode the audio track and count frames
-            let mut num_frames = 0;
-            loop {
-                // read next packet
-                let packet = match format.next_packet() {
-                    Ok(Some(packet)) => packet,
+        // decode the audio track and count frames
+        let mut num_frames = 0;
+        loop {
+            // read next packet
+            let packet = match format.next_packet() {
+                Ok(Some(packet)) => packet,
 
-                    // end of track
-                    Ok(None) => break,
+                // end of track
+                Ok(None) => break,
 
-                    Err(e) => {
-                        return Err(e).context("failed to read packet");
-                    }
-                };
-
-                // skip packets from other tracks
-                if packet.track_id() != audio_track_id {
-                    continue;
+                Err(e) => {
+                    return Err(e).context("failed to read packet");
                 }
+            };
 
-                // decode packet
-                let audio_buf = decoder.decode(&packet).context("failed to decode packet")?;
-
-                // count frames
-                num_frames += audio_buf.frames();
+            // skip packets from other tracks
+            if packet.track_id() != audio_track_id {
+                continue;
             }
 
-            // convert frames to seconds
-            num_frames as f64 / sample_rate as f64
+            // decode packet
+            let audio_buf = decoder.decode(&packet).context("failed to decode packet")?;
+
+            // count frames
+            num_frames += audio_buf.frames();
         }
+
+        // convert frames to seconds
+        num_frames as f64 / sample_rate as f64
     };
 
     Ok(duration_secs)
+}
+
+/// Get the duration in seconds from an audio track using the time base and num frames or duration.
+#[cfg(feature = "transcode")]
+fn get_audio_track_duration(audio_track: &Track) -> Option<f64> {
+    let Some(time_base) = audio_track.time_base else {
+        return None;
+    };
+
+    if let Some(num_frames) = audio_track.num_frames {
+        let end_timestamp = Timestamp::new(num_frames as i64);
+        let time = time_base.calc_time(end_timestamp)?;
+        Some(time.as_secs_f64())
+    } else if let Some(duration) = audio_track.duration {
+        let end_timestamp = duration.timestamp_from(Timestamp::ZERO)?;
+        let time = time_base.calc_time(end_timestamp)?;
+        Some(time.as_secs_f64())
+    } else {
+        None
+    }
 }
 
 /// Stub implementation when compiled without the `transcode` feature.
