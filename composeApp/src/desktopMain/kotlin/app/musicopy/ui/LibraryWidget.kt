@@ -213,13 +213,13 @@ private fun LibraryRoot(root: LibraryRootModel, onStartRemoveRoot: (String) -> U
         ) {
             Column(modifier = Modifier.padding(start = 8.dp).weight(1f)) {
                 Text(
-                    "${root.name} (${root.numFiles} files)",
+                    "${root.name}",
                     style = MaterialTheme.typography.labelLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    "${root.path}",
+                    "${root.numFiles} files ⋅ ${root.path}",
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
