@@ -10,7 +10,7 @@ default:
   just --list
 
 tui *FLAGS:
-  cargo run --package musicopy-tui --release -- {{FLAGS}}
+  cargo run --package musicopy-tui -- {{FLAGS}}
 
 test:
   cargo check --workspace
