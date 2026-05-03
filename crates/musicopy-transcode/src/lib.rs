@@ -1,3 +1,5 @@
+pub mod hash;
+
 use anyhow::Context;
 use std::{
     fs::File,
