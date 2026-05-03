@@ -39,3 +39,11 @@ download-icon icon variant="default":
   curl "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/{{icon}}/{{variant}}/24px.xml" -o ./composeApp/src/commonMain/composeResources/drawable/{{icon}}_24px.xml
   sed -i 's/?attr\/colorControlNormal/#FFFFFF/g' ./composeApp/src/commonMain/composeResources/drawable/{{icon}}_24px.xml
   sed -i 's/@android:color\/white/#FFFFFF/g' ./composeApp/src/commonMain/composeResources/drawable/{{icon}}_24px.xml
+
+android-size:
+  which bundletool || (echo "missing bundletool"; exit 1)
+  rm build/bundletool/musicopy.apks build/bundletool/bundletool-get-size.csv || true
+  ./gradlew :musicopy:bundleRelease
+  bundletool build-apks --bundle composeApp/build/outputs/bundle/release/musicopy-release.aab --output build/bundletool/musicopy.apks
+  bundletool get-size total --apks build/bundletool/musicopy.apks > build/bundletool/bundletool-get-size.csv
+  cat build/bundletool/bundletool-get-size.csv
