@@ -12,10 +12,15 @@ default:
 run-tui *FLAGS:
   cargo run --package musicopy-tui -- {{FLAGS}}
 
-run-desktop *FLAGS:
+run-desktop:
   # Build UniFFI bindings using the host target
   GOBLEY_UNIFFI_TARGET=`rustc -vV | grep 'host:' | cut -d' ' -f2` \
-  ./gradlew desktopRun -DmainClass=app.musicopy.MainKt {{FLAGS}}
+  ./gradlew desktopRun -DmainClass=app.musicopy.MainKt
+
+run-desktop-hot:
+  # Build UniFFI bindings using the host target
+  GOBLEY_UNIFFI_TARGET=`rustc -vV | grep 'host:' | cut -d' ' -f2` \
+  ./gradlew hotRunDesktop -DmainClass=app.musicopy.MainKt --auto
 
 [positional-arguments]
 run-example-transcode *args:
