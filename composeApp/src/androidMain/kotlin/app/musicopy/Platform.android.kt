@@ -71,6 +71,7 @@ actual fun PlatformActivityContext.sendFeedbackEmail(
     description: String,
     logs: ByteArray,
     filename: String,
+    onError: (Exception) -> Unit,
 ) {
     // Write log bytes to a file in the cache dir and get a URI to attach to the intent
     val file = File(mainActivity.cacheDir, filename)

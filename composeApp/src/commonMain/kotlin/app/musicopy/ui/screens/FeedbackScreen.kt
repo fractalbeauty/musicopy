@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import app.musicopy.ui.components.LoadingButton
 import app.musicopy.ui.components.TopBar
@@ -30,13 +31,18 @@ fun FeedbackScreen(
     onSubmit: (description: String) -> Unit,
     onCancel: () -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
+
     var description by remember { mutableStateOf("") }
 
     var isSubmitted by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val handleSubmit = {
+        focusManager.clearFocus()
+
         onSubmit(description)
+
         scope.launch {
             delay(1000)
             isSubmitted = true

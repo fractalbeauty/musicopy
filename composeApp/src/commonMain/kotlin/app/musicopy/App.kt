@@ -4,6 +4,7 @@ package app.musicopy
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -15,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -82,7 +84,13 @@ fun App(
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val snackbarHost = @Composable { SnackbarHost(snackbarHostState) }
+    val snackbarHost =
+        @Composable {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.imePadding()
+            )
+        }
 
     var connectingTo by remember { mutableStateOf<String?>(null) }
     val isConnecting = connectingTo !== null
@@ -275,7 +283,17 @@ fun App(
 
                                 val logs = coreInstance.instance.exportLogs()
 
-                                platformActivityContext.sendFeedbackEmail(body, logs, filename)
+                                platformActivityContext.sendFeedbackEmail(
+                                    body,
+                                    logs,
+                                    filename,
+                                    {
+                                        showErrorSnackbar(
+                                            "Failed to send feedback. Please email support@musicopy.app.",
+                                            it
+                                        )
+                                    }
+                                )
                             } catch (e: CoreException) {
                                 showErrorSnackbar(
                                     "Failed to export logs. Please email support@musicopy.app.",

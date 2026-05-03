@@ -36,10 +36,15 @@ interface ICoreProvider {
 
 expect object CoreProvider : ICoreProvider;
 
+// Called when the user submits feedback.
+//
+// Thrown exceptions should be caught and show an error toast, but the `onError` callback allows
+// showing errors asynchronously.
 expect fun PlatformActivityContext.sendFeedbackEmail(
     description: String,
     logs: ByteArray,
     filename: String,
+    onError: (Exception) -> Unit,
 )
 
 expect fun toClipEntry(string: String): ClipEntry

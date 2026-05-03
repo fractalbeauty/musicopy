@@ -41,6 +41,7 @@ actual fun PlatformActivityContext.sendFeedbackEmail(
     description: String,
     logs: ByteArray,
     filename: String,
+    onError: (Exception) -> Unit,
 ) {
     throw Exception("Not supported on this platform")
 }
