@@ -1,5 +1,11 @@
 set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
+opener := if os() == "macos" {
+  "open"
+} else {
+  "xdg-open"
+}
+
 default:
   just --list
 
@@ -21,13 +27,13 @@ test-gradle *FLAGS:
   ./gradlew desktopTest {{FLAGS}}
 
 test-gradle-report:
-  xdg-open ./composeApp/build/reports/tests/desktopTest/index.html
+  {{opener}} ./composeApp/build/reports/tests/desktopTest/index.html
 
 cov:
   cargo llvm-cov --html nextest --package musicopy --features musicopy/test-hooks
 
 cov-report:
-  xdg-open ./target/llvm-cov/html/index.html
+  {{opener}} ./target/llvm-cov/html/index.html
 
 download-icon icon variant="default":
   curl "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/{{icon}}/{{variant}}/24px.xml" -o ./composeApp/src/commonMain/composeResources/drawable/{{icon}}_24px.xml
