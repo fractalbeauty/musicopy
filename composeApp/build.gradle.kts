@@ -142,7 +142,16 @@ android {
     }
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+             
+                // TODO: workarounds for Gobley proguard rules not being applied/comprehensive
+                layout.buildDirectory.file("generated/uniffi/androidMain/generated-proguard-rules.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
     compileOptions {
