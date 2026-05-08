@@ -412,16 +412,16 @@ private fun BreadcrumbBar(
             }
 
             if (hasIndex) {
-            Text(
-                text = formatSize(
-                    currentFolderSize,
-                    estimated = currentFolderSizeEstimated,
-                    decimals = 0,
-                ),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.padding(start = 4.dp, end = 16.dp)
-            )
+                Text(
+                    text = formatSize(
+                        currentFolderSize,
+                        estimated = currentFolderSizeEstimated,
+                        decimals = 0,
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(start = 4.dp, end = 16.dp)
+                )
             }
         }
     }
@@ -563,7 +563,7 @@ internal fun buildTree(
     }
 
     // sort top level nodes
-    topLevel.sortWith(compareBy<TreeNode> { it.leaf != null }.thenBy { it.part })
+    topLevel.sortWith(compareNodes())
 
     return TreeNode(part = "", children = topLevel)
 }
@@ -577,8 +577,8 @@ internal fun collapseNodeChildren(node: TreeNode) {
         collapseNodeChildren(child)
     }
 
-    // sort children: folders first, then alphabetically
-    node.children.sortWith(compareBy<TreeNode> { it.leaf != null }.thenBy { it.part })
+    // sort children
+    node.children.sortWith(compareNodes())
 
     // duplicate list so we can safely iterate while modifying
     val oldChildren = node.children.toList()
@@ -613,6 +613,15 @@ internal fun collapseNodeChildren(node: TreeNode) {
         node.children.remove(child)
     }
 }
+
+// Sort folders to the top first, then sort alphabetically (case-insensitive)
+/**
+ * Returns a Comparator for sorting TreeNodes:
+ * - Folders first
+ * - Then alphabetical, case-insensitive
+ */
+internal fun compareNodes(): Comparator<TreeNode> = compareBy<TreeNode> { it.leaf != null }
+    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.part }
 
 /**
  * Builds a map of sizes of TreeNodes.
