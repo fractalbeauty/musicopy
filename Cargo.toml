@@ -2,8 +2,5 @@
 members = ["crates/*"]
 resolver = "3"
 
-[profile.dev.package.musicopy-tui]
-opt-level = 2
-
 [profile.dev.package.musicopy-transcode]
 opt-level = 2
