@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import app.musicopy.BackHandler
 import app.musicopy.formatSize
 import app.musicopy.mockClientModel
+import app.musicopy.ui.components.Info
 import app.musicopy.ui.components.TopBar
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.arrow_downward_24px
@@ -259,7 +260,9 @@ fun PreTransferScreen(
                 paused = clientModel.paused
             )
 
-            if (clientModel.index == null) {
+            // Show loading indicator when index is null
+            val index = clientModel.index
+            if (index == null) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Center,
@@ -269,6 +272,21 @@ fun PreTransferScreen(
                 }
             }
 
+            // Show help message when index is empty
+            if (index != null && index.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(8.dp),
+                ) {
+                    Info {
+                        Text(
+                            "No files available yet. Add a folder to your library in the desktop app first, then reconnect.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+
+            // Render items
             LazyColumn(state = currentScrollState) {
                 items(
                     items = currentChildren,
