@@ -253,10 +253,21 @@ fun PreTransferScreen(
                         clientModel.paused
                     )
                 },
+                hasIndex = clientModel.index != null,
                 currentFolderSize = currentFolderSize,
                 currentFolderSizeEstimated = currentFolderSizeEstimated,
                 paused = clientModel.paused
             )
+
+            if (clientModel.index == null) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
 
             LazyColumn(state = currentScrollState) {
                 items(
@@ -327,6 +338,7 @@ private fun BreadcrumbBar(
     onNavigateToIndex: (Int) -> Unit,
     checkboxRowState: Pair<RowToggleState, RowDisabledState>,
     onCheckboxClick: () -> Unit,
+    hasIndex: Boolean,
     currentFolderSize: ULong,
     currentFolderSizeEstimated: Boolean,
     paused: Boolean,
@@ -399,6 +411,7 @@ private fun BreadcrumbBar(
                 }
             }
 
+            if (hasIndex) {
             Text(
                 text = formatSize(
                     currentFolderSize,
@@ -409,6 +422,7 @@ private fun BreadcrumbBar(
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.padding(start = 4.dp, end = 16.dp)
             )
+            }
         }
     }
 }
