@@ -1500,17 +1500,18 @@ impl Server {
 
         // spawn connection info watcher task
         // TODO: check that this is cancelled/cleaned up correctly?
-        let mut paths_stream = self.connection.paths().stream();
         tokio::spawn({
+            let connection = self.connection.clone();
             let event_tx = self.event_tx.clone();
             async move {
+                let mut paths_stream = connection.paths_stream();
                 while let Some(paths) = paths_stream.next().await {
                     let selected_path = paths.iter().find(|path| path.is_selected());
                     let (remote_addr, rtt_ms) = match selected_path {
                         Some(selected_path) => {
                             let remote_addr = selected_path.remote_addr().to_string();
-                            let rtt_ms = selected_path.rtt().map(|d| d.as_millis() as u64);
-                            (remote_addr, rtt_ms)
+                            let rtt_ms = selected_path.rtt().as_millis() as u64;
+                            (remote_addr, Some(rtt_ms))
                         }
                         None => ("unknown".to_string(), None),
                     };
@@ -2582,17 +2583,18 @@ impl Client {
 
         // spawn connection info watcher task
         // TODO: check that this is cancelled/cleaned up correctly?
-        let mut paths_stream = self.connection.paths().stream();
         tokio::spawn({
+            let connection = self.connection.clone();
             let event_tx = self.event_tx.clone();
             async move {
+                let mut paths_stream = connection.paths_stream();
                 while let Some(paths) = paths_stream.next().await {
                     let selected_path = paths.iter().find(|path| path.is_selected());
                     let (remote_addr, rtt_ms) = match selected_path {
                         Some(selected_path) => {
                             let remote_addr = selected_path.remote_addr().to_string();
-                            let rtt_ms = selected_path.rtt().map(|d| d.as_millis() as u64);
-                            (remote_addr, rtt_ms)
+                            let rtt_ms = selected_path.rtt().as_millis() as u64;
+                            (remote_addr, Some(rtt_ms))
                         }
                         None => ("unknown".to_string(), None),
                     };
