@@ -307,6 +307,18 @@ impl Core {
             _log_guard: log_guard,
         }))
     }
+
+    /// Get an EndpointAddr to use with MemoryLookup in tests
+    #[cfg(feature = "test-hooks")]
+    pub fn get_endpoint_addr(&self) -> iroh::EndpointAddr {
+        self.node.endpoint_addr()
+    }
+
+    /// Add an EndpointAddr to MemoryLookup in tests
+    #[cfg(feature = "test-hooks")]
+    pub fn add_endpoint_addr(&self, addr: iroh::EndpointAddr) {
+        self.node.add_endpoint_addr(addr);
+    }
 }
 
 #[uniffi::export]

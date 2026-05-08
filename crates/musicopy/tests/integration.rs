@@ -16,12 +16,7 @@ mod connect {
         let core_2 = TestCore::start("core 2").await;
 
         // core 1: connect to core 2
-        core_1.wait_for_relay().await;
-        core_2.wait_for_relay().await;
-
-        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
+        core_1.discover(&core_2).await;
         core_1
             .core
             .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
@@ -48,13 +43,8 @@ mod connect {
         let core_1 = TestCore::start("core 1").await;
         let core_2 = TestCore::start("core 2").await;
 
-        core_1.wait_for_relay().await;
-        core_2.wait_for_relay().await;
-
-        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
         // core 1: connect to core 2
+        core_1.discover(&core_2).await;
         core_1
             .core
             .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
@@ -85,13 +75,8 @@ mod connect {
         let core_1 = TestCore::start("core 1").await;
         let core_2 = TestCore::start("core 2").await;
 
-        core_1.wait_for_relay().await;
-        core_2.wait_for_relay().await;
-
-        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
         // core 1: connect to core 2
+        core_1.discover(&core_2).await;
         core_1
             .core
             .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
@@ -128,13 +113,8 @@ mod connect {
         let core_1 = TestCore::start("core 1").await;
         let core_2 = TestCore::start("core 2").await;
 
-        core_1.wait_for_relay().await;
-        core_2.wait_for_relay().await;
-
-        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
         // core 1: connect to core 2
+        core_1.discover(&core_2).await;
         core_1
             .core
             .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
@@ -172,12 +152,7 @@ mod connect {
         let core_2 = TestCore::start("core 2").await;
 
         // core 1: connect to core 2
-        core_1.wait_for_relay().await;
-        core_2.wait_for_relay().await;
-
-        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
+        core_1.discover(&core_2).await;
         core_1
             .core
             .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
@@ -210,13 +185,8 @@ mod connect {
         let core_1 = TestCore::start("core 1").await;
         let core_2 = TestCore::start("core 2").await;
 
-        core_1.wait_for_relay().await;
-        core_2.wait_for_relay().await;
-
-        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
         // core 1: connect to core 2
+        core_1.discover(&core_2).await;
         core_1
             .core
             .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
@@ -290,12 +260,7 @@ mod connect {
             .expect("should trust");
 
         // core 1: connect to core 2
-        core_1.wait_for_relay().await;
-        core_2.wait_for_relay().await;
-
-        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
+        core_1.discover(&core_2).await;
         core_1
             .core
             .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
@@ -322,12 +287,7 @@ mod connect {
                 .expect("should trust");
 
             // core 1: connect to core 2
-            core_1.wait_for_relay().await;
-            core_2.wait_for_relay().await;
-
-            // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
+            core_1.discover(&core_2).await;
             core_1
                 .core
                 .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
@@ -357,12 +317,7 @@ mod connect {
             assert_eq!(core_1.endpoint_id(), core_1_endpoint_id);
 
             // core 1: connect to core 2
-            core_1.wait_for_relay().await;
-            core_2.wait_for_relay().await;
-
-            // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
+            core_1.discover(&core_2).await;
             core_1
                 .core
                 .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
@@ -395,12 +350,7 @@ mod connect {
             .expect("should trust");
 
         // core 1: connect to core 2
-        core_1.wait_for_relay().await;
-        core_2.wait_for_relay().await;
-
-        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
+        core_1.discover(&core_2).await;
         core_1
             .core
             .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
@@ -443,12 +393,7 @@ mod connect {
         let core_2 = TestCore::start("core 2").await;
 
         // core 1: connect to core 2
-        core_1.wait_for_relay().await;
-        core_2.wait_for_relay().await;
-
-        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
+        core_1.discover(&core_2).await;
         core_1
             .core
             .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
@@ -752,12 +697,7 @@ mod transfer {
             .await;
 
         // core 1: connect to core 2
-        core_1.wait_for_relay().await;
-        core_2.wait_for_relay().await;
-
-        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
+        core_1.discover(&core_2).await;
         core_1
             .core
             .connect(Some(TranscodeFormat::Opus128), &core_2.endpoint_id_str())
@@ -1824,11 +1764,7 @@ mod stats {
             })
             .await;
 
-        core_1.wait_for_relay().await;
-        core_2.wait_for_relay().await;
-
-        // HACK: use StaticProvider/MemoryLookup to fix discovery flakiness
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        core_1.discover(&core_2).await;
 
         prepare_connect_with_cores(fixture, core_1, core_2).await
     }

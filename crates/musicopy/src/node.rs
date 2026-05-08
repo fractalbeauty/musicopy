@@ -379,6 +379,8 @@ pub struct Node {
 
     #[cfg(feature = "test-hooks")]
     test_hooks: Arc<TestHooks>,
+    #[cfg(feature = "test-hooks")]
+    memory_lookup: iroh::address_lookup::memory::MemoryLookup,
 }
 
 // stub debug implementation
@@ -411,7 +413,16 @@ impl Node {
         let (command_tx, command_rx) = mpsc::unbounded_channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
 
-        let endpoint = Endpoint::builder(N0).secret_key(secret_key).bind().await?;
+        #[cfg(feature = "test-hooks")]
+        let memory_lookup = iroh::address_lookup::memory::MemoryLookup::new();
+
+        let endpoint = {
+            let builder = Endpoint::builder(N0).secret_key(secret_key);
+            #[cfg(feature = "test-hooks")]
+            let builder = builder.address_lookup(memory_lookup.clone());
+            builder.bind().await?
+        };
+
         let protocol = Protocol::new(
             db.clone(),
             transcode_status_cache.clone(),
@@ -462,6 +473,8 @@ impl Node {
 
             #[cfg(feature = "test-hooks")]
             test_hooks,
+            #[cfg(feature = "test-hooks")]
+            memory_lookup,
         });
 
         // initialize model
@@ -1239,6 +1252,18 @@ impl Node {
         if let Ok(stats) = db.get_stats() {
             self.event_handler.on_stats_model_snapshot(stats);
         }
+    }
+
+    /// Get an EndpointAddr to use with MemoryLookup in tests
+    #[cfg(feature = "test-hooks")]
+    pub fn endpoint_addr(&self) -> EndpointAddr {
+        self.router.endpoint().addr()
+    }
+
+    /// Add an EndpointAddr to MemoryLookup in tests
+    #[cfg(feature = "test-hooks")]
+    pub fn add_endpoint_addr(&self, addr: EndpointAddr) {
+        self.memory_lookup.add_endpoint_info(addr);
     }
 
     // TODO: maybe replace with methods?

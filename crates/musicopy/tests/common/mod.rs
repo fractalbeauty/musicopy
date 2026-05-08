@@ -127,18 +127,13 @@ impl TestCore {
         }
     }
 
-    /// Wait until we have a home relay, so discovery and connections should work
-    pub async fn wait_for_relay(&self) {
-        let full_msg = format!("{} has relay", self.label);
-        wait_until(
-            &full_msg,
-            || {
-                let model = self.core.get_node_model().expect("should get node model");
-                model.home_relay != "none"
-            },
-            || {},
-        )
-        .await;
+    /// Exchange endpoint addresses so we can connect immediately without waiting for discovery.
+    #[cfg(feature = "test-hooks")]
+    pub async fn discover(&self, other: &TestCore) {
+        let self_addr = self.core.get_endpoint_addr();
+        let other_addr = other.core.get_endpoint_addr();
+        self.core.add_endpoint_addr(other_addr);
+        other.core.add_endpoint_addr(self_addr);
     }
 
     /// Wait until the node model satisfies the given condition
