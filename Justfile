@@ -22,6 +22,10 @@ run-desktop-hot:
   GOBLEY_UNIFFI_TARGET=`rustc -vV | grep 'host:' | cut -d' ' -f2` \
   ./gradlew hotRunDesktop -DmainClass=app.musicopy.MainKt --auto
 
+run-android:
+  ./gradlew installDebug
+  adb shell am start -n app.musicopy/.MainActivity
+
 [positional-arguments]
 run-example-transcode *args:
   cargo run --package musicopy-transcode --example transcode --release -- "$@"
