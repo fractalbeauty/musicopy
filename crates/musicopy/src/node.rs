@@ -46,7 +46,7 @@ use std::{
         Arc, Mutex,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
-    time::{Duration, SystemTime},
+    time::{Duration, Instant, SystemTime},
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -253,6 +253,7 @@ pub enum NodeCommand {
 }
 
 /// An event sent from a server or client to the node.
+#[derive(Debug)]
 enum NodeEvent {
     FilesRequested(TranscodeFormat, HashSet<PathBuf>),
 
@@ -304,6 +305,7 @@ enum NodeEvent {
 }
 
 /// An update to a server model.
+#[derive(Debug)]
 enum ServerModelUpdate {
     Accept,
     UpdateConnectionInfo {
@@ -317,6 +319,7 @@ enum ServerModelUpdate {
 }
 
 /// An update to a client model.
+#[derive(Debug)]
 enum ClientModelUpdate {
     Accept,
     UpdateConnectionInfo {
@@ -332,6 +335,7 @@ enum ClientModelUpdate {
 }
 
 /// An update to the node model.
+#[derive(Debug)]
 enum NodeModelUpdate {
     PollMetrics,
     UpdateHomeRelay {
@@ -545,6 +549,8 @@ impl Node {
             let _ = db.track_launch();
         }
         self.push_stats_model();
+
+        debug!("entering Node::run loop");
 
         loop {
             tokio::select! {
@@ -799,6 +805,8 @@ impl Node {
             }
         }
 
+        debug!("exited Node::run loop");
+
         let _ = self.router.shutdown().await;
 
         Ok(())
@@ -921,7 +929,12 @@ impl Node {
 
                 let mut model = self.model.lock().unwrap();
                 let Some(server) = model.servers.get_mut(&endpoint_id_string) else {
-                    warn!("failed to apply NodeModelUpdate::UpdateServer: no server model found");
+                    warn!(
+                        ?endpoint_id,
+                        ?update,
+                        ?model.servers,
+                        "failed to apply NodeModelUpdate::UpdateServer: no server model found",
+                    );
                     return;
                 };
 
@@ -940,7 +953,9 @@ impl Node {
                         let server_handles = self.servers.lock().unwrap();
                         let Some(server_handle) = server_handles.get(&endpoint_id) else {
                             warn!(
-                                "failed to apply ServerModelUpdate::UpdateTransferJobs: no server handle found"
+                                ?endpoint_id,
+                                ?server_handles,
+                                "failed to apply ServerModelUpdate::UpdateTransferJobs: no server handle found",
                             );
                             return;
                         };
@@ -1682,12 +1697,11 @@ impl Server {
             .expect("failed to send Accepted message");
 
         // send Index message
-        let mut index = self.get_index(transcode_format)?;
-        send.send(ServerMessageV1::Index(
-            index.iter().map(|(_, item)| item.clone()).collect(),
-        ))
-        .await
-        .expect("failed to send Index message");
+        let index = self.get_index(transcode_format)?;
+        info!(index.len = index.len(), "sending ServerMessageV1::Index");
+        send.send(ServerMessageV1::Index(index))
+            .await
+            .expect("failed to send Index message");
 
         // update name and connected_at for trusted nodes
         {
@@ -1709,19 +1723,30 @@ impl Server {
             let event_tx = self.event_tx.clone();
             async move {
                 loop {
+                    // Metrics for this iteration
+                    let iter_start = Instant::now();
+                    let mut jobs_checked = 0u32;
+                    let mut jobs_transcoding = 0u32;
+                    let mut read_cache_key_ok = 0u32;
+                    let mut read_cache_key_err = 0u32;
+
                     let mut ready_jobs = Vec::new();
                     let mut failed_jobs = Vec::new();
 
                     // check for jobs with Transcoding status
                     for job in jobs.iter() {
+                        jobs_checked += 1;
                         if let ServerTransferJobProgress::Transcoding { local_path } =
                             &job.value().progress
                         {
+                            jobs_transcoding += 1;
                             // read cache key from metadata
                             let Ok(key) = hash_cache.read_cache_key(local_path) else {
+                                read_cache_key_err += 1;
                                 // TODO: failing to read metadata is likely an error
                                 continue;
                             };
+                            read_cache_key_ok += 1;
 
                             // If no transcode format was specified, mark the job as ready
                             let Some(transcode_format) = transcode_format else {
@@ -1769,6 +1794,8 @@ impl Server {
                             }
                         }
                     }
+
+                    let check_elapsed = iter_start.elapsed();
 
                     // create status changes for ready jobs
                     let ready_jobs =
@@ -1825,13 +1852,25 @@ impl Server {
                             .expect("failed to send ServerModelUpdate::UpdateTransferJobs");
                     }
 
+                    // Log slow iterations
+                    if check_elapsed >= Duration::from_millis(100) {
+                        let total_elapsed = iter_start.elapsed();
+                        warn!(
+                            check_ms = check_elapsed.as_millis() as u64,
+                            total_ms = total_elapsed.as_millis() as u64,
+                            jobs_checked,
+                            jobs_transcoding,
+                            read_cache_key_ok,
+                            read_cache_key_err,
+                            "slow transcode-watcher iteration",
+                        );
+                    }
+
                     // sleep before checking again
                     tokio::time::sleep(Duration::from_secs(1)).await;
                 }
             }
         });
-
-        let mut index_update_interval = tokio::time::interval(Duration::from_secs(1));
 
         // Track whether the first transfer has completed, for counting sessions with >1 transfer.
         // When tracking transferred files we indicate whether it's the first of this session.
@@ -2142,63 +2181,6 @@ impl Server {
                     }
                 }
 
-                // periodically check for index updates
-                _ = index_update_interval.tick() => {
-                    let mut updates = Vec::new();
-
-                    for (local_path, item) in index.iter_mut() {
-                        // if the client doesn't have the actual file size
-                        if !matches!(item.file_size, FileSize::Actual(_)) {
-                            // check for actual size from transcode cache, then estimated size from database
-                            let file_size = match self.hash_cache.read_cache_key(local_path) {
-                                Ok(key) => {
-                                    match transcode_format {
-                                        Some(transcode_format) => {
-                                            if let Some(actual_size) = self.hash_cache.get_cached_hash(&key)
-                                                .ok().flatten()
-                                                .and_then(|(hash_kind, hash)| self.transcode_status_cache.get(transcode_format, &hash_kind, hash))
-                                                .and_then(|entry| match &*entry {
-                                                    TranscodeStatus::Ready { file_size, .. } => Some(*file_size),
-                                                    _ => None,
-                                                }) {
-                                                Some(FileSize::Actual(actual_size))
-                                            } else {
-                                                self.hash_cache.get_cached_duration(&key)
-                                                    .ok().flatten().map(|duration| estimate_file_size(transcode_format, duration)).map(FileSize::Estimated)
-                                            }
-                                        }
-                                        None => {
-                                            // use original file size
-                                            Some(FileSize::Actual(key.file_size()))
-                                        }
-                                    }
-                                }
-                                Err(_) => None,
-                            };
-
-                            // if we now have an updated file size, update the client
-                            if let Some(file_size) = file_size && file_size != item.file_size {
-                                // store client's view so we don't send the same update again
-                                item.file_size = file_size;
-
-                                updates.push(IndexUpdateItem::FileSize {
-                                    endpoint_id: item.endpoint_id,
-                                    root: item.root.clone(),
-                                    path: item.path.clone(),
-
-                                    file_size,
-                                });
-                            }
-                        }
-                    }
-
-                    if !updates.is_empty() {
-                        send.send(ServerMessageV1::IndexUpdate(updates))
-                            .await
-                            .expect("failed to send IndexUpdate message");
-                    }
-                }
-
                 else => {
                     warn!("all senders dropped in Server::run, shutting down");
                     break;
@@ -2212,13 +2194,11 @@ impl Server {
     }
 
     /// Gets the index to send to the client.
-    ///
-    /// Also returns the local paths for the files, which are used to check for index updates
-    /// (i.e. file size updates). Local paths are not sent to the client.
+    #[tracing::instrument(skip(self))]
     fn get_index(
         &self,
         transcode_format: Option<TranscodeFormat>,
-    ) -> anyhow::Result<Vec<(PathBuf, IndexItem)>> {
+    ) -> anyhow::Result<Vec<IndexItem>> {
         let files = {
             let db = self.db.lock().unwrap();
             db.get_files()?
@@ -2230,11 +2210,10 @@ impl Server {
                 let local_path = PathBuf::from(file.local_path);
 
                 let file_size = if let Some(transcode_format) = transcode_format {
-                    // Get cached estimated size without checking validity. Validating the cached size
+                    // Get cached duration without checking validity. Validating the cached duration
                     // requires accessing the file to read its metadata, which can be expensive. We want
                     // this to be fast since it's on the user's critical path. We can tolerate the
-                    // estimated sizes very rarely being incorrect, and we also set the size to
-                    // Estimated, so the periodic index update will send the actual size shortly after.
+                    // estimated sizes very rarely being incorrect.
                     match self.hash_cache.get_cached_duration_unvalidated(&local_path) {
                         Ok(Some(duration)) => {
                             FileSize::Estimated(estimate_file_size(transcode_format, duration))
@@ -2251,8 +2230,7 @@ impl Server {
                         .hash_cache
                         .get_cached_file_size_unvalidated(&local_path)
                     {
-                        // This could be stale if the files were modified, so we set the size to
-                        // Estimated, and the periodic index update will send the actual size shortly after.
+                        // This could be stale if the files were modified.
                         Ok(Some(size)) => FileSize::Estimated(size),
                         // When we don't have a cached duration, we still want to provide a guess
                         // since we display Unknown as 0 on mobile.
@@ -2260,16 +2238,13 @@ impl Server {
                     }
                 };
 
-                (
-                    local_path,
-                    IndexItem {
-                        endpoint_id: file.node_id,
-                        root: file.root,
-                        path: file.path,
+                IndexItem {
+                    endpoint_id: file.node_id,
+                    root: file.root,
+                    path: file.path,
 
-                        file_size,
-                    },
-                )
+                    file_size,
+                }
             })
             .collect::<Vec<_>>();
 
@@ -2954,6 +2929,9 @@ impl Client {
                                     }).expect("failed to send ClientModelUpdate::UpdateIndex");
                                 }
 
+                                // Current servers don't send IndexUpdate messages, but this branch
+                                // was kept for backwards compatibility.
+                                #[allow(deprecated)]
                                 ServerMessageV1::IndexUpdate(updates) => {
                                     info!("received index update with {} items", updates.len());
                                     {

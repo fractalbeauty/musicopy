@@ -21,6 +21,10 @@ pub enum ServerMessageV1 {
     /// Inform the client of available files.
     Index(Vec<IndexItem>),
     /// Inform the client of updates to the index.
+    ///
+    /// Deprecated: no longer sent in current versions, but kept for backwards compatibility.
+    /// We can remove this in the next protocol version.
+    #[deprecated(note = "no longer emitted; retained for protocol compatibility")]
     IndexUpdate(Vec<IndexUpdateItem>),
     /// Notify the client that the statuses of jobs have changed.
     JobStatus(HashMap<u64, JobStatusItem>),
@@ -37,6 +41,8 @@ pub struct IndexItem {
 }
 
 /// An update to an item in the index.
+///
+/// Deprecated: no longer sent in current versions, but kept for backwards compatibility.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndexUpdateItem {
     FileSize {
