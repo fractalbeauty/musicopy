@@ -1,6 +1,10 @@
 use std::path::Path;
 use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::{EnvFilter, Registry, fmt, prelude::*};
+use tracing_subscriber::{
+    EnvFilter, Registry,
+    fmt::{self, format::FmtSpan},
+    prelude::*,
+};
 
 /// Default filter:
 /// - `warn`` by default
@@ -36,7 +40,10 @@ pub fn init(log_dir: Option<&Path>) -> anyhow::Result<Option<WorkerGuard>> {
             .compression(logroller::Compression::Gzip)
             .build()?;
         let (non_blocking, guard) = tracing_appender::non_blocking(roller);
-        let roller_layer = fmt::Layer::new().with_writer(non_blocking).with_ansi(false);
+        let roller_layer = fmt::Layer::new()
+            .with_writer(non_blocking)
+            .with_span_events(FmtSpan::CLOSE)
+            .with_ansi(false);
 
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         {
@@ -44,7 +51,11 @@ pub fn init(log_dir: Option<&Path>) -> anyhow::Result<Option<WorkerGuard>> {
                 .with(console_subscriber::spawn())
                 .with(filter)
                 .with(roller_layer)
-                .with(fmt::Layer::new().with_writer(std::io::stdout));
+                .with(
+                    fmt::Layer::new()
+                        .with_writer(std::io::stdout)
+                        .with_span_events(FmtSpan::CLOSE),
+                );
             let _ = tracing::subscriber::set_global_default(subscriber);
         }
 
@@ -69,9 +80,11 @@ pub fn init(log_dir: Option<&Path>) -> anyhow::Result<Option<WorkerGuard>> {
     } else {
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         {
-            let subscriber = Registry::default()
-                .with(filter)
-                .with(fmt::Layer::new().with_writer(std::io::stdout));
+            let subscriber = Registry::default().with(filter).with(
+                fmt::Layer::new()
+                    .with_writer(std::io::stdout)
+                    .with_span_events(FmtSpan::CLOSE),
+            );
             let _ = tracing::subscriber::set_global_default(subscriber);
         }
 
