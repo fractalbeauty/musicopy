@@ -1,0 +1,73 @@
+---
+import GuideImage from "./GuideImage.astro";
+
+interface Props {
+  index: number;
+}
+
+const { index } = Astro.props;
+---
+
+<h2>{index}. Change your download folder and format</h2>
+
+<div class="clearfix">
+  <GuideImage
+    src="/static/guide/ios_spotify_folder_1.png"
+    alt="Screenshot of iOS Spotify download folder settings"
+    side="right"
+    mode="transparent"
+  />
+  <GuideImage
+    src="/static/guide/ios_spotify_folder_2.png"
+    alt="Screenshot of iOS Spotify download folder settings"
+    side="right"
+    mode="transparent"
+  />
+
+  <h3>On iOS</h3>
+
+  <p>
+    In the mobile app, change the download folder to <strong
+      >On My iPhone &RightArrow; Spotify</strong
+    >.
+  </p>
+
+  <p>
+    Spotify for iOS only supports MP3 files, so also change the download format
+    in the mobile app:
+  </p>
+  <ul>
+    <li>
+      <strong>MP3 V0</strong> for best quality and larger files
+    </li>
+    <li>
+      <strong>MP3 V5</strong> for smaller files and good quality
+    </li>
+    <li>
+      <strong>Original</strong> if you already have MP3 files
+    </li>
+  </ul>
+
+  <h3>On Android</h3>
+
+  <p>
+    Spotify for Android can find music files in various places, but <strong
+      >Music</strong
+    > is a good choice.
+  </p>
+  <p>
+    Spotify for Android supports both MP3 and Opus files, so choose a download
+    format in the mobile app:
+  </p>
+  <ul>
+    <li>
+      <strong>Opus 128kbps</strong> for best quality and small files
+    </li>
+    <li>
+      <strong>Opus 64kbps</strong> for very small files and good quality
+    </li>
+    <li>
+      <strong>Original</strong> if you already have compatible files
+    </li>
+  </ul>
+</div>

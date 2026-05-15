@@ -67,3 +67,9 @@ body {
 .flex-1 {
   flex: 1;
 }
+
+.clearfix::after {
+  content: "";
+  clear: both;
+  display: table;
+}

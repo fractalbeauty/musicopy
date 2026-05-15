@@ -1,0 +1,69 @@
+---
+import BaseLayout from "../../components/BaseLayout.astro";
+import Footer from "../../components/Footer.astro";
+import DownloadTiles from "../../components/fragments/DownloadTiles.astro";
+import AddYourMusicSection from "../../components/fragments/guideSections/AddYourMusicSection.astro";
+import ConnectYourPhoneSection from "../../components/fragments/guideSections/ConnectYourPhoneSection.astro";
+import SpotifyDownloadFolderSection from "../../components/fragments/guideSections/SpotifyDownloadFolderSection.astro";
+import TransferYourFilesSection from "../../components/fragments/guideSections/TransferYourFilesSection.astro";
+import Main from "../../components/Main.astro";
+import Nav from "../../components/Nav.astro";
+---
+
+<BaseLayout title="Transfer Spotify Local Files using Musicopy">
+  <Nav />
+
+  <Main>
+    <h1>Transfer Spotify Local Files using Musicopy</h1>
+
+    <p>
+      Spotify can play <a
+        href="https://support.spotify.com/us/article/local-files/"
+        target="_blank"
+        rel="noopener noreferrer">local files</a
+      > stored on your device, but doesn't support streaming or syncing across devices.
+      If you have music files on your desktop, you need to copy them to your phone
+      to play them in Spotify.
+    </p>
+
+    <p>
+      Musicopy is the most convenient way to transfer music files from your
+      desktop to your phone for Spotify:
+    </p>
+    <ul>
+      <li>
+        <strong>Magic connectivity:</strong> scan a QR code to connect.
+      </li>
+      <li>
+        <strong>Automatic transcoding</strong> to fit more songs on your device.
+      </li>
+      <li>
+        <strong>No accounts or subscriptions:</strong> just two apps.
+      </li>
+    </ul>
+
+    <h2>1. Install both apps</h2>
+    <DownloadTiles />
+
+    <AddYourMusicSection index={2} />
+    <SpotifyDownloadFolderSection index={3} />
+    <ConnectYourPhoneSection index={4} />
+    <TransferYourFilesSection index={5} />
+
+    <h2>6. Enable Local Files in Spotify</h2>
+    <p>
+      In Spotify, turn on <strong>Local audio files</strong> in <strong
+        >Settings and privacy &RightArrow; Apps and devices &RightArrow; Other
+        devices</strong
+      >, or check out <a
+        href="https://support.spotify.com/us/article/local-files/"
+        target="_blank"
+        rel="noopener noreferrer">Spotify's official instructions</a
+      >.
+    </p>
+  </Main>
+
+  <div class="flex-1"></div>
+
+  <Footer />
+</BaseLayout>

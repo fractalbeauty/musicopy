@@ -1,0 +1,32 @@
+---
+import GuideImage from "./GuideImage.astro";
+
+interface Props {
+  index: number;
+}
+
+const { index } = Astro.props;
+---
+
+<h2>{index}. Connect your phone</h2>
+
+<div class="clearfix">
+  <GuideImage
+    src="/static/manual/mobile_home.png"
+    alt="Screenshot of mobile app home screen"
+    side="left"
+    mode="app"
+  />
+
+  <p>
+    In the mobile app, scan the QR code shown in the desktop app to connect.
+  </p>
+
+  <p>
+    After clicking accept, Musicopy will create a direct end-to-end encrypted
+    connection for fast and private transfers. Both devices can even be on
+    different networks.
+  </p>
+
+  <p>Next time, Musicopy will list recent connections to reconnect quickly.</p>
+</div>

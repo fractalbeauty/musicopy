@@ -1,0 +1,42 @@
+---
+import GuideImage from "./GuideImage.astro";
+
+interface Props {
+  index: number;
+}
+
+const { index } = Astro.props;
+---
+
+<h2>{index}. Transfer your files</h2>
+
+<div class="clearfix">
+  <GuideImage
+    src="/static/manual/mobile_transfer.png"
+    alt="Screenshot of mobile app transfer status screen"
+    side="right"
+    mode="app"
+  />
+  <GuideImage
+    src="/static/manual/mobile_pretransfer.png"
+    alt="Screenshot of mobile app file selection screen"
+    side="right"
+    mode="app"
+  />
+
+  <p>Choose files from your library and start the transfer.</p>
+
+  <p>
+    Downloaded files will be saved to your chosen folder, mirroring your folder
+    structure on desktop.
+  </p>
+
+  <p>
+    Next time, Musicopy will remember which files have already been transferred.
+  </p>
+
+  <p>
+    On Android, transfers continue in the background. On iOS, keep the app open
+    until the transfer finishes.
+  </p>
+</div>
