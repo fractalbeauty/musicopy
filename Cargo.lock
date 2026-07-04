@@ -1259,12 +1259,12 @@ dependencies = [
 
 [[package]]
 name = "curve25519-dalek"
-version = "5.0.0-pre.6"
+version = "5.0.0-rc.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "335f1947f241137a14106b6f5acc5918a5ede29c9d71d3f2cb1678d5075d9fc3"
+checksum = "4f359e08ca85e7bd759e1fd933ff2bccd81864c60a8fba0e259c7f822b0924bf"
 dependencies = [
  "cfg-if",
- "cpufeatures 0.2.17",
+ "cpufeatures 0.3.0",
  "curve25519-dalek-derive",
  "digest",
  "fiat-crypto",
@@ -1527,7 +1527,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4850db49bf08e663084f7fb5c87d202ef91a3907271aff24a94eb97ff039153c"
 dependencies = [
  "block-buffer",
- "const-oid",
  "crypto-common 0.2.1",
 ]
 
@@ -1632,9 +1631,9 @@ dependencies = [
 
 [[package]]
 name = "ed25519-dalek"
-version = "3.0.0-pre.7"
+version = "3.0.0-rc.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20449acd54b660981ae5caa2bcb56d1fe7f25f2e37a38ec507400fab034d4bb6"
+checksum = "b011170fe4f04665565b4110afef66774fe9ffff278f3eb5b81cc73d26e27d60"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
@@ -2803,9 +2802,9 @@ dependencies = [
 
 [[package]]
 name = "iroh"
-version = "1.0.0-rc.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b98e206e3d3f2642f5c08c413755fc0ac19b54ae1a656af88be03454ce3ed2e6"
+checksum = "1a2e38557969901f8b356d1ebd882253bab98cc81500d53e7bcbf33f56082303"
 dependencies = [
  "backon",
  "blake3",
@@ -2840,7 +2839,6 @@ dependencies = [
  "rustc-hash",
  "rustls",
  "rustls-pki-types",
- "rustls-webpki",
  "serde",
  "smallvec",
  "strum 0.28.0",
@@ -2851,36 +2849,32 @@ dependencies = [
  "tracing",
  "url",
  "wasm-bindgen-futures",
- "webpki-roots",
 ]
 
 [[package]]
 name = "iroh-base"
-version = "1.0.0-rc.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2160a45265eba3bd290ce698f584c9b088bee47e518e9ec4460d5e5888ef660e"
+checksum = "61cdf012298adc13f5c2c821ad87214fecc9ac54c751301d45bf62b229a85da1"
 dependencies = [
  "curve25519-dalek",
  "data-encoding",
  "data-encoding-macro",
  "derive_more 2.1.1",
- "digest",
  "ed25519-dalek",
  "getrandom 0.4.2",
  "n0-error",
  "rand 0.10.1",
  "serde",
- "sha2",
  "url",
  "zeroize",
- "zeroize_derive",
 ]
 
 [[package]]
 name = "iroh-dns"
-version = "1.0.0-rc.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8b6d2946350d398c9d2d795bb99b04f22e8414c8a8ad9c5c3c0c5b7899af9a4"
+checksum = "4c24b83aae5ed4eced1c3724204c083c28c84c5d225a88e277eceeccce3dc3bd"
 dependencies = [
  "arc-swap",
  "cfg_aliases",
@@ -2890,8 +2884,8 @@ dependencies = [
  "n0-error",
  "n0-future 0.3.2",
  "ndk-context",
+ "portable-atomic",
  "rand 0.10.1",
- "reqwest",
  "rustls",
  "simple-dns",
  "strum 0.28.0",
@@ -2902,9 +2896,9 @@ dependencies = [
 
 [[package]]
 name = "iroh-metrics"
-version = "1.0.0-rc.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d102597d0ee523f17fdb672c532395e634dbe945429284c811430d63bacc0d8a"
+checksum = "291065721ad7c477b972e581bbc528df031dc8eb5e39fe1ff3300ae5dfb157ef"
 dependencies = [
  "iroh-metrics-derive",
  "itoa",
@@ -2917,9 +2911,9 @@ dependencies = [
 
 [[package]]
 name = "iroh-metrics-derive"
-version = "1.0.0-rc.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91c8e0c97f1dc787107f388433c349397c565572fe6406d600ff7bb7b7fe3b30"
+checksum = "1ae5f0c4405d1fbc9fb16ff422ca40620e93dc36c30ecaba0c2aee3992b7bd48"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -2929,9 +2923,9 @@ dependencies = [
 
 [[package]]
 name = "iroh-relay"
-version = "1.0.0-rc.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54f490405e42dd2ecf16be18a3587d2665401e94a498094f12322eaa6d5ebb2b"
+checksum = "9f16a5505939f9250297ff2f1210b5142d13618f496eab03ce3f964fc47e2e2b"
 dependencies = [
  "blake3",
  "bytes",
@@ -3495,9 +3489,9 @@ dependencies = [
 
 [[package]]
 name = "n0-error"
-version = "1.0.0-rc.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "223e946a84aa91644507a6b7865cfebbb9a231ace499041c747ab0fd30408212"
+checksum = "c37e81176a83a77d2514528b91bdafc70ef88aab428f0e1b91aebb8d99888895"
 dependencies = [
  "n0-error-macros",
  "spez",
@@ -3505,9 +3499,9 @@ dependencies = [
 
 [[package]]
 name = "n0-error-macros"
-version = "1.0.0-rc.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "565305a21e6b3bf26640ad98f05a0fda12d3ab4315394566b52a7bddb8b34828"
+checksum = "e2acd8b070213b0299282f884b4beba4e7b52d624fdcd504a3ad3665390c11e1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3558,9 +3552,9 @@ dependencies = [
 
 [[package]]
 name = "n0-watcher"
-version = "1.0.0-rc.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "928d8039a66cce5efcfd35e88b32d3defc8eba630b3ac451522997f563956a52"
+checksum = "bbc618745ad0b7414b149d0517ad8b5573b2fb4d4e2717add3d2446ce1fdd826"
 dependencies = [
  "derive_more 2.1.1",
  "n0-error",
@@ -3575,19 +3569,22 @@ checksum = "27b02d87554356db9e9a873add8782d4ea6e3e58ea071a9adb9a2e8ddb884a8b"
 
 [[package]]
 name = "netdev"
-version = "0.43.0"
+version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57bacaf873ee4eab5646f99b381b271ec75e716902a67cf962c0f328c5eb5bfb"
+checksum = "569dfbdd2efd771b24ec9bb57f956e04d4fbfc72f62b2f11961723f9b3f4b020"
 dependencies = [
  "block2",
  "dispatch2 0.3.0",
  "dlopen2",
  "ipnet",
+ "jni 0.21.1",
  "libc",
  "mac-addr",
+ "ndk-context",
  "netlink-packet-core",
- "netlink-packet-route 0.29.0",
+ "netlink-packet-route",
  "netlink-sys",
+ "objc2",
  "objc2-core-foundation",
  "objc2-core-wlan",
  "objc2-foundation",
@@ -3608,21 +3605,9 @@ dependencies = [
 
 [[package]]
 name = "netlink-packet-route"
-version = "0.29.0"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df9854ea6ad14e3f4698a7f03b65bce0833dd2d81d594a0e4a984170537146b6"
-dependencies = [
- "bitflags 2.11.1",
- "libc",
- "log",
- "netlink-packet-core",
-]
-
-[[package]]
-name = "netlink-packet-route"
-version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be8919612f6028ab4eacbbfe1234a9a43e3722c6e0915e7ff519066991905092"
+checksum = "e2288fcb784eb3defd5fb16f4c4160d5f477de192eac730f43e1d11c24d9a007"
 dependencies = [
  "bitflags 2.11.1",
  "libc",
@@ -3659,14 +3644,15 @@ dependencies = [
 
 [[package]]
 name = "netwatch"
-version = "0.17.0"
+version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5bfbba77b994ce69f1d40fc66fd8abbd23df62ce4aea61fbb34d638106a2549"
+checksum = "4d9cbe01741347ef750d743d6690603f5eed8341e679fb51c8e629337aa11976"
 dependencies = [
  "atomic-waker",
  "bytes",
  "cfg_aliases",
  "derive_more 2.1.1",
+ "ipnet",
  "js-sys",
  "libc",
  "n0-error",
@@ -3674,7 +3660,7 @@ dependencies = [
  "n0-watcher",
  "netdev",
  "netlink-packet-core",
- "netlink-packet-route 0.30.0",
+ "netlink-packet-route",
  "netlink-proto",
  "netlink-sys",
  "noq-udp",
@@ -3730,9 +3716,9 @@ checksum = "0676bb32a98c1a483ce53e500a81ad9c3d5b3f7c920c28c24e9cb0980d0b5bc8"
 
 [[package]]
 name = "noq"
-version = "1.0.0-rc.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22739e0831e40f5ab7d6ac5317ed80bfe5fb3f44be57d23fa2eea8bff83fb303"
+checksum = "4bf95190af1bd4a00a10e8255ca0c8ddd9e9a9f5e79151d7a7eb6d56aff5dc89"
 dependencies = [
  "bytes",
  "cfg_aliases",
@@ -3752,9 +3738,9 @@ dependencies = [
 
 [[package]]
 name = "noq-proto"
-version = "1.0.0-rc.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cee32450cf726b223ac4154003c93cb52fbde159ab1240990e88945bf3ae35e"
+checksum = "aa6c890013591e709a3e45dd53501351b7e27e7ff3c7e9fc3dce43e300e7e9d3"
 dependencies = [
  "aes-gcm",
  "bytes",
@@ -3779,9 +3765,9 @@ dependencies = [
 
 [[package]]
 name = "noq-udp"
-version = "1.0.0-rc.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78633d1fe1bde91d12bcabb230ac9edb890857414c6d44f3212e0d309525b5ff"
+checksum = "3137a52df66c20090a889828d1c655f21f52294cba64e5c4fbb04fc83eee7c8e"
 dependencies = [
  "cfg_aliases",
  "libc",
@@ -4281,9 +4267,9 @@ dependencies = [
 
 [[package]]
 name = "portmapper"
-version = "0.17.0"
+version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aec2a8809e3f7dba624776bb223da9fed49c413c60b3bef21aadcb67a5e35944"
+checksum = "eb3713e4977408279158444a18c1a01ac9bf2e7eaf1fbfd1a19ac9cd18d90721"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -5595,9 +5581,9 @@ checksum = "a7973cce6668464ea31f176d85b13c7ab3bba2cb3b77a2ed26abd7801688010a"
 
 [[package]]
 name = "symphonia"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b38c0b8e99ce52271da0f3fec5780a8566edd703b181211dd0ff725efeaaae38"
+checksum = "1758d6c853020a7244de03cc3e0185eaea3f58715122422dd3cc7452e6d4c16a"
 dependencies = [
  "lazy_static",
  "symphonia-bundle-flac",
@@ -5618,9 +5604,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-bundle-flac"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5674a2ace0e0976751253457ff05f4b0c1e15b18284c239c4804f3e0051eeab"
+checksum = "ee69ad01236a67260b82fd1ff9790dd75ead29f2f46af145e63b7e72273e0e03"
 dependencies = [
  "log",
  "symphonia-common",
@@ -5630,9 +5616,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-bundle-mp3"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08e64864167bd6cb39e743c19036cad4486ba4dcf299336b695249ea3cfd31ff"
+checksum = "350f1f2f2e19ad4dd315db94304d1eb361b29af070681f94e51b8fdaad769546"
 dependencies = [
  "lazy_static",
  "log",
@@ -5641,9 +5627,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-codec-aac"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7139b6baf2f6df9877395d70bf16edc0860d72ff35eefbf51d083b10b36f7949"
+checksum = "f1979c515a76371b186aad2feff5f23e21cbec775bf95de08bf1e3af92a2ad76"
 dependencies = [
  "lazy_static",
  "log",
@@ -5653,9 +5639,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-codec-adpcm"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21b0a193955e491d9e372bd78f1bc809ea6dd3a2309d0311507f6fef9774411d"
+checksum = "4ebbdfd76d6cc5a601c6292a44357c5b7c82f2cd7cdc0f171421f5c5cff0ea1f"
 dependencies = [
  "log",
  "symphonia-core",
@@ -5663,19 +5649,20 @@ dependencies = [
 
 [[package]]
 name = "symphonia-codec-alac"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "513b167e2d6569099699a2fa25303ada314f63bca966b3e4040ec50402a7b93b"
+checksum = "3a149cbfc7fb5c405d123a273227d31de17138419552112bf1aa7b73e65827b8"
 dependencies = [
  "log",
+ "symphonia-common",
  "symphonia-core",
 ]
 
 [[package]]
 name = "symphonia-codec-pcm"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb68786e3d630a87d160b039ac3564cf2338057c3a233ffd5fea9ba980c4d817"
+checksum = "50baee168f0e9dcf6ba7fc06e8b57eb62072a4490cc7cf13af77e72baae5d328"
 dependencies = [
  "log",
  "symphonia-core",
@@ -5683,9 +5670,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-codec-vorbis"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d91ed3e7794fcdf4504442d35a7ab7a013d5233300e8044b218aa4c67c8b6919"
+checksum = "45b07b4423cd8e0fc472575909a5554b12c2f58e3c190b38c24f042e732fd8de"
 dependencies = [
  "log",
  "symphonia-common",
@@ -5694,9 +5681,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-common"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c029b5a948c81fd3a46647a151b959109d1d16b05a1d7c7eca1fdac0ace0a27"
+checksum = "8257891ffa7f05e02b58f4761e2abf7e5278c8744fd59e981559e050f86eef55"
 dependencies = [
  "log",
  "symphonia-core",
@@ -5705,9 +5692,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-core"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3be2e760147497d7f939f18b7739387c7e6b5322d9ce0cf10cd93cf96f4d815c"
+checksum = "95ec293b5f288383b72a7bffcade6b2860b642cf66f28b3bd5967349a49938b1"
 dependencies = [
  "bitflags 2.11.1",
  "bytemuck",
@@ -5720,9 +5707,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-format-caf"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ae7b54151f7dbdb2cd5c916ce7daca5250f010edcec945ef65e390958fd6695"
+checksum = "cde3ca76633d3400ab57195456c09f8a58d775ff5452329f3f212b6efc8622f5"
 dependencies = [
  "log",
  "symphonia-common",
@@ -5731,9 +5718,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-format-isomp4"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a0c9c23912250e33b40c0d36deded5c03aef33299e03c39f78e6125d492da61"
+checksum = "2d179a01305b3505940135a9f0180d6ef4b487912748fe97554756f120fbd05e"
 dependencies = [
  "log",
  "symphonia-common",
@@ -5743,9 +5730,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-format-mkv"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04c5a67ebba24eb54befad6c27015c4b763b1e90d66d5cf0b3f70c2341bb1527"
+checksum = "fb17713e134f5ad316c2690fa3104590ccc85842cdbcf82c3cd1a845cb08aa74"
 dependencies = [
  "lazy_static",
  "log",
@@ -5755,9 +5742,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-format-ogg"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5762fa508af3199f1b25c425aedbc3fcee2368162de9c9bf4d8394a87081d326"
+checksum = "b05a67e02b1e4fca1a261ba4fe06910a9357489ad8c36aafdd2960e9c6559433"
 dependencies = [
  "log",
  "symphonia-common",
@@ -5767,9 +5754,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-format-riff"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1c7875a51b5046f33f13e881afc62f17ce25d5b4afb4fb19f6368fbc782a36f"
+checksum = "17424452a777666d3eaf09a5c651029b15b6a333812fcc5b5474f2a3f0cff3f0"
 dependencies = [
  "extended",
  "log",
@@ -5779,9 +5766,9 @@ dependencies = [
 
 [[package]]
 name = "symphonia-metadata"
-version = "0.6.0-alpha.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eea744eea37a3336aeb2919b5632a5b79dc12695e60cac15adf3422814c0f32c"
+checksum = "a31acf5cd623398a6208e2225d18f4b20f761c55098a796a5247ad516a4a8681"
 dependencies = [
  "lazy_static",
  "log",
@@ -6024,9 +6011,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec"
-version = "1.9.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09b3661f17e86524eccd4371ab0429194e0d7c008abb45f7a7495b1719463c71"
+checksum = "3e61e67053d25a4e82c844e8424039d9745781b3fc4f32b8d55ed50f5f667ef3"
 dependencies = [
  "tinyvec_macros",
 ]
@@ -7763,18 +7750,18 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
-version = "1.8.2"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b97154e67e32c85465826e8bcc1c59429aaaf107c1e4a9e53c8d8ccd5eff88d0"
+checksum = "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e"
 dependencies = [
  "zeroize_derive",
 ]
 
 [[package]]
 name = "zeroize_derive"
-version = "1.4.3"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85a5b4158499876c763cb03bc4e49185d3cccbabb15b33c627f7884f43db852e"
+checksum = "3c50655cbb0fe3fc43170059e702f1ce5e19b84cec58dc87b037a09935c2f328"
 dependencies = [
  "proc-macro2",
  "quote",

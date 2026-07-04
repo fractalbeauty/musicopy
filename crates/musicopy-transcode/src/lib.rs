@@ -108,7 +108,7 @@ pub fn transcode(
         };
 
         // skip packets from other tracks
-        if packet.track_id() != audio_track_id {
+        if packet.track_id != audio_track_id {
             continue;
         }
 

@@ -7,7 +7,7 @@ use tracing_subscriber::{
 };
 
 /// Default filter:
-/// - `warn`` by default
+/// - `warn` by default
 /// - `musicopy=debug`: include debug logs from us
 /// - `iroh=error`: suppress noisy warnings from Iroh
 const DEFAULT_ENV_FILTER: &str = "warn,musicopy=debug,iroh=error";

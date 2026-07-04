@@ -64,14 +64,14 @@ pub fn get_file_hash(path: &Path) -> anyhow::Result<(&'static str, [u8; 16])> {
             };
 
             // skip packets from other tracks
-            if packet.track_id() != audio_track_id {
+            if packet.track_id != audio_track_id {
                 continue;
             }
 
             // hash the packet bytes, without decoding them.
             // this is maybe more stable than hashing the decoded samples, and
             // should still stay the same when metadata is modified.
-            hasher.write(packet.buf());
+            hasher.write(&packet.data);
         }
 
         // the convention for xxhash is to use big-endian byte order
@@ -154,7 +154,7 @@ pub fn get_file_duration(path: &Path) -> anyhow::Result<f64> {
             };
 
             // skip packets from other tracks
-            if packet.track_id() != audio_track_id {
+            if packet.track_id != audio_track_id {
                 continue;
             }
 
