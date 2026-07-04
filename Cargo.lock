@@ -3225,9 +3225,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.27"
+version = "0.4.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
+checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 dependencies = [
  "value-bag",
 ]
@@ -3484,6 +3484,7 @@ dependencies = [
  "opus",
  "rubato",
  "symphonia",
+ "symphonia-codec-unsafe-libopus",
  "testdir",
  "tracing",
  "tracing-subscriber",
@@ -5716,6 +5717,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "symphonia-codec-unsafe-libopus"
+version = "0.1.0"
+source = "git+https://github.com/fractalbeauty/symphonia-codec-unsafe-libopus?rev=c1e55fdb99e12bf22c4dd4541d4570ee20a2e1ce#c1e55fdb99e12bf22c4dd4541d4570ee20a2e1ce"
+dependencies = [
+ "opus",
+ "symphonia-core",
+]
+
+[[package]]
 name = "symphonia-codec-vorbis"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6734,9 +6744,9 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "value-bag"
-version = "1.11.1"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "943ce29a8a743eb10d6082545d861b24f9d1b160b7d741e0f2cdf726bec909c5"
+checksum = "7ba6f5989077681266825251a52748b8c1d8a4ad098cc37e440103d0ea717fc0"
 
 [[package]]
 name = "vcpkg"

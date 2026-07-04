@@ -19,10 +19,13 @@ use mp3lame_encoder::{DualPcm, FlushNoGap, MonoPcm};
 use rubato::{FftFixedIn, Resampler};
 #[cfg(feature = "transcode")]
 use symphonia::core::{
+    codecs::registry::CodecRegistry,
     formats::{FormatReader, TrackType, probe::Hint},
     io::MediaSourceStream,
     meta::{MetadataRevision, StandardTag, StandardVisualKey, Visual},
 };
+#[cfg(feature = "transcode")]
+use symphonia_codec_unsafe_libopus::UnsafeLibopusDecoder;
 #[cfg(feature = "transcode")]
 use tracing::debug;
 
@@ -100,7 +103,11 @@ pub fn transcode(
         .sample_rate
         .context("failed to get sample rate from codec params")? as usize;
 
-    let mut decoder = symphonia::default::get_codecs()
+    let mut codec_registry = CodecRegistry::new();
+    codec_registry.register_audio_decoder::<UnsafeLibopusDecoder>();
+    symphonia::default::register_enabled_codecs(&mut codec_registry);
+
+    let mut decoder = codec_registry
         .make_audio_decoder(audio_codec_params, &Default::default())
         .context("failed to create decoder")?;
 
