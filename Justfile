@@ -27,6 +27,10 @@ run-android:
   adb shell am start -n app.musicopy/.MainActivity
 
 [positional-arguments]
+run-transcode-check *args:
+  cargo run --package musicopy-transcode-check --release -- "$@"
+
+[positional-arguments]
 run-example-transcode *args:
   cargo run --package musicopy-transcode --example transcode --release -- "$@"
 

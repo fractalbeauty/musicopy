@@ -26,16 +26,28 @@ use symphonia::core::{
 #[cfg(feature = "transcode")]
 use tracing::debug;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TranscodePreset {
     Opus(OpusPreset),
     Mp3(Mp3Preset),
 }
 
+impl TranscodePreset {
+    pub const ALL: [Self; 4] = [
+        Self::Opus(OpusPreset::Opus128),
+        Self::Opus(OpusPreset::Opus64),
+        Self::Mp3(Mp3Preset::Mp3V0),
+        Self::Mp3(Mp3Preset::Mp3V5),
+    ];
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OpusPreset {
     Opus128,
     Opus64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Mp3Preset {
     Mp3V0,
     Mp3V5,

@@ -1,0 +1,17 @@
+[package]
+name = "musicopy-transcode-check"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+musicopy-transcode = { path = "../musicopy-transcode" }
+
+anyhow = "1.0.98"
+sha2 = "0.10.8"
+hex = "0.4.3"
+clap = { version = "4.5.41", features = ["derive"] }
+rand = "0.8.5"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "fmt"] }
