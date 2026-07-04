@@ -45,7 +45,7 @@ test:
   just test-gradle
 
 test-rust *FLAGS:
-  cargo nextest run --package musicopy --features musicopy/test-hooks {{FLAGS}}
+  cargo nextest run --workspace --features musicopy/test-hooks {{FLAGS}}
 
 test-gradle *FLAGS:
   # Build UniFFI bindings using the host target
