@@ -213,7 +213,7 @@ cargo {
             buildTaskProvider.configure {
                 when (rustTarget.cinteropName) {
                     // Set the iOS deployment target to match XCode. Without this we get linking errors.
-                    "ios" -> additionalEnvironment.put("IPHONEOS_DEPLOYMENT_TARGET", "16.0.0")
+                    "ios" -> additionalEnvironment.put("IPHONEOS_DEPLOYMENT_TARGET", "14.0.0")
                     else -> {}
                 }
             }
