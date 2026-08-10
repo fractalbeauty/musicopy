@@ -34,7 +34,7 @@ fun DesktopApp(
                 showHints = true,
                 onAcceptAndTrust = { endpointId ->
                     coreInstance.instance.acceptConnectionAndTrust(
-                        endpointId
+                        endpointId,
                     )
                 },
                 onAcceptOnce = { endpointId -> coreInstance.instance.acceptConnection(endpointId) },
@@ -42,7 +42,7 @@ fun DesktopApp(
                 onAddLibraryRoot = { name, path ->
                     coreInstance.instance.addLibraryRoot(
                         name,
-                        path
+                        path,
                     )
                 },
                 onRemoveLibraryRoot = { name -> coreInstance.instance.removeLibraryRoot(name) },
@@ -55,7 +55,7 @@ fun DesktopApp(
                 },
                 onUntrustNode = { endpointId ->
                     coreInstance.instance.untrustNode(endpointId)
-                }
+                },
             )
         }
     }

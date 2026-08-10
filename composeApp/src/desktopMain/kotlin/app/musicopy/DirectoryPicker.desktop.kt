@@ -5,7 +5,9 @@ import androidx.compose.runtime.remember
 import uniffi.musicopy.CoreException
 import uniffi.musicopy.pickFolder
 
-actual class DirectoryPicker internal constructor(private val appSettings: AppSettings) {
+actual class DirectoryPicker internal constructor(
+    private val appSettings: AppSettings,
+) {
     actual suspend fun pickDownloadDirectory() {
         try {
             val pickedPath = pickFolder()
@@ -21,5 +23,5 @@ actual class DirectoryPicker internal constructor(private val appSettings: AppSe
 @Composable
 actual fun rememberDirectoryPicker(
     platformContext: PlatformActivityContext,
-    appSettings: AppSettings
+    appSettings: AppSettings,
 ) = remember { DirectoryPicker(appSettings) }

@@ -22,38 +22,43 @@ fun WidgetContainer(
     content: @Composable () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant))
-            .then(modifier)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface)
+                .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant))
+                .then(modifier),
     ) {
         Column {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primaryContainer)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primaryContainer),
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
                 ) {
                     Text(
                         title,
                         style = MaterialTheme.typography.widgetHeadline,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
             }
 
             Box(
-                modifier = Modifier
-                    .clipToBounds()
+                modifier =
+                    Modifier
+                        .clipToBounds(),
             ) {
                 Column(
-                    modifier = Modifier
-                        .padding(8.dp)
+                    modifier =
+                        Modifier
+                            .padding(8.dp),
                 ) {
                     content()
                 }

@@ -10,9 +10,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import app.musicopy.ui.screens.ConnectQRScreen
 
 @Composable
-fun ScreenPreview(
-    content: @Composable () -> Unit,
-) {
+fun ScreenPreview(content: @Composable () -> Unit) {
     MaterialTheme {
         Scaffold { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
@@ -29,11 +27,10 @@ fun ConnectQRScreenPreview() {
         ConnectQRScreen(
             snackbarHost = {},
             onShowNodeStatus = {},
-
             autoLaunch = false,
             onSubmit = {},
             onCancel = {},
-            isConnecting = false
+            isConnecting = false,
         )
     }
 }

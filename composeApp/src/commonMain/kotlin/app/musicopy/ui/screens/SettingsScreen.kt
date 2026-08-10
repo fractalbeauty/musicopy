@@ -36,10 +36,8 @@ import kotlin.time.ExperimentalTime
 @Composable
 fun SettingsScreen(
     appSettings: AppSettings,
-
     snackbarHost: @Composable () -> Unit,
     onShowNodeStatus: () -> Unit,
-
     onShowFeedback: () -> Unit,
     onClearData: () -> Unit,
     onCancel: () -> Unit,
@@ -49,7 +47,7 @@ fun SettingsScreen(
             TopBar(
                 title = "Settings",
                 onShowNodeStatus = onShowNodeStatus,
-                onBack = onCancel
+                onBack = onCancel,
             )
         },
         snackbarHost = snackbarHost,
@@ -60,13 +58,14 @@ fun SettingsScreen(
             SectionHeader("ABOUT")
 
             Box(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(16.dp),
             ) {
                 Text(
-                    text = aboutText(
-                        supportText = false
-                    ),
-                    style = MaterialTheme.typography.bodyMedium
+                    text =
+                        aboutText(
+                            supportText = false,
+                        ),
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
 
@@ -76,7 +75,7 @@ fun SettingsScreen(
 
             Column(
                 modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
@@ -85,16 +84,16 @@ fun SettingsScreen(
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             text = "Send feedback with logs",
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
                         )
 
                         Icon(
                             painter = painterResource(Res.drawable.arrow_forward_24px),
-                            contentDescription = null
+                            contentDescription = null,
                         )
                     }
                 }
@@ -108,11 +107,11 @@ fun SettingsScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
                         "Clear data",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
 
                     Button(
@@ -125,7 +124,7 @@ fun SettingsScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
                         text = "Debug mode",
@@ -137,7 +136,7 @@ fun SettingsScreen(
                         state = ToggleableState(detailedErrors),
                         onClick = {
                             appSettings.detailedErrors = !appSettings.detailedErrors
-                        }
+                        },
                     )
                 }
             }
@@ -153,10 +152,8 @@ fun SettingsScreenSandbox() {
 
     SettingsScreen(
         appSettings = appSettings,
-
         snackbarHost = {},
         onShowNodeStatus = {},
-
         onShowFeedback = {},
         onClearData = {},
         onCancel = {},

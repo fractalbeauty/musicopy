@@ -23,21 +23,23 @@ fun LoadingButton(
 ) {
     Button(
         onClick = onClick,
-        contentPadding = if (loading != null) {
-            PaddingValues(horizontal = 12.dp)
-        } else {
-            ButtonDefaults.ContentPadding
-        },
-        enabled = enabled && loading != true
+        contentPadding =
+            if (loading != null) {
+                PaddingValues(horizontal = 12.dp)
+            } else {
+                ButtonDefaults.ContentPadding
+            },
+        enabled = enabled && loading != true,
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             when (loading) {
-                true -> CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                )
+                true ->
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                    )
 
                 false -> Box(modifier = Modifier.size(16.dp))
 

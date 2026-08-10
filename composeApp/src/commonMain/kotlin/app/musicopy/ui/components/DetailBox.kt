@@ -24,19 +24,19 @@ fun DetailBox(
     content: @Composable RowScope.() -> Unit,
 ) {
     OutlinedCard(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             content()
 
             onAction?.let {
                 Button(
                     onClick = onAction,
-                    modifier = Modifier.padding(start = 8.dp)
+                    modifier = Modifier.padding(start = 8.dp),
                 ) {
                     Text(actionLabel ?: "Action")
                 }
@@ -46,20 +46,23 @@ fun DetailBox(
 }
 
 @Composable
-fun RowScope.DetailItem(label: String, value: String) {
+fun RowScope.DetailItem(
+    label: String,
+    value: String,
+) {
     Column(
-        modifier = Modifier.weight(1f)
+        modifier = Modifier.weight(1f),
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

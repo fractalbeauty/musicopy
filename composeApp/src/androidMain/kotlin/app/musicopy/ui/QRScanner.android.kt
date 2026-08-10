@@ -19,21 +19,26 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 
 @Composable
-actual fun QRScanner(autoLaunch: Boolean, onResult: (String) -> Unit) {
+actual fun QRScanner(
+    autoLaunch: Boolean,
+    onResult: (String) -> Unit,
+) {
     var resultText by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
 
     val startScan = {
-        val options = GmsBarcodeScannerOptions.Builder()
-            .setBarcodeFormats(
-                Barcode.FORMAT_QR_CODE,
-            )
-            .build()
+        val options =
+            GmsBarcodeScannerOptions
+                .Builder()
+                .setBarcodeFormats(
+                    Barcode.FORMAT_QR_CODE,
+                ).build()
 
         val scanner = GmsBarcodeScanning.getClient(context, options)
 
-        scanner.startScan()
+        scanner
+            .startScan()
             .addOnSuccessListener { barcode ->
                 // clear result text
                 resultText = null
@@ -41,12 +46,10 @@ actual fun QRScanner(autoLaunch: Boolean, onResult: (String) -> Unit) {
                 // call callback
                 val result = barcode.rawValue ?: ""
                 onResult(result)
-            }
-            .addOnCanceledListener {
+            }.addOnCanceledListener {
                 // clear result text
                 resultText = null
-            }
-            .addOnFailureListener { e ->
+            }.addOnFailureListener { e ->
                 // show error text
                 resultText = "Error: $e"
             }
@@ -70,7 +73,7 @@ actual fun QRScanner(autoLaunch: Boolean, onResult: (String) -> Unit) {
             Text(
                 text = resultText,
                 color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelLarge,
             )
         }
     }

@@ -21,8 +21,7 @@ class AppLifecycleObserver(
     private val registry: ActivityResultRegistry,
     private val contentResolver: ContentResolver,
     private val appSettings: AppSettings,
-) :
-    DefaultLifecycleObserver {
+) : DefaultLifecycleObserver {
     lateinit var openDocumentTree: ActivityResultLauncher<Uri?>
 
     override fun onCreate(owner: LifecycleOwner) {
@@ -34,19 +33,21 @@ class AppLifecycleObserver(
                 }
 
                 // persist permission
-                val modeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                val modeFlags =
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
                         Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 contentResolver.takePersistableUriPermission(uri, modeFlags)
 
                 // store uri
                 appSettings.downloadDirectory = uri.toString()
-                
+
                 // Extract display name for selected folder:
                 // content://.../primary%3ADownload%2FMusicopy --> Download/Musicopy
-                val folderName = uri.lastPathSegment
-                    ?.substringAfter(':')
-                    ?.takeIf { it.isNotEmpty() }
-                    ?: "Selected folder"
+                val folderName =
+                    uri.lastPathSegment
+                        ?.substringAfter(':')
+                        ?.takeIf { it.isNotEmpty() }
+                        ?: "Selected folder"
                 appSettings.downloadDirectoryName = folderName
             }
     }
@@ -83,7 +84,7 @@ class MainActivity : ComponentActivity() {
                     platformAppContext = app.platformAppContext,
                     platformActivityContext = platformActivityContext,
                     coreInstance = app.coreInstance,
-                    appSettings = app.appSettings
+                    appSettings = app.appSettings,
                 )
             }
         }

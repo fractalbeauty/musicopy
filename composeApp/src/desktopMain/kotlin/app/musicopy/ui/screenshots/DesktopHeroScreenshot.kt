@@ -16,42 +16,47 @@ import uniffi.musicopy.LibraryRootModel
 
 @Composable
 fun DesktopHeroScreenshot() {
-    val nodeModel = mockNodeModel(
-        endpointId = "941117ff675f3ac981ed27eb0bef5f32471bbc493fdc7aa4d416e5fa0d99f83a",
-        servers = listOf(
-            mockServerModel(
-                // Hardcoded for stability
-                endpointId = "793cfe8e6010ff50b994247c2822e270429aa0e0dd7dc561f51ccea28ca8a7ab",
-                transferJobs = buildList {
-                    repeat(7) {
-                        add(mockTransferJobModel(progress = mockTransferJobProgressModelTranscoding()))
-                        add(mockTransferJobModel(progress = mockTransferJobProgressModelReady()))
-                        add(mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()))
-                        add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
-                        add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
-                        add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
-                        add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
-                        add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
-                    }
-                }
-            )
+    val nodeModel =
+        mockNodeModel(
+            endpointId = "941117ff675f3ac981ed27eb0bef5f32471bbc493fdc7aa4d416e5fa0d99f83a",
+            servers =
+                listOf(
+                    mockServerModel(
+                        // Hardcoded for stability
+                        endpointId = "793cfe8e6010ff50b994247c2822e270429aa0e0dd7dc561f51ccea28ca8a7ab",
+                        transferJobs =
+                            buildList {
+                                repeat(7) {
+                                    add(mockTransferJobModel(progress = mockTransferJobProgressModelTranscoding()))
+                                    add(mockTransferJobModel(progress = mockTransferJobProgressModelReady()))
+                                    add(mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()))
+                                    add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
+                                    add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
+                                    add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
+                                    add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
+                                    add(mockTransferJobModel(progress = mockTransferJobProgressModelFinished()))
+                                }
+                            },
+                    ),
+                ),
         )
-    )
-    val libraryModel = mockLibraryModel(
-        localRoots = listOf(
-            LibraryRootModel(
-                name = "Favorites",
-                path = "~/music/fav2025",
-                numFiles = 83u
-            ),
-            LibraryRootModel(
-                name = "Backlog",
-                path = "~/music/backlog",
-                numFiles = 427u
-            ),
-        ),
-        transcoding = true,
-    )
+    val libraryModel =
+        mockLibraryModel(
+            localRoots =
+                listOf(
+                    LibraryRootModel(
+                        name = "Favorites",
+                        path = "~/music/fav2025",
+                        numFiles = 83u,
+                    ),
+                    LibraryRootModel(
+                        name = "Backlog",
+                        path = "~/music/backlog",
+                        numFiles = 427u,
+                    ),
+                ),
+            transcoding = true,
+        )
     val statsModel = mockStatsModelWithoutTransfers()
 
     DesktopHome(
@@ -69,7 +74,6 @@ fun DesktopHeroScreenshot() {
         onDeleteUnusedTranscodes = {},
         onDeleteAllTranscodes = {},
         onUntrustNode = {},
-
         screenshotHideTopBar = true,
     )
 }

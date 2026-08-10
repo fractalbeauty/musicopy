@@ -29,13 +29,12 @@ fun Theme(content: @Composable () -> Unit) {
 fun appColorScheme(
 //    darkTheme: Boolean = isSystemInDarkTheme,
     darkTheme: Boolean = false,
-): ColorScheme {
-    return if (darkTheme) {
+): ColorScheme =
+    if (darkTheme) {
         darkScheme
     } else {
         lightScheme
     }
-}
 
 @Composable
 fun appTypography(): Typography {

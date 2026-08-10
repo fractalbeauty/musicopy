@@ -17,7 +17,11 @@ class AppForegroundService : Service() {
 
     override fun onCreate() {}
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         val action = intent?.action
 
         val countTotal = intent?.getIntExtra("count_total", 0) ?: 0
@@ -29,13 +33,19 @@ class AppForegroundService : Service() {
             when (action) {
                 "MUSICOPY_UPDATE" -> {
                     updateForeground(
-                        countTotal, countWaiting, countFailed, countFinished
+                        countTotal,
+                        countWaiting,
+                        countFailed,
+                        countFinished,
                     )
                 }
 
                 "MUSICOPY_STOP" -> {
                     stopForeground(
-                        countTotal, countWaiting, countFailed, countFinished
+                        countTotal,
+                        countWaiting,
+                        countFailed,
+                        countFinished,
                     )
                 }
 
@@ -44,8 +54,8 @@ class AppForegroundService : Service() {
                 }
             }
         } catch (e: Exception) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                && e is ForegroundServiceStartNotAllowedException
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                e is ForegroundServiceStartNotAllowedException
             ) {
                 logError("AppForegroundService: caught ForegroundServiceStartNotAllowedException: $e")
             }
@@ -72,16 +82,18 @@ class AppForegroundService : Service() {
             contentText += ", $countFailed failed"
         }
 
-        val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID_FOREGROUND)
-            .setSmallIcon(R.drawable.icon_mask)
-            .setColor(0xff4c662b.toInt())
-            .setContentTitle("Transferring $countTotal files")
-            .setContentText(contentText)
-            .setOngoing(true)
-            .setProgress(countTotal, countFinished, false)
-            .setOnlyAlertOnce(true)
-            .setPriority(NotificationManager.IMPORTANCE_LOW)
-            .build()
+        val notification =
+            NotificationCompat
+                .Builder(this, NOTIFICATION_CHANNEL_ID_FOREGROUND)
+                .setSmallIcon(R.drawable.icon_mask)
+                .setColor(0xff4c662b.toInt())
+                .setContentTitle("Transferring $countTotal files")
+                .setContentText(contentText)
+                .setOngoing(true)
+                .setProgress(countTotal, countFinished, false)
+                .setOnlyAlertOnce(true)
+                .setPriority(NotificationManager.IMPORTANCE_LOW)
+                .build()
 
         if (!started) {
             // start foreground service using notification
@@ -93,7 +105,7 @@ class AppForegroundService : Service() {
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
                 } else {
                     0
-                }
+                },
             )
             started = true
 
@@ -122,14 +134,16 @@ class AppForegroundService : Service() {
             contentText += ", $countFailed failed"
         }
 
-        val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID_FOREGROUND)
-            .setSmallIcon(R.drawable.icon_mask)
-            .setColor(0xff4c662b.toInt())
-            .setContentTitle("Transfer finished")
-            .setContentText(contentText)
-            .setOngoing(false)
-            .setPriority(NotificationManager.IMPORTANCE_DEFAULT)
-            .build()
+        val notification =
+            NotificationCompat
+                .Builder(this, NOTIFICATION_CHANNEL_ID_FOREGROUND)
+                .setSmallIcon(R.drawable.icon_mask)
+                .setColor(0xff4c662b.toInt())
+                .setContentTitle("Transfer finished")
+                .setContentText(contentText)
+                .setOngoing(false)
+                .setPriority(NotificationManager.IMPORTANCE_DEFAULT)
+                .build()
 
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID_TRANSFER, notification)

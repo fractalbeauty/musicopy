@@ -22,16 +22,18 @@ fun SectionHeader(
     contentPadding: PaddingValues = PaddingValues(8.dp),
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primaryContainer)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.primaryContainer),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(contentPadding),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(contentPadding),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             leftContent?.invoke()
 

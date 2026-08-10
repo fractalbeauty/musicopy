@@ -88,20 +88,24 @@ fun App(
         @Composable {
             SnackbarHost(
                 hostState = snackbarHostState,
-                modifier = Modifier.imePadding()
+                modifier = Modifier.imePadding(),
             )
         }
 
     var connectingTo by remember { mutableStateOf<String?>(null) }
     val isConnecting = connectingTo !== null
 
-    val showErrorSnackbar = fun(message: String, e: Exception) {
+    val showErrorSnackbar = fun(
+        message: String,
+        e: Exception,
+    ) {
         scope.launch {
-            val errorString = if (e is CoreException) {
-                e.message()
-            } else {
-                e.toString()
-            }
+            val errorString =
+                if (e is CoreException) {
+                    e.message()
+                } else {
+                    e.toString()
+                }
 
             logError("Showing error: $message (error: $errorString)")
 
@@ -109,17 +113,20 @@ fun App(
                 snackbarHostState.showSnackbar(
                     message = "$message\n\nError: $errorString",
                     duration = SnackbarDuration.Indefinite,
-                    withDismissAction = true
+                    withDismissAction = true,
                 )
             } else {
                 snackbarHostState.showSnackbar(
-                    message = message
+                    message = message,
                 )
             }
         }
     }
 
-    val onConnect = fun(endpointId: String, popToHome: Boolean) {
+    val onConnect = fun(
+        endpointId: String,
+        popToHome: Boolean,
+    ) {
         // only connect to one node at a time
         if (connectingTo != null) {
             println("onConnect failed, already connecting")
@@ -131,7 +138,7 @@ fun App(
             try {
                 coreInstance.instance.connect(
                     transcodeFormat = parseTranscodeFormat(appSettings.transcodeFormat),
-                    endpointId = endpointId
+                    endpointId = endpointId,
                 )
                 delay(100) // TODO
                 val client = nodeModel.clients.values.find { it.endpointId == endpointId }
@@ -180,35 +187,33 @@ fun App(
             enterTransition = {
                 slideIntoContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.Left,
-                    animationSpec = tween(700)
+                    animationSpec = tween(700),
                 )
             },
             exitTransition = {
                 slideOutOfContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.Left,
-                    animationSpec = tween(700)
+                    animationSpec = tween(700),
                 )
             },
             popEnterTransition = {
                 slideIntoContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                    animationSpec = tween(700)
+                    animationSpec = tween(700),
                 )
             },
             popExitTransition = {
                 slideOutOfContainer(
                     towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                    animationSpec = tween(700)
+                    animationSpec = tween(700),
                 )
-            }
+            },
         ) {
             composable<Home> {
                 HomeScreen(
                     appSettings = appSettings,
-
                     snackbarHost = snackbarHost,
                     onShowNodeStatus = onShowNodeStatus,
-
                     recentServers = nodeModel.recentServers,
                     connectingTo = connectingTo,
                     onPickDownloadDirectory = {
@@ -228,16 +233,14 @@ fun App(
                     },
                     onShowFeedback = {
                         navController.navigate(Feedback)
-                    }
+                    },
                 )
             }
             composable<Settings> {
                 SettingsScreen(
                     appSettings = appSettings,
-
                     snackbarHost = snackbarHost,
                     onShowNodeStatus = onShowNodeStatus,
-
                     onShowFeedback = { navController.navigate(Feedback) },
                     onClearData = {
                         coreInstance.instance.resetCaches()
@@ -246,7 +249,7 @@ fun App(
                     },
                     onCancel = {
                         navController.popBackStack(Home, inclusive = false)
-                    }
+                    },
                 )
             }
             composable<Feedback> {
@@ -259,25 +262,31 @@ fun App(
                         scope.launch {
                             isSending = true
                             try {
-                                val now = Clock.System.now()
-                                    .toLocalDateTime(TimeZone.currentSystemDefault())
-                                val timestamp = now.format(LocalDateTime.Format {
-                                    year()
-                                    char('-')
-                                    monthNumber()
-                                    char('-')
-                                    day()
-                                    char('_')
-                                    hour()
-                                    minute()
-                                    second()
-                                })
+                                val now =
+                                    Clock.System
+                                        .now()
+                                        .toLocalDateTime(TimeZone.currentSystemDefault())
+                                val timestamp =
+                                    now.format(
+                                        LocalDateTime.Format {
+                                            year()
+                                            char('-')
+                                            monthNumber()
+                                            char('-')
+                                            day()
+                                            char('_')
+                                            hour()
+                                            minute()
+                                            second()
+                                        },
+                                    )
                                 val filename = "musicopy_$timestamp.txt"
 
-                                val systemInfo = buildString {
-                                    appendLine("Version: ${BuildConfig.APP_VERSION}")
-                                    append(platformAppContext.systemDetails)
-                                }
+                                val systemInfo =
+                                    buildString {
+                                        appendLine("Version: ${BuildConfig.APP_VERSION}")
+                                        append(platformAppContext.systemDetails)
+                                    }
 
                                 val body = "$description\n\n---\n$systemInfo"
 
@@ -290,26 +299,26 @@ fun App(
                                     {
                                         showErrorSnackbar(
                                             "Failed to send feedback. Please email support@musicopy.app.",
-                                            it
+                                            it,
                                         )
-                                    }
+                                    },
                                 )
                             } catch (e: CoreException) {
                                 showErrorSnackbar(
                                     "Failed to export logs. Please email support@musicopy.app.",
-                                    e
+                                    e,
                                 )
                             } catch (e: Exception) {
                                 showErrorSnackbar(
                                     "Failed to send feedback. Please email support@musicopy.app.",
-                                    e
+                                    e,
                                 )
                             } finally {
                                 isSending = false
                             }
                         }
                     },
-                    onCancel = { navController.popBackStack() }
+                    onCancel = { navController.popBackStack() },
                 )
             }
             composable<ConnectQR> { backStackEntry ->
@@ -323,7 +332,6 @@ fun App(
                 ConnectQRScreen(
                     snackbarHost = snackbarHost,
                     onShowNodeStatus = onShowNodeStatus,
-
                     autoLaunch = !hasSubmitted,
                     isConnecting = isConnecting,
                     onSubmit = { endpointId ->
@@ -334,20 +342,17 @@ fun App(
                         navController.popBackStack(Home, inclusive = false)
                     },
                 )
-
             }
             composable<ConnectManually> {
                 ConnectManuallyScreen(
                     snackbarHost = snackbarHost,
                     onShowNodeStatus = onShowNodeStatus,
-
                     isConnecting = isConnecting,
                     onSubmit = { endpointId -> onConnect(endpointId, false) },
                     onCancel = {
                         navController.popBackStack(Home, inclusive = false)
-                    }
+                    },
                 )
-
             }
             composable<Waiting> { backStackEntry ->
                 val waiting: Waiting = backStackEntry.toRoute()
@@ -360,7 +365,7 @@ fun App(
                     if (clientModel?.state is ClientStateModel.Accepted) {
                         navController.navigate(PreTransfer(endpointId = endpointId)) {
                             // pop Waiting screen from back stack
-                            popUpTo<Waiting>() {
+                            popUpTo<Waiting> {
                                 inclusive = true
                             }
                         }
@@ -370,7 +375,7 @@ fun App(
                     if (clientModel?.state is ClientStateModel.Closed) {
                         navController.navigate(Disconnected(endpointId = endpointId)) {
                             // pop Waiting screen from back stack
-                            popUpTo<Waiting>() {
+                            popUpTo<Waiting> {
                                 inclusive = true
                             }
                         }
@@ -381,13 +386,11 @@ fun App(
                     WaitingScreen(
                         snackbarHost = snackbarHost,
                         onShowNodeStatus = onShowNodeStatus,
-
                         clientModel = clientModel,
                         onCancel = {
                             leaveClientScreen(endpointId)
-                        }
+                        },
                     )
-
                 }
             }
             composable<PreTransfer> { backStackEntry ->
@@ -412,13 +415,12 @@ fun App(
                 // TODO: handle null better, redirect to error screen?
                 if (clientModel != null) {
                     val downloadDirectory by appSettings.downloadDirectoryFlow.collectAsState(
-                        null
+                        null,
                     )
 
                     PreTransferScreen(
                         snackbarHost = snackbarHost,
                         onShowNodeStatus = onShowNodeStatus,
-
                         clientModel = clientModel,
                         hasDownloadDirectory = downloadDirectory != null,
                         onPickDownloadDirectory = {
@@ -443,7 +445,7 @@ fun App(
                         },
                         onCancel = {
                             leaveClientScreen(endpointId)
-                        }
+                        },
                     )
                 }
             }
@@ -471,7 +473,6 @@ fun App(
                     TransferScreen(
                         snackbarHost = snackbarHost,
                         onShowNodeStatus = onShowNodeStatus,
-
                         clientModel = clientModel,
                         onBack = {
                             // refresh index and return to pretransfer
@@ -490,10 +491,9 @@ fun App(
                         },
                         onDone = {
                             leaveClientScreen(endpointId)
-                        }
+                        },
                     )
                 }
-
             }
             composable<Disconnected> { backStackEntry ->
                 val route: Disconnected = backStackEntry.toRoute()
@@ -505,7 +505,6 @@ fun App(
                 DisconnectedScreen(
                     snackbarHost = snackbarHost,
                     onShowNodeStatus = onShowNodeStatus,
-
                     endpointId = endpointId,
                     name = name,
                     isConnecting = isConnecting,
@@ -513,7 +512,7 @@ fun App(
                     onCancel = {
                         // pop back to home
                         navController.popBackStack(Home, inclusive = false)
-                    }
+                    },
                 )
             }
         }

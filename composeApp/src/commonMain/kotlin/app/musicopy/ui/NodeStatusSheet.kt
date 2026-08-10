@@ -58,10 +58,10 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import uniffi.musicopy.NodeModel
 
-
-val Peek = SheetDetent(identifier = "peek") { containerHeight, sheetHeight ->
-    containerHeight * 0.6f
-}
+val Peek =
+    SheetDetent(identifier = "peek") { containerHeight, sheetHeight ->
+        containerHeight * 0.6f
+    }
 
 class NodeStatusSheetState(
     internal val inner: ModalBottomSheetState,
@@ -73,65 +73,70 @@ class NodeStatusSheetState(
 
 @Composable
 fun rememberNodeStatusSheetState(): NodeStatusSheetState {
-    val inner = rememberModalBottomSheetState(
-        initialDetent = Hidden,
-        detents = listOf(Hidden, Peek, FullyExpanded)
-    )
+    val inner =
+        rememberModalBottomSheetState(
+            initialDetent = Hidden,
+            detents = listOf(Hidden, Peek, FullyExpanded),
+        )
     return NodeStatusSheetState(
         inner,
     )
 }
 
 @Composable
-fun NodeStatusSheet(state: NodeStatusSheetState, nodeModel: NodeModel) {
+fun NodeStatusSheet(
+    state: NodeStatusSheetState,
+    nodeModel: NodeModel,
+) {
     ModalBottomSheet(state = state.inner) {
         Scrim(
             enter = fadeIn(),
-            exit = fadeOut()
+            exit = fadeOut(),
         )
 
         Sheet(
-            modifier = Modifier
-                .shadow(4.dp, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .widthIn(max = 640.dp)
-                .fillMaxWidth()
-                .imePadding()
+            modifier =
+                Modifier
+                    .shadow(4.dp, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .widthIn(max = 640.dp)
+                    .fillMaxWidth()
+                    .imePadding(),
         ) {
             Column {
                 Box(
                     modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.TopCenter
+                    contentAlignment = Alignment.TopCenter,
                 ) {
                     DragIndication(
-                        modifier = Modifier
-                            .padding(top = 8.dp)
-                            .background(
-                                MaterialTheme.colorScheme.outline,
-                                RoundedCornerShape(100)
-                            )
-                            .width(32.dp)
-                            .height(4.dp)
+                        modifier =
+                            Modifier
+                                .padding(top = 8.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.outline,
+                                    RoundedCornerShape(100),
+                                ).width(32.dp)
+                                .height(4.dp),
                     )
                 }
 
                 Column(
                     modifier = Modifier.padding(8.dp).padding(bottom = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     StatusDetail(
                         label = stringResource(resource = Res.string.node_id_label),
                         value = shortenEndpointId(nodeModel.endpointId),
                         iconPainter = painterResource(Res.drawable.network_node_24px),
-                        textToCopy = nodeModel.endpointId
+                        textToCopy = nodeModel.endpointId,
                     )
 
                     StatusDetail(
                         label = stringResource(resource = Res.string.home_relay_label),
                         value = nodeModel.homeRelay,
                         iconPainter = painterResource(Res.drawable.cell_tower_24px),
-                        textToCopy = nodeModel.homeRelay
+                        textToCopy = nodeModel.homeRelay,
                     )
 
                     StatusDetail(
@@ -144,7 +149,7 @@ fun NodeStatusSheet(state: NodeStatusSheetState, nodeModel: NodeModel) {
                         label = stringResource(resource = Res.string.sent_label),
                         value = "${formatSize(nodeModel.sendIpv4)} v4, ${formatSize(nodeModel.sendIpv6)} v6, ${
                             formatSize(
-                                nodeModel.sendRelay
+                                nodeModel.sendRelay,
                             )
                         } relay",
                         iconPainter = painterResource(Res.drawable.arrow_upward_24px),
@@ -154,7 +159,7 @@ fun NodeStatusSheet(state: NodeStatusSheetState, nodeModel: NodeModel) {
                         label = stringResource(resource = Res.string.received_label),
                         value = "${formatSize(nodeModel.recvIpv4)} v4, ${formatSize(nodeModel.recvIpv6)} v6, ${
                             formatSize(
-                                nodeModel.recvRelay
+                                nodeModel.recvRelay,
                             )
                         } relay",
                         iconPainter = painterResource(Res.drawable.arrow_downward_24px),
@@ -175,14 +180,15 @@ private fun StatusDetail(
     OutlinedCard {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
         ) {
             Icon(
                 painter = iconPainter,
                 contentDescription = label,
-                modifier = Modifier.padding(8.dp)
+                modifier = Modifier.padding(8.dp),
             )
 
             Column(modifier = Modifier.weight(1f)) {
@@ -191,14 +197,14 @@ private fun StatusDetail(
                     value,
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
             textToCopy?.let { textToCopy ->
                 CopyIconButton(
                     textToCopy = textToCopy,
-                    contentDescription = stringResource(resource = Res.string.copy_button_description)
+                    contentDescription = stringResource(resource = Res.string.copy_button_description),
                 )
             }
         }
@@ -206,7 +212,10 @@ private fun StatusDetail(
 }
 
 @Composable
-fun CopyIconButton(textToCopy: String, contentDescription: String) {
+fun CopyIconButton(
+    textToCopy: String,
+    contentDescription: String,
+) {
     val clipboard = LocalClipboard.current
 
     IconButton(
@@ -221,7 +230,7 @@ fun CopyIconButton(textToCopy: String, contentDescription: String) {
     ) {
         Icon(
             painter = painterResource(Res.drawable.content_copy_24px),
-            contentDescription = contentDescription
+            contentDescription = contentDescription,
         )
     }
 }

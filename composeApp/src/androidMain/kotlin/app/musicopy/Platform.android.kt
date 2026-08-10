@@ -30,10 +30,11 @@ actual val isAndroid = true
 
 actual class PlatformAppContext {
     actual val systemDetails
-        get() = buildString {
-            appendLine("Platform: Android ${Build.VERSION.SDK_INT}")
-            appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
-        }
+        get() =
+            buildString {
+                appendLine("Platform: Android ${Build.VERSION.SDK_INT}")
+                appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
+            }
 
     actual val settingsFactory: Settings.Factory
 
@@ -59,10 +60,11 @@ actual object CoreProvider : ICoreProvider {
         appSettings: AppSettings,
     ): CoreOptions {
         val options = super.getOptions(platformAppContext, appSettings)
-        options.projectDirs = ProjectDirsOptions(
-            dataDir = platformAppContext.application.filesDir.path,
-            cacheDir = platformAppContext.application.cacheDir.path
-        )
+        options.projectDirs =
+            ProjectDirsOptions(
+                dataDir = platformAppContext.application.filesDir.path,
+                cacheDir = platformAppContext.application.cacheDir.path,
+            )
         return options
     }
 }
@@ -76,9 +78,12 @@ actual fun PlatformActivityContext.sendFeedbackEmail(
     // Write log bytes to a file in the cache dir and get a URI to attach to the intent
     val file = File(mainActivity.cacheDir, filename)
     file.writeBytes(logs)
-    val uri = FileProvider.getUriForFile(
-        mainActivity, "app.musicopy.fileprovider", file
-    )
+    val uri =
+        FileProvider.getUriForFile(
+            mainActivity,
+            "app.musicopy.fileprovider",
+            file,
+        )
 
     // Query for activities supporting email intents. This ensures we only show dedicated email
     // clients and not other apps that can also send things.
@@ -91,20 +96,22 @@ actual fun PlatformActivityContext.sendFeedbackEmail(
     // instead of querying activities), Thunderbird was not attaching the file. Gmail and Outlook
     // worked, but something about the selector and chooser intents caused Thunderbird to not get
     // the file.
-    val intents = resolvedActivities.map { resolveInfo ->
-        Intent(Intent.ACTION_SEND).apply {
-            type = "message/rfc822"
-            putExtra(Intent.EXTRA_EMAIL, arrayOf("support@musicopy.app"))
-            putExtra(Intent.EXTRA_SUBJECT, "Feedback")
-            putExtra(Intent.EXTRA_TEXT, description)
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            component = ComponentName(
-                resolveInfo.activityInfo.packageName,
-                resolveInfo.activityInfo.name
-            )
+    val intents =
+        resolvedActivities.map { resolveInfo ->
+            Intent(Intent.ACTION_SEND).apply {
+                type = "message/rfc822"
+                putExtra(Intent.EXTRA_EMAIL, arrayOf("support@musicopy.app"))
+                putExtra(Intent.EXTRA_SUBJECT, "Feedback")
+                putExtra(Intent.EXTRA_TEXT, description)
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                component =
+                    ComponentName(
+                        resolveInfo.activityInfo.packageName,
+                        resolveInfo.activityInfo.name,
+                    )
+            }
         }
-    }
 
     // Create a chooser intent from the resolved activities.
     if (intents.isNotEmpty()) {
@@ -118,10 +125,12 @@ actual fun PlatformActivityContext.sendFeedbackEmail(
     }
 }
 
-actual fun toClipEntry(string: String): ClipEntry =
-    ClipData.newPlainText("label", string).toClipEntry()
+actual fun toClipEntry(string: String): ClipEntry = ClipData.newPlainText("label", string).toClipEntry()
 
-actual fun formatFloat(f: Float, decimals: Int): String {
+actual fun formatFloat(
+    f: Float,
+    decimals: Int,
+): String {
     val df = DecimalFormat()
     df.maximumFractionDigits = decimals
     return df.format(f)
@@ -130,25 +139,27 @@ actual fun formatFloat(f: Float, decimals: Int): String {
 @Composable
 actual fun rememberNotificationsPermission(): MutableState<PermissionState> {
     val context = LocalContext.current
-    val isGranted = remember {
-        val initialValue = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            when (
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-            ) {
-                PackageManager.PERMISSION_GRANTED -> true
-                PackageManager.PERMISSION_DENIED -> false
-                else -> false
-            }
-        } else {
-            true
-        }
+    val isGranted =
+        remember {
+            val initialValue =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    when (
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                    ) {
+                        PackageManager.PERMISSION_GRANTED -> true
+                        PackageManager.PERMISSION_DENIED -> false
+                        else -> false
+                    }
+                } else {
+                    true
+                }
 
-        mutableStateOf(initialValue)
-    }
+            mutableStateOf(initialValue)
+        }
 
     val launcher =
         rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestPermission()
+            ActivityResultContracts.RequestPermission(),
         ) { value ->
             isGranted.value = value
         }
@@ -164,21 +175,25 @@ actual fun rememberNotificationsPermission(): MutableState<PermissionState> {
             mutableStateOf(
                 PermissionState(
                     isGranted = isGranted.value,
-                    requestPermission = requestPermission
-                )
+                    requestPermission = requestPermission,
+                ),
             )
         }
     LaunchedEffect(isGranted.value) {
-        permissionState.value = PermissionState(
-            isGranted = isGranted.value,
-            requestPermission = requestPermission
-        )
+        permissionState.value =
+            PermissionState(
+                isGranted = isGranted.value,
+                requestPermission = requestPermission,
+            )
     }
 
     return permissionState
 }
 
 @Composable
-actual fun BackHandler(enabled: Boolean, onBack: () -> Unit) {
+actual fun BackHandler(
+    enabled: Boolean,
+    onBack: () -> Unit,
+) {
     androidx.activity.compose.BackHandler(enabled = enabled, onBack = onBack)
 }

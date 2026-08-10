@@ -20,62 +20,64 @@ import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
 @Composable
-fun aboutText(
-    supportText: Boolean = true,
-): AnnotatedString = buildAnnotatedString {
-    withUrl(
-        "https://musicopy.app/manual",
-    ) {
-        append("User Manual")
-    }
-    append("  ⋅  ")
-    withUrl(
-        "https://github.com/fractalbeauty/musicopy",
-    ) {
-        append("Source")
-    }
-    appendLine()
-
-    appendLine()
-
-    val buildTime = Instant.fromEpochMilliseconds(BuildConfig.BUILD_TIME)
-    val buildDate = buildTime.format(DateTimeComponents.Format {
-        monthName(MonthNames.ENGLISH_FULL)
-        char(' ')
-        day()
-        chars(", ")
-        year()
-    })
-    appendLine("Version ${BuildConfig.APP_VERSION}, built on $buildDate.")
-
-    appendLine()
-
-    append(
-        "Musicopy is available under the "
-    )
-    withUrl(
-        "https://github.com/fractalbeauty/musicopy/blob/main/LICENSE",
-    ) {
-        append("GNU AGPLv3")
-    }
-    appendLine(".")
-
-    appendLine()
-
-    append("For more information, visit ")
-    withUrl("https://musicopy.app") {
-        append("musicopy.app")
-    }
-    appendLine(
-        "."
-    )
-
-    if (supportText) {
+fun aboutText(supportText: Boolean = true): AnnotatedString =
+    buildAnnotatedString {
+        withUrl(
+            "https://musicopy.app/manual",
+        ) {
+            append("User Manual")
+        }
+        append("  ⋅  ")
+        withUrl(
+            "https://github.com/fractalbeauty/musicopy",
+        ) {
+            append("Source")
+        }
         appendLine()
 
-        appendSupportText()
-    }
-}.trimAnnotated()
+        appendLine()
+
+        val buildTime = Instant.fromEpochMilliseconds(BuildConfig.BUILD_TIME)
+        val buildDate =
+            buildTime.format(
+                DateTimeComponents.Format {
+                    monthName(MonthNames.ENGLISH_FULL)
+                    char(' ')
+                    day()
+                    chars(", ")
+                    year()
+                },
+            )
+        appendLine("Version ${BuildConfig.APP_VERSION}, built on $buildDate.")
+
+        appendLine()
+
+        append(
+            "Musicopy is available under the ",
+        )
+        withUrl(
+            "https://github.com/fractalbeauty/musicopy/blob/main/LICENSE",
+        ) {
+            append("GNU AGPLv3")
+        }
+        appendLine(".")
+
+        appendLine()
+
+        append("For more information, visit ")
+        withUrl("https://musicopy.app") {
+            append("musicopy.app")
+        }
+        appendLine(
+            ".",
+        )
+
+        if (supportText) {
+            appendLine()
+
+            appendSupportText()
+        }
+    }.trimAnnotated()
 
 @Composable
 private fun AnnotatedString.Builder.appendSupportText() {
@@ -94,21 +96,22 @@ internal fun AnnotatedString.Builder.withUrl(
     withLink(
         LinkAnnotation.Url(
             url = url,
-            styles = TextLinkStyles(
-                style = SpanStyle(
-                    color = MaterialTheme.colorScheme.primary,
-                    textDecoration = TextDecoration.Underline
-                )
-            )
-        )
+            styles =
+                TextLinkStyles(
+                    style =
+                        SpanStyle(
+                            color = MaterialTheme.colorScheme.primary,
+                            textDecoration = TextDecoration.Underline,
+                        ),
+                ),
+        ),
     ) {
         content()
     }
 }
 
-internal fun AnnotatedString.trimAnnotated(): AnnotatedString {
-    return this.subSequence(
+internal fun AnnotatedString.trimAnnotated(): AnnotatedString =
+    this.subSequence(
         startIndex = this.text.indexOfFirst { !it.isWhitespace() },
-        endIndex = this.text.indexOfLast { !it.isWhitespace() } + 1
+        endIndex = this.text.indexOfLast { !it.isWhitespace() } + 1,
     )
-}

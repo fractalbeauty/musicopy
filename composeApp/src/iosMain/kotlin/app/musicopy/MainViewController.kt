@@ -1,10 +1,9 @@
 package app.musicopy
 
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.MutableState
 import androidx.compose.ui.window.ComposeUIViewController
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -28,7 +27,7 @@ fun MainViewController(): UIViewController {
                 platformAppContext = platformAppContext,
                 platformActivityContext = platformActivityContext,
                 coreInstance = coreInstance,
-                appSettings = appSettings
+                appSettings = appSettings,
             )
         }
     }

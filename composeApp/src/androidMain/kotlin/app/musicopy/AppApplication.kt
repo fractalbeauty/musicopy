@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import uniffi.musicopy.ClientStateModel
 import uniffi.musicopy.TransferJobProgressModel
-import uniffi.musicopy.logDebug
 
 const val NOTIFICATION_CHANNEL_ID_FOREGROUND = "foreground"
 const val NOTIFICATION_ID_TRANSFER = 100
@@ -54,7 +53,7 @@ class AppApplication : Application() {
                 NotificationChannel(
                     NOTIFICATION_CHANNEL_ID_FOREGROUND,
                     "Transfers",
-                    NotificationManager.IMPORTANCE_DEFAULT
+                    NotificationManager.IMPORTANCE_DEFAULT,
                 )
 
             val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager

@@ -54,14 +54,14 @@ fun FeedbackScreen(
             TopBar(
                 title = "Send feedback",
                 onShowNodeStatus = onShowNodeStatus,
-                onBack = onCancel
+                onBack = onCancel,
             )
         },
         snackbarHost = snackbarHost,
     ) { innerPadding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             OutlinedTextField(
                 value = description,
@@ -74,7 +74,7 @@ fun FeedbackScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.End,
             ) {
                 if (!isSubmitted) {
                     LoadingButton(

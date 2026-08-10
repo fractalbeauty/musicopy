@@ -25,16 +25,18 @@ expect class PlatformAppContext {
 expect class PlatformActivityContext
 
 interface ICoreProvider {
-    fun getOptions(platformAppContext: PlatformAppContext, appSettings: AppSettings): CoreOptions {
-        return CoreOptions(
+    fun getOptions(
+        platformAppContext: PlatformAppContext,
+        appSettings: AppSettings,
+    ): CoreOptions =
+        CoreOptions(
             initLogging = true,
             inMemory = false,
             projectDirs = null,
         )
-    }
 }
 
-expect object CoreProvider : ICoreProvider;
+expect object CoreProvider : ICoreProvider
 
 // Called when the user submits feedback.
 //
@@ -49,7 +51,10 @@ expect fun PlatformActivityContext.sendFeedbackEmail(
 
 expect fun toClipEntry(string: String): ClipEntry
 
-expect fun formatFloat(f: Float, decimals: Int): String
+expect fun formatFloat(
+    f: Float,
+    decimals: Int,
+): String
 
 class PermissionState(
     val isGranted: Boolean,
@@ -60,8 +65,10 @@ class PermissionState(
 expect fun rememberNotificationsPermission(): MutableState<PermissionState>
 
 @Composable
-fun stubRememberNotificationsPermission() =
-    remember { mutableStateOf(PermissionState(isGranted = true, requestPermission = {})) }
+fun stubRememberNotificationsPermission() = remember { mutableStateOf(PermissionState(isGranted = true, requestPermission = {})) }
 
 @Composable
-expect fun BackHandler(enabled: Boolean, onBack: () -> Unit)
+expect fun BackHandler(
+    enabled: Boolean,
+    onBack: () -> Unit,
+)

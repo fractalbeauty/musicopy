@@ -1,0 +1,5 @@
+root = true
+
+[*.{kt,kts}]
+# Compose functions are PascalCase by convention which this rule doesn't allow
+ktlint_standard_function-naming = disabled

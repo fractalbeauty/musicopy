@@ -33,7 +33,6 @@ import org.jetbrains.compose.resources.painterResource
 fun ConnectManuallyScreen(
     snackbarHost: @Composable () -> Unit,
     onShowNodeStatus: () -> Unit,
-
     isConnecting: Boolean,
     onSubmit: (String) -> Unit,
     onCancel: () -> Unit,
@@ -46,38 +45,39 @@ fun ConnectManuallyScreen(
     val isValid = trimmedValue.length == 64
     val isError = !isEmpty && !isValid
 
-    val supportingText = if (isError) {
-        @Composable {
-            Text("Invalid code.")
+    val supportingText =
+        if (isError) {
+            @Composable {
+                Text("Invalid code.")
+            }
+        } else {
+            null
         }
-    } else {
-        null
-    }
 
     Scaffold(
         topBar = {
             TopBar(
                 title = "Connect manually",
                 onShowNodeStatus = onShowNodeStatus,
-                onBack = onCancel
+                onBack = onCancel,
             )
         },
         snackbarHost = snackbarHost,
     ) { innerPadding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Info {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         "Click \"enter manually\" in the connect widget on the desktop app and enter the code below.",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
 
                     Text(
                         "You can also scan the QR code to connect automatically.",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
 
                     val uriHandler = LocalUriHandler.current
@@ -91,10 +91,10 @@ fun ConnectManuallyScreen(
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             ) {
                                 Text(
                                     text = "Download desktop app",
@@ -104,13 +104,13 @@ fun ConnectManuallyScreen(
                                     text = "musicopy.app/download",
                                     style = MaterialTheme.typography.labelSmall,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
 
                             Icon(
                                 painter = painterResource(Res.drawable.open_in_new_24px),
-                                contentDescription = null
+                                contentDescription = null,
                             )
                         }
                     }
@@ -126,12 +126,12 @@ fun ConnectManuallyScreen(
                 maxLines = 1,
                 modifier = Modifier.fillMaxWidth(),
                 isError = isError,
-                supportingText = supportingText
+                supportingText = supportingText,
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.End,
             ) {
                 LoadingButton(
                     label = "Connect",
@@ -151,7 +151,6 @@ fun ConnectManuallyScreenSandbox() {
     ConnectManuallyScreen(
         onShowNodeStatus = {},
         snackbarHost = {},
-
         isConnecting = isConnecting,
         onSubmit = { isConnecting = true },
         onCancel = { isConnecting = false },

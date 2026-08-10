@@ -18,5 +18,5 @@ actual class DirectoryPicker {
 @Composable
 actual fun rememberDirectoryPicker(
     platformContext: PlatformActivityContext,
-    appSettings: AppSettings
+    appSettings: AppSettings,
 ) = remember { DirectoryPicker(platformContext) }

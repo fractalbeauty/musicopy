@@ -83,7 +83,6 @@ import kotlin.math.max
 fun PreTransferScreen(
     snackbarHost: @Composable () -> Unit,
     onShowNodeStatus: () -> Unit,
-
     clientModel: ClientModel,
     hasDownloadDirectory: Boolean,
     onPickDownloadDirectory: () -> Unit,
@@ -99,20 +98,23 @@ fun PreTransferScreen(
     }
 
     // Build node graph
-    val root = remember(clientModel.index) {
-        buildTree(clientModel.index ?: emptyList())
-    }
+    val root =
+        remember(clientModel.index) {
+            buildTree(clientModel.index ?: emptyList())
+        }
 
     // Build node size lookup
-    val nodeSizes = remember(root) {
-        buildNodeSizes(listOf(root))
-    }
+    val nodeSizes =
+        remember(root) {
+            buildNodeSizes(listOf(root))
+        }
 
     // Navigation stack for breadcrumb navigation
     val navigationStack = remember { mutableStateListOf<String>() }
-    val currentNode: TreeNode = navigationStack.fold(root) { node, part ->
-        node.children.find { it.part == part } ?: node
-    }
+    val currentNode: TreeNode =
+        navigationStack.fold(root) { node, part ->
+            node.children.find { it.part == part } ?: node
+        }
 
     BackHandler(enabled = navigationStack.isNotEmpty()) {
         navigationStack.removeAt(navigationStack.lastIndex)
@@ -122,9 +124,10 @@ fun PreTransferScreen(
     val scrollStates = remember { mutableMapOf<String, LazyListState>() }
 
     // Current scroll state based on navigation stack
-    val currentScrollState = scrollStates.getOrPut(navigationStack.joinToString("/")) {
-        LazyListState()
-    }
+    val currentScrollState =
+        scrollStates.getOrPut(navigationStack.joinToString("/")) {
+            LazyListState()
+        }
 
     // Current children and folder size
     val currentChildren = currentNode.children
@@ -133,19 +136,22 @@ fun PreTransferScreen(
     val currentFolderSizeEstimated = folderSizeModel !is FileSizeModel.Actual
 
     val hasJobs = clientModel.transferJobs.isNotEmpty()
-    val hasActiveJobs = clientModel.transferJobs.any { job ->
-        job.progress !is TransferJobProgressModel.Finished &&
+    val hasActiveJobs =
+        clientModel.transferJobs.any { job ->
+            job.progress !is TransferJobProgressModel.Finished &&
                 job.progress !is TransferJobProgressModel.Failed
-    }
+        }
 
     val onDownload = {
-        onSetDownloads(selectionManager.selectedKeys.map { (root, path) ->
-            DownloadRequestModel(
-                endpointId = clientModel.endpointId,
-                root = root,
-                path = path
-            )
-        })
+        onSetDownloads(
+            selectionManager.selectedKeys.map { (root, path) ->
+                DownloadRequestModel(
+                    endpointId = clientModel.endpointId,
+                    root = root,
+                    path = path,
+                )
+            },
+        )
     }
 
     Scaffold(
@@ -177,7 +183,7 @@ fun PreTransferScreen(
                             )
                         }
                     }
-                }
+                },
             )
         },
         bottomBar = {
@@ -196,13 +202,14 @@ fun PreTransferScreen(
                         if (missingDownloadDirectory) {
                             ActionButton(
                                 onClick = onPickDownloadDirectory,
-                                leftText = "Choose download directory"
+                                leftText = "Choose download directory",
                             )
                         } else if (hasSelectedKeys) {
                             // Look up selected items from current index
-                            val selectedItems = clientModel.index?.filter { item ->
-                                selectedKeys.contains(item.root to item.path)
-                            } ?: emptyList()
+                            val selectedItems =
+                                clientModel.index?.filter { item ->
+                                    selectedKeys.contains(item.root to item.path)
+                                } ?: emptyList()
                             val selectedSize =
                                 selectedItems.sumOf { item -> item.fileSize.value() }
                             val selectedEstimated =
@@ -213,7 +220,7 @@ fun PreTransferScreen(
                                 formatSize(
                                     selectedSize,
                                     estimated = selectedEstimated,
-                                    decimals = 0
+                                    decimals = 0,
                                 )
                             }"
 
@@ -221,7 +228,7 @@ fun PreTransferScreen(
                                 onClick = onDownload,
                                 enabled = hasDownloadDirectory,
                                 leftText = verb,
-                                rightText = summary
+                                rightText = summary,
                             )
                         }
                     }
@@ -244,20 +251,21 @@ fun PreTransferScreen(
                         navigationStack.removeAt(navigationStack.lastIndex)
                     }
                 },
-                checkboxRowState = selectionManager.getNodeState(
-                    currentNode,
-                    clientModel.paused
-                ),
+                checkboxRowState =
+                    selectionManager.getNodeState(
+                        currentNode,
+                        clientModel.paused,
+                    ),
                 onCheckboxClick = {
                     selectionManager.handleSelectNode(
                         currentNode,
-                        clientModel.paused
+                        clientModel.paused,
                     )
                 },
                 hasIndex = clientModel.index != null,
                 currentFolderSize = currentFolderSize,
                 currentFolderSizeEstimated = currentFolderSizeEstimated,
-                paused = clientModel.paused
+                paused = clientModel.paused,
             )
 
             // Show loading indicator when index is null
@@ -280,7 +288,7 @@ fun PreTransferScreen(
                     Info {
                         Text(
                             "No files available yet. Add a folder to your library in the desktop app first, then reconnect.",
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                 }
@@ -290,7 +298,7 @@ fun PreTransferScreen(
             LazyColumn(state = currentScrollState) {
                 items(
                     items = currentChildren,
-                    key = { node -> node.part }
+                    key = { node -> node.part },
                 ) { node ->
                     FileRow(
                         node = node,
@@ -299,12 +307,15 @@ fun PreTransferScreen(
                         onSelect = {
                             selectionManager.handleSelectNode(
                                 node,
-                                clientModel.paused
+                                clientModel.paused,
                             )
                         },
-                        onNavigate = if (node.leaf == null) {
-                            { navigationStack.add(node.part) }
-                        } else null,
+                        onNavigate =
+                            if (node.leaf == null) {
+                                { navigationStack.add(node.part) }
+                            } else {
+                                null
+                            },
                     )
                 }
             }
@@ -324,16 +335,16 @@ private fun ActionButton(
         enabled = enabled,
         modifier = Modifier.fillMaxWidth().height(64.dp),
         shape = MaterialTheme.shapes.large,
-        contentPadding = PaddingValues(16.dp)
+        contentPadding = PaddingValues(16.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = leftText,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             rightText?.let {
                 Text(text = it)
@@ -371,9 +382,10 @@ private fun BreadcrumbBar(
     }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primaryContainer),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.primaryContainer),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RowStateCheckbox(
@@ -384,12 +396,13 @@ private fun BreadcrumbBar(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .horizontalScroll(scrollState),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .horizontalScroll(scrollState),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -397,11 +410,12 @@ private fun BreadcrumbBar(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontWeight = FontWeight.Bold,
-                    modifier = if (navigationStack.isNotEmpty()) {
-                        Modifier.clickable { onNavigateToRoot() }
-                    } else {
-                        Modifier
-                    }
+                    modifier =
+                        if (navigationStack.isNotEmpty()) {
+                            Modifier.clickable { onNavigateToRoot() }
+                        } else {
+                            Modifier
+                        },
                 )
 
                 // Path crumbs
@@ -410,7 +424,7 @@ private fun BreadcrumbBar(
                         painter = painterResource(Res.drawable.chevron_forward_24px),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(horizontal = 2.dp).requiredSize(18.dp)
+                        modifier = Modifier.padding(horizontal = 2.dp).requiredSize(18.dp),
                     )
                     Text(
                         text = part,
@@ -419,7 +433,7 @@ private fun BreadcrumbBar(
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.clickable { onNavigateToIndex(index) }
+                        modifier = Modifier.clickable { onNavigateToIndex(index) },
                     )
                 }
 
@@ -431,14 +445,15 @@ private fun BreadcrumbBar(
 
             if (hasIndex) {
                 Text(
-                    text = formatSize(
-                        currentFolderSize,
-                        estimated = currentFolderSizeEstimated,
-                        decimals = 0,
-                    ),
+                    text =
+                        formatSize(
+                            currentFolderSize,
+                            estimated = currentFolderSizeEstimated,
+                            decimals = 0,
+                        ),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(start = 4.dp, end = 16.dp)
+                    modifier = Modifier.padding(start = 4.dp, end = 16.dp),
                 )
             }
         }
@@ -455,45 +470,47 @@ internal fun FileRow(
 ) {
     val isFolder = node.leaf == null
 
-    val isSelectable = if (node.leaf != null) {
-        when (node.leaf.downloadStatus) {
-            // always selectable
-            null -> {
-                true
-            }
+    val isSelectable =
+        if (node.leaf != null) {
+            when (node.leaf.downloadStatus) {
+                // always selectable
+                null -> {
+                    true
+                }
 
-            // only selectable if paused
-            IndexItemDownloadStatusModel.WAITING -> {
-                paused
-            }
+                // only selectable if paused
+                IndexItemDownloadStatusModel.WAITING -> {
+                    paused
+                }
 
-            // not selectable
-            IndexItemDownloadStatusModel.IN_PROGRESS,
-            IndexItemDownloadStatusModel.DOWNLOADED,
-            IndexItemDownloadStatusModel.FAILED,
+                // not selectable
+                IndexItemDownloadStatusModel.IN_PROGRESS,
+                IndexItemDownloadStatusModel.DOWNLOADED,
+                IndexItemDownloadStatusModel.FAILED,
                 -> {
-                false
+                    false
+                }
             }
+        } else {
+            true
         }
-    } else {
-        true
-    }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .clickable(
-                enabled = isSelectable,
-                onClick = {
-                    if (isFolder && onNavigate != null) {
-                        onNavigate()
-                    } else {
-                        onSelect()
-                    }
-                },
-            ),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .clickable(
+                    enabled = isSelectable,
+                    onClick = {
+                        if (isFolder && onNavigate != null) {
+                            onNavigate()
+                        } else {
+                            onSelect()
+                        }
+                    },
+                ),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         RowStateCheckbox(
             rowState = rowState,
@@ -509,12 +526,12 @@ internal fun FileRow(
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             if (isFolder) {
                 Icon(
                     painter = painterResource(Res.drawable.chevron_forward_24px),
-                    contentDescription = "Navigate into folder"
+                    contentDescription = "Navigate into folder",
                 )
             }
         }
@@ -525,21 +542,21 @@ internal fun FileRow(
 /**
  * Builds the graph of `TreeNodes` from the index.
  */
-internal fun buildTree(
-    index: List<IndexItemModel>,
-): TreeNode {
+internal fun buildTree(index: List<IndexItemModel>): TreeNode {
     val roots = mutableListOf<TreeNode>()
 
     // add nodes to tree
     for (item in index) {
         // find or create root
-        val root = roots.find { node -> node.part == item.root } ?: run {
-            val new = TreeNode(
-                part = item.root,
-            )
-            roots.add(new)
-            new
-        }
+        val root =
+            roots.find { node -> node.part == item.root } ?: run {
+                val new =
+                    TreeNode(
+                        part = item.root,
+                    )
+                roots.add(new)
+                new
+            }
 
         // split into path parts and filename
         val path = item.path.removePrefix("/")
@@ -550,13 +567,15 @@ internal fun buildTree(
         // recursively find or create path nodes
         var curr = root
         for (part in pathParts) {
-            val next = curr.children.find { node -> node.part == part } ?: run {
-                val new = TreeNode(
-                    part = part,
-                )
-                curr.children.add(new)
-                new
-            }
+            val next =
+                curr.children.find { node -> node.part == part } ?: run {
+                    val new =
+                        TreeNode(
+                            part = part,
+                        )
+                    curr.children.add(new)
+                    new
+                }
             curr = next
         }
 
@@ -564,8 +583,8 @@ internal fun buildTree(
         curr.children.add(
             TreeNode(
                 part = lastPart,
-                leaf = item
-            )
+                leaf = item,
+            ),
         )
     }
 
@@ -619,11 +638,12 @@ internal fun collapseNodeChildren(node: TreeNode) {
         // add grandchildren with combined path to parent node
         // reverse iterator so the added nodes are in the correct order
         for (grandchild in child.children.reversed()) {
-            val newNode = TreeNode(
-                part = "${child.part}/${grandchild.part}",
-                children = grandchild.children,
-                leaf = grandchild.leaf,
-            )
+            val newNode =
+                TreeNode(
+                    part = "${child.part}/${grandchild.part}",
+                    children = grandchild.children,
+                    leaf = grandchild.leaf,
+                )
             node.children.add(childIndex, newNode)
         }
 
@@ -633,13 +653,15 @@ internal fun collapseNodeChildren(node: TreeNode) {
 }
 
 // Sort folders to the top first, then sort alphabetically (case-insensitive)
+
 /**
  * Returns a Comparator for sorting TreeNodes:
  * - Folders first
  * - Then alphabetical, case-insensitive
  */
-internal fun compareNodes(): Comparator<TreeNode> = compareBy<TreeNode> { it.leaf != null }
-    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.part }
+internal fun compareNodes(): Comparator<TreeNode> =
+    compareBy<TreeNode> { it.leaf != null }
+        .thenBy(String.CASE_INSENSITIVE_ORDER) { it.part }
 
 /**
  * Builds a map of sizes of TreeNodes.
@@ -653,31 +675,36 @@ internal fun buildNodeSizes(
         buildNodeSizes(node.children, map)
 
         // determine size of this node
-        val size = node.leaf?.fileSize ?: run {
-            // internal node's size is sum of child sizes
-            val total = node.children.sumOf { child ->
-                val childSize = map.getOrElse(
-                    child,
-                    defaultValue = { FileSizeModel.Unknown }
-                )
-                childSize.value()
-            }
+        val size =
+            node.leaf?.fileSize ?: run {
+                // internal node's size is sum of child sizes
+                val total =
+                    node.children.sumOf { child ->
+                        val childSize =
+                            map.getOrElse(
+                                child,
+                                defaultValue = { FileSizeModel.Unknown },
+                            )
+                        childSize.value()
+                    }
 
-            // internal node is estimated if any child size is not actual
-            val isEstimated = node.children.any { child ->
-                val childSize = map.getOrElse(
-                    child,
-                    defaultValue = { FileSizeModel.Unknown }
-                )
-                childSize !is FileSizeModel.Actual
-            }
+                // internal node is estimated if any child size is not actual
+                val isEstimated =
+                    node.children.any { child ->
+                        val childSize =
+                            map.getOrElse(
+                                child,
+                                defaultValue = { FileSizeModel.Unknown },
+                            )
+                        childSize !is FileSizeModel.Actual
+                    }
 
-            if (isEstimated) {
-                FileSizeModel.Estimated(total)
-            } else {
-                FileSizeModel.Actual(total)
+                if (isEstimated) {
+                    FileSizeModel.Estimated(total)
+                } else {
+                    FileSizeModel.Actual(total)
+                }
             }
-        }
 
         // add to map
         map[node] = size
@@ -764,7 +791,7 @@ internal enum class RowDisabledState {
     /**
      * Descendants have a mix of disabled states.
      */
-    Indeterminate
+    Indeterminate,
 }
 
 /**
@@ -778,14 +805,15 @@ internal fun RowStateCheckbox(
     if (rowState.first == RowToggleState.Disabled) {
         DisabledIconCheckbox(rowDisabledState = rowState.second)
     } else {
-        val toggleableState = when (rowState.first) {
-            RowToggleState.None -> ToggleableState.Off
-            RowToggleState.Selected -> ToggleableState.On
-            RowToggleState.DisabledOrNone -> ToggleableState.Indeterminate
-            RowToggleState.DisabledOrSelected -> ToggleableState.On
-            RowToggleState.Indeterminate -> ToggleableState.Indeterminate
-            RowToggleState.Disabled -> ToggleableState.Off
-        }
+        val toggleableState =
+            when (rowState.first) {
+                RowToggleState.None -> ToggleableState.Off
+                RowToggleState.Selected -> ToggleableState.On
+                RowToggleState.DisabledOrNone -> ToggleableState.Indeterminate
+                RowToggleState.DisabledOrSelected -> ToggleableState.On
+                RowToggleState.Indeterminate -> ToggleableState.Indeterminate
+                RowToggleState.Disabled -> ToggleableState.Off
+            }
         TriStateCheckbox(
             state = toggleableState,
             onClick = onClick,
@@ -805,48 +833,51 @@ private val RadiusSize = 2.dp
  */
 @Composable
 internal fun DisabledIconCheckbox(rowDisabledState: RowDisabledState) {
-    val painter = when (rowDisabledState) {
-        RowDisabledState.Waiting -> painterResource(Res.drawable.more_horiz_24px)
-        RowDisabledState.Downloaded -> painterResource(Res.drawable.arrow_downward_24px)
-        RowDisabledState.Failed -> painterResource(Res.drawable.exclamation_24px)
-        RowDisabledState.Indeterminate -> {
-            // defer to normal checkbox implementation for rendering
-            TriStateCheckbox(state = ToggleableState.Indeterminate, enabled = false, onClick = {})
-            return
+    val painter =
+        when (rowDisabledState) {
+            RowDisabledState.Waiting -> painterResource(Res.drawable.more_horiz_24px)
+            RowDisabledState.Downloaded -> painterResource(Res.drawable.arrow_downward_24px)
+            RowDisabledState.Failed -> painterResource(Res.drawable.exclamation_24px)
+            RowDisabledState.Indeterminate -> {
+                // defer to normal checkbox implementation for rendering
+                TriStateCheckbox(state = ToggleableState.Indeterminate, enabled = false, onClick = {})
+                return
+            }
         }
 
-    }
-
-    val toggleableModifier = Modifier.triStateToggleable(
-        state = ToggleableState.On,
-        onClick = {},
-        enabled = false,
-        role = Role.Checkbox,
-        interactionSource = null,
-        indication = ripple(
-            bounded = false,
-            radius = CheckboxStateLayerSize / 2
+    val toggleableModifier =
+        Modifier.triStateToggleable(
+            state = ToggleableState.On,
+            onClick = {},
+            enabled = false,
+            role = Role.Checkbox,
+            interactionSource = null,
+            indication =
+                ripple(
+                    bounded = false,
+                    radius = CheckboxStateLayerSize / 2,
+                ),
         )
-    )
 
     val colors = CheckboxDefaults.colors()
     val boxColor = colors.disabledCheckedBoxColor
     val borderColor = colors.disabledBorderColor
 
     Canvas(
-        modifier = Modifier
-            .minimumInteractiveComponentSize()
-            .then(toggleableModifier)
-            .padding(CheckboxDefaultPadding)
-            .wrapContentSize(Alignment.Center)
-            .requiredSize(CheckboxSize)
+        modifier =
+            Modifier
+                .minimumInteractiveComponentSize()
+                .then(toggleableModifier)
+                .padding(CheckboxDefaultPadding)
+                .wrapContentSize(Alignment.Center)
+                .requiredSize(CheckboxSize),
     ) {
         val strokeWidthPx = floor(StrokeWidth.toPx())
         drawBox(
             boxColor = boxColor,
             borderColor = borderColor,
             radius = RadiusSize.toPx(),
-            strokeWidth = strokeWidthPx
+            strokeWidth = strokeWidthPx,
         )
 
         with(painter) {
@@ -869,7 +900,7 @@ private fun DrawScope.drawBox(
             boxColor,
             size = Size(checkboxSize, checkboxSize),
             cornerRadius = CornerRadius(radius),
-            style = Fill
+            style = Fill,
         )
     } else {
         drawRoundRect(
@@ -877,14 +908,14 @@ private fun DrawScope.drawBox(
             topLeft = Offset(strokeWidth, strokeWidth),
             size = Size(checkboxSize - strokeWidth * 2, checkboxSize - strokeWidth * 2),
             cornerRadius = CornerRadius(max(0f, radius - strokeWidth)),
-            style = Fill
+            style = Fill,
         )
         drawRoundRect(
             borderColor,
             topLeft = Offset(halfStrokeWidth, halfStrokeWidth),
             size = Size(checkboxSize - strokeWidth, checkboxSize - strokeWidth),
             cornerRadius = CornerRadius(radius - halfStrokeWidth),
-            style = stroke
+            style = stroke,
         )
     }
 }
@@ -905,24 +936,28 @@ internal class SelectionManager {
      *
      * If the user manually deselects a Waiting item, it won't be re-preselected on refresh.
      */
-    fun updateSelection(index: List<IndexItemModel>, paused: Boolean) {
+    fun updateSelection(
+        index: List<IndexItemModel>,
+        paused: Boolean,
+    ) {
         if (paused) {
-            val toPreselect = index
-                .filter { it.downloadStatus == IndexItemDownloadStatusModel.WAITING }
-                .map { it.root to it.path }
-                .filterNot { _preselectedKeys.contains(it) }
+            val toPreselect =
+                index
+                    .filter { it.downloadStatus == IndexItemDownloadStatusModel.WAITING }
+                    .map { it.root to it.path }
+                    .filterNot { _preselectedKeys.contains(it) }
 
             _selectedKeys.addAll(toPreselect)
             _preselectedKeys.addAll(toPreselect)
         }
 
-        val toDeselect = index
-            .filter {
-                it.downloadStatus == IndexItemDownloadStatusModel.IN_PROGRESS ||
+        val toDeselect =
+            index
+                .filter {
+                    it.downloadStatus == IndexItemDownloadStatusModel.IN_PROGRESS ||
                         it.downloadStatus == IndexItemDownloadStatusModel.DOWNLOADED ||
                         it.downloadStatus == IndexItemDownloadStatusModel.FAILED
-            }
-            .map { it.root to it.path }
+                }.map { it.root to it.path }
 
         _selectedKeys.removeAll(toDeselect)
         _preselectedKeys.removeAll(toDeselect)
@@ -931,7 +966,11 @@ internal class SelectionManager {
     /**
      * Sets the selected state of an item.
      */
-    fun setSelected(item: IndexItemModel, selected: Boolean, paused: Boolean) {
+    fun setSelected(
+        item: IndexItemModel,
+        selected: Boolean,
+        paused: Boolean,
+    ) {
         if (item.downloadStatus == IndexItemDownloadStatusModel.WAITING && !paused) {
             return
         }
@@ -953,7 +992,11 @@ internal class SelectionManager {
     /**
      * Sets the selected state of an item and its descendants.
      */
-    fun setSelectedRecursive(node: TreeNode, selected: Boolean, paused: Boolean) {
+    fun setSelectedRecursive(
+        node: TreeNode,
+        selected: Boolean,
+        paused: Boolean,
+    ) {
         node.leaf?.let { setSelected(it, selected, paused) }
         node.children.forEach { setSelectedRecursive(it, selected, paused) }
     }
@@ -961,15 +1004,16 @@ internal class SelectionManager {
     /**
      * Gets whether an item is selected.
      */
-    fun isSelected(item: IndexItemModel): Boolean {
-        return _selectedKeys.contains(item.root to item.path)
-    }
+    fun isSelected(item: IndexItemModel): Boolean = _selectedKeys.contains(item.root to item.path)
 
     /**
      * Handles selecting/deselecting a node based on its current state.
      * For leaf nodes, toggles selection. For branch nodes, recursively selects/deselects.
      */
-    fun handleSelectNode(node: TreeNode, paused: Boolean) {
+    fun handleSelectNode(
+        node: TreeNode,
+        paused: Boolean,
+    ) {
         node.leaf?.let { leaf ->
             setSelected(leaf, !isSelected(leaf), paused)
         } ?: run {
@@ -1011,7 +1055,10 @@ internal class SelectionManager {
      *  We also need to know the [RowDisabledState] to determine which checkbox to render for
      *  disabled folders.
      */
-    fun getNodeState(node: TreeNode, paused: Boolean): Pair<RowToggleState, RowDisabledState> {
+    fun getNodeState(
+        node: TreeNode,
+        paused: Boolean,
+    ): Pair<RowToggleState, RowDisabledState> {
         return node.leaf?.let {
             // leaf node
             if (it.downloadStatus == IndexItemDownloadStatusModel.WAITING && !paused) {
@@ -1027,7 +1074,8 @@ internal class SelectionManager {
             } else if (it.downloadStatus == IndexItemDownloadStatusModel.DOWNLOADED) {
                 RowToggleState.Disabled to RowDisabledState.Downloaded
             } else if (
-                it.downloadStatus == IndexItemDownloadStatusModel.FAILED) {
+                it.downloadStatus == IndexItemDownloadStatusModel.FAILED
+            ) {
                 RowToggleState.Disabled to RowDisabledState.Failed
             } else if (isSelected(it)) {
                 RowToggleState.Selected to RowDisabledState.Indeterminate
@@ -1099,31 +1147,33 @@ internal class SelectionManager {
 
             val total = node.children.size
 
-            val toggleState = if (countToggleNone == total) {
-                RowToggleState.None
-            } else if (countToggleSelected == total) {
-                RowToggleState.Selected
-            } else if (countToggleDisabled == total) {
-                RowToggleState.Disabled
-            } else if (countToggleSelected == 0 && countToggleDisabledOrSelected == 0 && countToggleIndeterminate == 0) {
-                RowToggleState.DisabledOrNone
-            } else if (countToggleNone == 0 && countToggleDisabledOrNone == 0 && countToggleIndeterminate == 0) {
-                RowToggleState.DisabledOrSelected
-            } else {
-                RowToggleState.Indeterminate
-            }
+            val toggleState =
+                if (countToggleNone == total) {
+                    RowToggleState.None
+                } else if (countToggleSelected == total) {
+                    RowToggleState.Selected
+                } else if (countToggleDisabled == total) {
+                    RowToggleState.Disabled
+                } else if (countToggleSelected == 0 && countToggleDisabledOrSelected == 0 && countToggleIndeterminate == 0) {
+                    RowToggleState.DisabledOrNone
+                } else if (countToggleNone == 0 && countToggleDisabledOrNone == 0 && countToggleIndeterminate == 0) {
+                    RowToggleState.DisabledOrSelected
+                } else {
+                    RowToggleState.Indeterminate
+                }
 
-            val disabledState = if (countDisabledWaiting == total) {
-                RowDisabledState.Waiting
-            } else if (countDisabledDownloaded == total) {
-                RowDisabledState.Downloaded
-            } else if (countDisabledFailed == total) {
-                RowDisabledState.Failed
-            } else if (countDisabledWaiting + countDisabledDownloaded == total) {
-                RowDisabledState.Waiting
-            } else {
-                RowDisabledState.Indeterminate
-            }
+            val disabledState =
+                if (countDisabledWaiting == total) {
+                    RowDisabledState.Waiting
+                } else if (countDisabledDownloaded == total) {
+                    RowDisabledState.Downloaded
+                } else if (countDisabledFailed == total) {
+                    RowDisabledState.Failed
+                } else if (countDisabledWaiting + countDisabledDownloaded == total) {
+                    RowDisabledState.Waiting
+                } else {
+                    RowDisabledState.Indeterminate
+                }
 
             toggleState to disabledState
         }
@@ -1136,13 +1186,12 @@ internal data class TreeNode(
     val leaf: IndexItemModel? = null,
 )
 
-fun FileSizeModel.value(): ULong {
-    return when (this) {
+fun FileSizeModel.value(): ULong =
+    when (this) {
         is FileSizeModel.Actual -> v1
         is FileSizeModel.Estimated -> v1
         is FileSizeModel.Unknown -> 0uL
     }
-}
 
 @Composable
 fun PreTransferScreenSandbox() {
@@ -1152,12 +1201,11 @@ fun PreTransferScreenSandbox() {
     PreTransferScreen(
         snackbarHost = {},
         onShowNodeStatus = {},
-
         clientModel = clientModel,
         hasDownloadDirectory = hasDownloadDirectory,
         onPickDownloadDirectory = { hasDownloadDirectory = true },
         onSetDownloads = { clientModel = clientModel.copy(paused = false) },
         onNavigateToTransfer = { clientModel = clientModel.copy(paused = true) },
-        onCancel = { hasDownloadDirectory = false }
+        onCancel = { hasDownloadDirectory = false },
     )
 }

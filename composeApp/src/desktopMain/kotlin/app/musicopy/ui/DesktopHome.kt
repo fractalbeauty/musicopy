@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalTextStyle
@@ -33,33 +32,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.musicopy.AppSettings
 import app.musicopy.ui.components.aboutText
 import app.musicopy.ui.components.withUrl
+import com.composeunstyled.DialogProperties
+import com.composeunstyled.DialogState
 import com.composeunstyled.UnstyledDialog
 import com.composeunstyled.UnstyledDialogPanel
-import com.composeunstyled.DialogState
 import com.composeunstyled.UnstyledScrim
 import com.composeunstyled.rememberDialogState
-import com.composeunstyled.DialogProperties
 import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
-import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
-import musicopy_root.musicopy.BuildConfig
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.favorite_24px
 import musicopy_root.musicopy.generated.resources.heart_plus_24px
-import musicopy_root.musicopy.generated.resources.info_24px
 import musicopy_root.musicopy.generated.resources.icon
+import musicopy_root.musicopy.generated.resources.info_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.LibraryModel
 import uniffi.musicopy.NodeModel
@@ -87,7 +82,6 @@ fun DesktopHome(
     onDeleteUnusedTranscodes: () -> Unit,
     onDeleteAllTranscodes: () -> Unit,
     onUntrustNode: (endpointId: String) -> Unit,
-
     screenshotHideTopBar: Boolean = false,
 ) {
     val oneCol = LocalWindowInfo.current.containerSize.width < 600
@@ -95,16 +89,17 @@ fun DesktopHome(
     val aboutState = rememberDialogState(initiallyVisible = false)
     AboutDialog(
         state = aboutState,
-        onClose = { aboutState.visible = false }
+        onClose = { aboutState.visible = false },
     )
 
     val licenseKey by appSettings.licenseKeyFlow.collectAsState(appSettings.licenseKey)
     val hasLicense = licenseKey != null
 
     // Show nag on launch if the user has transferred files before
-    val showLicenseNag = remember {
-        statsModel.serverFiles > 1uL
-    }
+    val showLicenseNag =
+        remember {
+            statsModel.serverFiles > 1uL
+        }
 
     val licenseState = rememberDialogState(initiallyVisible = !hasLicense && showLicenseNag)
     if (hasLicense) {
@@ -112,19 +107,19 @@ fun DesktopHome(
             state = licenseState,
             appSettings = appSettings,
             statsModel = statsModel,
-            onClose = { licenseState.visible = false }
+            onClose = { licenseState.visible = false },
         )
     } else {
         LicenseNagDialog(
             state = licenseState,
             appSettings = appSettings,
             statsModel = statsModel,
-            onClose = { licenseState.visible = false }
+            onClose = { licenseState.visible = false },
         )
     }
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(8.dp)
+        modifier = Modifier.fillMaxWidth().padding(8.dp),
     ) {
         if (!screenshotHideTopBar) {
             Row(
@@ -132,14 +127,15 @@ fun DesktopHome(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier.padding(end = 8.dp)
+                    modifier = Modifier.padding(end = 8.dp),
                 ) {
                     Image(
                         painter = painterResource(Res.drawable.icon),
                         contentDescription = "Musicopy logo",
-                        modifier = Modifier
-                            .size(44.dp)
-                            .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                        modifier =
+                            Modifier
+                                .size(44.dp)
+                                .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant),
                     )
                 }
 
@@ -149,32 +145,38 @@ fun DesktopHome(
 
                 FilledIconButton(
                     onClick = { licenseState.visible = true },
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    colors =
+                        IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
                 ) {
                     Icon(
-                        painter = painterResource(
-                            if (hasLicense) Res.drawable.favorite_24px
-                            else Res.drawable.heart_plus_24px
-                        ),
+                        painter =
+                            painterResource(
+                                if (hasLicense) {
+                                    Res.drawable.favorite_24px
+                                } else {
+                                    Res.drawable.heart_plus_24px
+                                },
+                            ),
                         contentDescription = "License button icon",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                 }
 
                 FilledIconButton(
                     onClick = { aboutState.visible = true },
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    colors =
+                        IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
                 ) {
                     Icon(
                         painter = painterResource(Res.drawable.info_24px),
                         contentDescription = "About button icon",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
@@ -186,8 +188,7 @@ fun DesktopHome(
                 onAddRoot = onAddLibraryRoot,
                 onRemoveRoot = onRemoveLibraryRoot,
                 onRescan = onRescanLibrary,
-
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             ConnectWidget(
                 nodeModel = nodeModel,
@@ -195,8 +196,7 @@ fun DesktopHome(
                 onAcceptAndTrust = onAcceptAndTrust,
                 onAcceptOnce = onAcceptOnce,
                 onDeny = onDeny,
-
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
         }
         val right = @Composable {
@@ -215,24 +215,24 @@ fun DesktopHome(
 
         if (oneCol) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 left()
                 right()
             }
         } else {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     left()
                 }
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     right()
                 }
@@ -275,28 +275,31 @@ private fun LicenseNagDialog(
     val isEmpty = licenseKey.isEmpty()
     val isValid = validateLicense(licenseKey)
     val isError = !isEmpty && !isValid
-    val supportingText = when {
-        isEmpty -> ""
-        !isValid -> "License key is invalid."
-        else -> ""
-    }
+    val supportingText =
+        when {
+            isEmpty -> ""
+            !isValid -> "License key is invalid."
+            else -> ""
+        }
 
     UnstyledDialog(
         state = state,
-        properties = DialogProperties(
-            dismissOnBackPress = dismissEnabled,
-            dismissOnClickOutside = dismissEnabled
-        )
+        properties =
+            DialogProperties(
+                dismissOnBackPress = dismissEnabled,
+                dismissOnClickOutside = dismissEnabled,
+            ),
     ) {
         UnstyledScrim()
         UnstyledDialogPanel(
-            modifier = Modifier
-                .widthIn(max = 600.dp)
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .widthIn(max = 600.dp)
+                    .padding(16.dp),
         ) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(20.dp)
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -321,13 +324,16 @@ private fun LicenseNagDialog(
                             )
 
                             Text(
-                                text = buildAnnotatedString {
-                                    append("Thank you for your support! A license key will be emailed to you after purchase. If you have questions, please email ")
-                                    withUrl("mailto:support@musicopy.app") {
-                                        append("support@musicopy.app")
-                                    }
-                                    append(".")
-                                },
+                                text =
+                                    buildAnnotatedString {
+                                        append(
+                                            "Thank you for your support! A license key will be emailed to you after purchase. If you have questions, please email ",
+                                        )
+                                        withUrl("mailto:support@musicopy.app") {
+                                            append("support@musicopy.app")
+                                        }
+                                        append(".")
+                                    },
                                 style = MaterialTheme.typography.bodyMedium,
                             )
 
@@ -340,7 +346,7 @@ private fun LicenseNagDialog(
                                 maxLines = 1,
                                 modifier = Modifier.fillMaxWidth(),
                                 isError = isError,
-                                supportingText = { Text(supportingText) }
+                                supportingText = { Text(supportingText) },
                             )
                         }
                     }
@@ -357,7 +363,7 @@ private fun LicenseNagDialog(
                             ) {
                                 Text(
                                     text = "Already purchased?",
-                                    style = MaterialTheme.typography.bodySmall
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
 
@@ -369,9 +375,10 @@ private fun LicenseNagDialog(
                             ) {
                                 Text(
                                     text = if (dismissCountdown > 0) "Continue ($dismissCountdown)" else "Continue",
-                                    style = LocalTextStyle.current.copy(
-                                        fontFeatureSettings = "tnum"
-                                    )
+                                    style =
+                                        LocalTextStyle.current.copy(
+                                            fontFeatureSettings = "tnum",
+                                        ),
                                 )
                             }
 
@@ -379,7 +386,7 @@ private fun LicenseNagDialog(
                                 onClick = {
                                     Desktop.getDesktop().browse(URI("https://musicopy.app/license"))
                                     isActivating = true
-                                }
+                                },
                             ) {
                                 Text("Purchase")
                             }
@@ -399,7 +406,7 @@ private fun LicenseNagDialog(
                                 onClick = {
                                     appSettings.licenseKey = licenseKey
                                     appSettings.licenseActivatedAt = Clock.System.now().epochSeconds
-                                }
+                                },
                             ) {
                                 Text("Activate")
                             }
@@ -422,9 +429,10 @@ private fun LicenseThanksDialog(
     UnstyledDialog(state = state, onDismiss = onClose) {
         UnstyledScrim()
         UnstyledDialogPanel(
-            modifier = Modifier
-                .widthIn(max = 600.dp)
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .widthIn(max = 600.dp)
+                    .padding(16.dp),
         ) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -437,24 +445,30 @@ private fun LicenseThanksDialog(
                     )
 
                     val licenseActivatedAt by appSettings.licenseActivatedAtFlow.collectAsState(
-                        appSettings.licenseActivatedAt
+                        appSettings.licenseActivatedAt,
                     )
 
-                    val licenseActiveText = licenseActivatedAt?.let { licenseActivatedAt ->
-                        val activationTime = Instant.fromEpochSeconds(licenseActivatedAt)
-                            .toLocalDateTime(TimeZone.currentSystemDefault())
-                        val activationDate = activationTime.format(LocalDateTime.Format {
-                            monthName(MonthNames.ENGLISH_FULL)
-                            char(' ')
-                            day()
-                            chars(", ")
-                            year()
-                        })
-                        "Your license was activated on $activationDate"
-                    } ?: "Your license was activated"
+                    val licenseActiveText =
+                        licenseActivatedAt?.let { licenseActivatedAt ->
+                            val activationTime =
+                                Instant
+                                    .fromEpochSeconds(licenseActivatedAt)
+                                    .toLocalDateTime(TimeZone.currentSystemDefault())
+                            val activationDate =
+                                activationTime.format(
+                                    LocalDateTime.Format {
+                                        monthName(MonthNames.ENGLISH_FULL)
+                                        char(' ')
+                                        day()
+                                        chars(", ")
+                                        year()
+                                    },
+                                )
+                            "Your license was activated on $activationDate"
+                        } ?: "Your license was activated"
 
                     Text(
-                        text = "${licenseActiveText}. Thank you for your support!",
+                        text = "$licenseActiveText. Thank you for your support!",
                         style = MaterialTheme.typography.bodyMedium,
                     )
 
@@ -478,7 +492,7 @@ private fun LicenseThanksDialog(
 private fun LicenseDialogStatsText(statsModel: StatsModel) {
     // Don't show if nothing has been transferred yet
     if (statsModel.serverFiles == 0uL) {
-        return;
+        return
     }
 
     Text(
@@ -507,9 +521,10 @@ private fun AboutDialog(
     UnstyledDialog(state = state, onDismiss = onClose) {
         UnstyledScrim()
         UnstyledDialogPanel(
-            modifier = Modifier
-                .widthIn(max = 600.dp)
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .widthIn(max = 600.dp)
+                    .padding(16.dp),
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -525,12 +540,12 @@ private fun AboutDialog(
 
                     Text(
                         text = aboutText(),
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.End,
                     ) {
                         TextButton(
                             onClick = onClose,

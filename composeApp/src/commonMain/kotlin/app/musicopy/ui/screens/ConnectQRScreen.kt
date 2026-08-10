@@ -28,7 +28,6 @@ import org.jetbrains.compose.resources.painterResource
 fun ConnectQRScreen(
     snackbarHost: @Composable () -> Unit,
     onShowNodeStatus: () -> Unit,
-
     autoLaunch: Boolean,
     isConnecting: Boolean,
     onSubmit: (String) -> Unit,
@@ -39,25 +38,25 @@ fun ConnectQRScreen(
             TopBar(
                 title = "Scan QR code",
                 onShowNodeStatus = onShowNodeStatus,
-                onBack = onCancel
+                onBack = onCancel,
             )
         },
         snackbarHost = snackbarHost,
     ) { innerPadding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Info {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         "Scan the QR code in the connect widget on the desktop app.",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
 
                     Text(
                         "You can also connect manually by entering a code.",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
 
                     val uriHandler = LocalUriHandler.current
@@ -71,10 +70,10 @@ fun ConnectQRScreen(
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             ) {
                                 Text(
                                     text = "Download desktop app",
@@ -84,13 +83,13 @@ fun ConnectQRScreen(
                                     text = "musicopy.app/download",
                                     style = MaterialTheme.typography.labelSmall,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
 
                             Icon(
                                 painter = painterResource(Res.drawable.open_in_new_24px),
-                                contentDescription = null
+                                contentDescription = null,
                             )
                         }
                     }
@@ -102,7 +101,7 @@ fun ConnectQRScreen(
                     autoLaunch = autoLaunch,
                     onResult = { endpointId ->
                         onSubmit(endpointId)
-                    }
+                    },
                 )
             }
         }

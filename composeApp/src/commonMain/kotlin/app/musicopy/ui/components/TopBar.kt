@@ -31,16 +31,17 @@ fun TopBar(
     extraActions: @Composable () -> Unit = {},
     extraMenuItems: @Composable (onDismiss: () -> Unit) -> Unit = {},
 ) {
-    val colors = TopAppBarDefaults.topAppBarColors(
-        containerColor = MaterialTheme.colorScheme.primaryContainer,
-        titleContentColor = MaterialTheme.colorScheme.primary,
-    )
+    val colors =
+        TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            titleContentColor = MaterialTheme.colorScheme.primary,
+        )
 
     val title = @Composable {
         Text(
             title,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 
@@ -56,12 +57,12 @@ fun TopBar(
         IconButton(onClick = { expanded = !expanded }) {
             Icon(
                 painter = painterResource(Res.drawable.more_vert_24px),
-                contentDescription = "More options"
+                contentDescription = "More options",
             )
         }
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = onDismiss
+            onDismissRequest = onDismiss,
         ) {
             extraMenuItems(onDismiss)
 
@@ -78,7 +79,7 @@ fun TopBar(
                 onClick = {
                     onDismiss()
                     onShowNodeStatus()
-                }
+                },
             )
         }
     }
@@ -91,7 +92,7 @@ fun TopBar(
                 IconButton(onClick = onBack) {
                     Icon(
                         painter = painterResource(Res.drawable.arrow_back_24px),
-                        contentDescription = "Back"
+                        contentDescription = "Back",
                     )
                 }
             },
@@ -122,6 +123,6 @@ fun TopBarMenuItem(
         text = {
             Text(text, style = MaterialTheme.typography.labelLarge)
         },
-        onClick = onClick
+        onClick = onClick,
     )
 }

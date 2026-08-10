@@ -15,13 +15,11 @@ import androidx.compose.ui.unit.dp
 import app.musicopy.letIf
 
 @Composable
-fun ScrollableContainer(
-    content: @Composable (scrollModifier: Modifier) -> Unit,
-) {
+fun ScrollableContainer(content: @Composable (scrollModifier: Modifier) -> Unit) {
     val scrollState = rememberScrollState()
 
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         content(
             Modifier
@@ -30,9 +28,11 @@ fun ScrollableContainer(
         )
 
         VerticalScrollbar(
-            modifier = Modifier.align(Alignment.CenterEnd)
-                .fillMaxHeight(),
-            adapter = rememberScrollbarAdapter(scrollState)
+            modifier =
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight(),
+            adapter = rememberScrollbarAdapter(scrollState),
         )
     }
 }

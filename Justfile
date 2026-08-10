@@ -43,6 +43,7 @@ test:
   cargo fmt --check
   just test-rust
   just test-gradle
+  ./gradlew ktlintFormat
 
 test-rust *FLAGS:
   cargo nextest run --workspace --features musicopy/test-hooks {{FLAGS}}

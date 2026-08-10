@@ -58,10 +58,8 @@ import kotlin.time.Duration.Companion.seconds
 @Composable
 fun HomeScreen(
     appSettings: AppSettings,
-
     snackbarHost: @Composable () -> Unit,
     onShowNodeStatus: () -> Unit,
-
     recentServers: List<RecentServerModel>,
     connectingTo: String?,
     onPickDownloadDirectory: () -> Unit,
@@ -86,7 +84,7 @@ fun HomeScreen(
                         onClick = {
                             onDismiss()
                             onShowSettings()
-                        }
+                        },
                     )
                     TopBarMenuItem(
                         icon = Res.drawable.feedback_24px,
@@ -94,9 +92,9 @@ fun HomeScreen(
                         onClick = {
                             onDismiss()
                             onShowFeedback()
-                        }
+                        },
                     )
-                }
+                },
             )
         },
         snackbarHost = snackbarHost,
@@ -107,21 +105,22 @@ fun HomeScreen(
         ) {
             Column(
                 modifier = Modifier.padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 val downloadDirectory by appSettings.downloadDirectoryFlow.collectAsState(
-                    null
+                    null,
                 )
                 val downloadDirectoryName by appSettings.downloadDirectoryNameFlow.collectAsState(
-                    null
+                    null,
                 )
 
                 DetailBox(
-                    actionLabel = if (downloadDirectory == null) {
-                        "Choose"
-                    } else {
-                        "Change"
-                    },
+                    actionLabel =
+                        if (downloadDirectory == null) {
+                            "Choose"
+                        } else {
+                            "Change"
+                        },
                     onAction = onPickDownloadDirectory,
                 ) {
                     downloadDirectory?.let { downloadDirectory ->
@@ -133,22 +132,23 @@ fun HomeScreen(
 
                 DetailBox(
                     actionLabel = "Change",
-                    onAction = { transcodeFormatSheetState.peek() }
+                    onAction = { transcodeFormatSheetState.peek() },
                 ) {
                     val transcodeFormatId by appSettings.transcodeFormatFlow.collectAsState(
-                        appSettings.transcodeFormat
+                        appSettings.transcodeFormat,
                     )
                     val transcodeFormat = TranscodeFormat.fromId(transcodeFormatId)
-                    val label = buildString {
-                        append("Format")
-                        if (transcodeFormat?.formatLabel != null) {
-                            append(": ")
-                            append(transcodeFormat.formatLabel)
+                    val label =
+                        buildString {
+                            append("Format")
+                            if (transcodeFormat?.formatLabel != null) {
+                                append(": ")
+                                append(transcodeFormat.formatLabel)
+                            }
                         }
-                    }
                     DetailItem(
                         label,
-                        transcodeFormat?.label ?: "Error"
+                        transcodeFormat?.label ?: "Error",
                     )
                 }
             }
@@ -157,29 +157,32 @@ fun HomeScreen(
 
             HomeSection("CONNECT") {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Button(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(140.dp),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(140.dp),
                         shape = MaterialTheme.shapes.large,
                         onClick = onConnectQRButtonClicked,
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(
-                                8.dp,
-                                Alignment.CenterVertically
-                            )
+                            verticalArrangement =
+                                Arrangement.spacedBy(
+                                    8.dp,
+                                    Alignment.CenterVertically,
+                                ),
                         ) {
                             Icon(
                                 painter = painterResource(Res.drawable.qr_code_scanner_24px),
                                 contentDescription = "Scan QR code icon",
-                                modifier = Modifier.size(48.dp)
+                                modifier = Modifier.size(48.dp),
                             )
 
                             Text("Scan QR code", style = MaterialTheme.typography.bodyLarge)
@@ -187,24 +190,26 @@ fun HomeScreen(
                     }
 
                     Button(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(140.dp),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(140.dp),
                         shape = MaterialTheme.shapes.large,
                         onClick = onConnectManuallyButtonClicked,
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(
-                                8.dp,
-                                Alignment.CenterVertically
-                            )
+                            verticalArrangement =
+                                Arrangement.spacedBy(
+                                    8.dp,
+                                    Alignment.CenterVertically,
+                                ),
                         ) {
                             Icon(
                                 painter = painterResource(Res.drawable.input_24px),
                                 contentDescription = "Enter manually icon",
-                                modifier = Modifier.size(48.dp)
+                                modifier = Modifier.size(48.dp),
                             )
 
                             Text("Enter manually", style = MaterialTheme.typography.bodyLarge)
@@ -216,7 +221,7 @@ fun HomeScreen(
             if (recentServers.isNotEmpty()) {
                 HomeSection("RECENT CONNECTIONS") {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         val shown = recentServers.sortedByDescending { it.connectedAt }.take(5)
                         for (recentServer in shown) {
@@ -225,7 +230,7 @@ fun HomeScreen(
                                 connectingTo = connectingTo,
                                 onConnect = {
                                     onConnectRecent(recentServer.endpointId)
-                                }
+                                },
                             )
                         }
                     }
@@ -236,22 +241,28 @@ fun HomeScreen(
 }
 
 @Composable
-fun HomeSection(title: String, content: @Composable () -> Unit) {
+fun HomeSection(
+    title: String,
+    content: @Composable () -> Unit,
+) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface),
     ) {
         Column {
             SectionHeader(title)
 
             Box(
-                modifier = Modifier
-                    .clipToBounds()
+                modifier =
+                    Modifier
+                        .clipToBounds(),
             ) {
                 Column(
-                    modifier = Modifier
-                        .padding(8.dp)
+                    modifier =
+                        Modifier
+                            .padding(8.dp),
                 ) {
                     content()
                 }
@@ -268,11 +279,12 @@ fun RecentConnection(
     onConnect: () -> Unit,
 ) {
     val daysAgo = (now() - recentServer.connectedAt).toInt().seconds.inWholeDays
-    val readableDaysAgo = when (daysAgo) {
-        0L -> "today"
-        1L -> "1 day ago"
-        else -> "$daysAgo days ago"
-    }
+    val readableDaysAgo =
+        when (daysAgo) {
+            0L -> "today"
+            1L -> "1 day ago"
+            else -> "$daysAgo days ago"
+        }
     val detail = "${shortenEndpointId(recentServer.endpointId)}, $readableDaysAgo"
 
     Card(
@@ -283,10 +295,10 @@ fun RecentConnection(
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) {
                 Text(
                     text = recentServer.name,
@@ -296,18 +308,18 @@ fun RecentConnection(
                     text = detail,
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
             if (connectingTo == recentServer.endpointId) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
                 )
             } else {
                 Icon(
                     painter = painterResource(Res.drawable.arrow_forward_24px),
-                    contentDescription = null
+                    contentDescription = null,
                 )
             }
         }
@@ -317,19 +329,20 @@ fun RecentConnection(
 @Composable
 fun HomeScreenSandbox() {
     val appSettings = remember { AppSettings.createMock() }
-    val recentServers = remember {
-        buildList {
-            repeat(10) {
-                add(
-                    RecentServerModel(
-                        endpointId = mockEndpointId(),
-                        name = "My Desktop",
-                        connectedAt = now() - (0uL..1_000_000uL).random()
+    val recentServers =
+        remember {
+            buildList {
+                repeat(10) {
+                    add(
+                        RecentServerModel(
+                            endpointId = mockEndpointId(),
+                            name = "My Desktop",
+                            connectedAt = now() - (0uL..1_000_000uL).random(),
+                        ),
                     )
-                )
+                }
             }
         }
-    }
 
     var connectingTo by remember { mutableStateOf<String?>(null) }
 
@@ -345,10 +358,8 @@ fun HomeScreenSandbox() {
 
     HomeScreen(
         appSettings = appSettings,
-
         snackbarHost = {},
         onShowNodeStatus = {},
-
         recentServers = recentServers,
         connectingTo = connectingTo,
         onPickDownloadDirectory = {},
@@ -359,4 +370,3 @@ fun HomeScreenSandbox() {
         onShowFeedback = {},
     )
 }
-

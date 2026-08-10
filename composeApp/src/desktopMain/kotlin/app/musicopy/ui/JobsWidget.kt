@@ -65,13 +65,13 @@ fun JobsWidget(
 
     AnimatedVisibility(visible = visible) {
         WidgetContainer(
-            title = "STATUS"
+            title = "STATUS",
         ) {
             ScrollableContainer { scrollModifier ->
 
                 Column(
                     modifier = Modifier.fillMaxWidth().then(scrollModifier),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     AnimatedVisibility(transcodesVisible) {
                         TranscodeJob(libraryModel)
@@ -82,7 +82,7 @@ fun JobsWidget(
                         itemKey = { it.endpointId },
                     ) { connection ->
                         ActiveConnectionJob(
-                            connection
+                            connection,
                         )
                     }
 
@@ -103,7 +103,7 @@ private fun TranscodeJob(library: LibraryModel) {
     var countQueued by remember { mutableStateOf(library.transcodeCountQueued.get().toInt()) }
     var countInProgress by remember {
         mutableStateOf(
-            library.transcodeCountInprogress.get().toInt()
+            library.transcodeCountInprogress.get().toInt(),
         )
     }
     var countReady by remember { mutableStateOf(library.transcodeCountReady.get().toInt()) }
@@ -127,17 +127,17 @@ private fun TranscodeJob(library: LibraryModel) {
             labelLeft = {
                 Text(
                     "Transcoding $countRemaining files",
-                    style = MaterialTheme.typography.labelLarge
+                    style = MaterialTheme.typography.labelLarge,
                 )
             },
             body = {
                 Column {
                     Text(
                         "$countInProgress in progress, $countQueued queued",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 }
-            }
+            },
         )
     }
 
@@ -146,9 +146,9 @@ private fun TranscodeJob(library: LibraryModel) {
             labelLeft = {
                 Text(
                     "Failed to transcode $countFailed files",
-                    style = MaterialTheme.typography.labelLarge
+                    style = MaterialTheme.typography.labelLarge,
                 )
-            }
+            },
         )
     }
 }
@@ -163,18 +163,18 @@ private fun ActiveConnectionJob(connection: ServerModel) {
             Column {
                 Text(
                     "Node ID: ${shortenEndpointId(connection.endpointId)}",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
                     "Connection Type: ${connection.connectionType}",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
                     "Latency: ${connection.latencyMs}ms",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
-        }
+        },
     )
 }
 
@@ -202,27 +202,27 @@ private fun ActiveTransferJob(connection: ServerModel) {
         labelLeft = {
             Text(
                 "Transferring $count files to ${connection.name} ($progressPercentString%)",
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelLarge,
             )
         },
         body = {
             Column {
                 Text(
                     "$countFinished finished, $countRemaining remaining",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
 
                 if (countTranscoding > 0) {
                     Text(
                         "$countTranscoding transcoding",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 }
 
                 if (countFailed > 0) {
                     Text(
                         "$countFailed failed",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 }
 
@@ -231,12 +231,12 @@ private fun ActiveTransferJob(connection: ServerModel) {
                     if (progress is TransferJobProgressModel.Failed) {
                         Text(
                             "${job.fileRoot}/${job.filePath} failed: ${progress.error}",
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                 }
             }
-        }
+        },
     )
 }
 
@@ -254,12 +254,15 @@ private fun Job(
     ) {
         Column {
             Row(
-                modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
-                    .clickable { expanded = !expanded }
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.medium)
+                        .clickable { expanded = !expanded },
             ) {
                 Row(
                     modifier = Modifier.padding(8.dp, 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     labelLeft()
 
@@ -271,7 +274,7 @@ private fun Job(
                         painter = painterResource(Res.drawable.chevron_forward_24px),
                         contentDescription = "Expand icon",
                         modifier = Modifier.rotate(degrees),
-                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
+                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
                     )
                 }
             }

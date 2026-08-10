@@ -47,52 +47,57 @@ class TranscodeFormatSheetState(
 
 @Composable
 fun rememberTranscodeFormatSheetState(): TranscodeFormatSheetState {
-    val inner = rememberModalBottomSheetState(
-        initialDetent = Hidden,
-        detents = listOf(Hidden, Peek, FullyExpanded)
-    )
+    val inner =
+        rememberModalBottomSheetState(
+            initialDetent = Hidden,
+            detents = listOf(Hidden, Peek, FullyExpanded),
+        )
     return TranscodeFormatSheetState(
         inner,
     )
 }
 
 @Composable
-fun TranscodeFormatSheet(appSettings: AppSettings, state: TranscodeFormatSheetState) {
+fun TranscodeFormatSheet(
+    appSettings: AppSettings,
+    state: TranscodeFormatSheetState,
+) {
     ModalBottomSheet(state = state.inner) {
         Scrim(
             enter = fadeIn(),
-            exit = fadeOut()
+            exit = fadeOut(),
         )
 
         Sheet(
-            modifier = Modifier
-                .shadow(4.dp, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .widthIn(max = 640.dp)
-                .fillMaxWidth()
-                .imePadding()
+            modifier =
+                Modifier
+                    .shadow(4.dp, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .widthIn(max = 640.dp)
+                    .fillMaxWidth()
+                    .imePadding(),
         ) {
             Column {
                 Box(
                     modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.TopCenter
+                    contentAlignment = Alignment.TopCenter,
                 ) {
                     DragIndication(
-                        modifier = Modifier
-                            .padding(top = 8.dp)
-                            .background(
-                                MaterialTheme.colorScheme.outline,
-                                RoundedCornerShape(100)
-                            )
-                            .width(32.dp)
-                            .height(4.dp)
+                        modifier =
+                            Modifier
+                                .padding(top = 8.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.outline,
+                                    RoundedCornerShape(100),
+                                ).width(32.dp)
+                                .height(4.dp),
                     )
                 }
 
                 Column(
                     modifier = Modifier.padding(8.dp).padding(bottom = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     val onSetFormat = { transcodeFormatId: String ->
                         appSettings.transcodeFormat = transcodeFormatId
@@ -115,13 +120,14 @@ internal fun TranscodeFormatButton(
     transcodeFormat: TranscodeFormat,
     onSetFormat: (id: String) -> Unit,
 ) {
-    val label = buildString {
-        append(transcodeFormat.label)
-        if (transcodeFormat.formatLabel != null) {
-            append(": ")
-            append(transcodeFormat.formatLabel)
+    val label =
+        buildString {
+            append(transcodeFormat.label)
+            if (transcodeFormat.formatLabel != null) {
+                append(": ")
+                append(transcodeFormat.formatLabel)
+            }
         }
-    }
 
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -130,12 +136,12 @@ internal fun TranscodeFormatButton(
         },
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(8.dp)
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
         ) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
             Text(
                 text = transcodeFormat.description,
@@ -155,38 +161,39 @@ enum class TranscodeFormat(
         "opus128",
         "Best Quality",
         "Opus 128kb/s",
-        "Optimized for quality, ~300 songs per GB."
+        "Optimized for quality, ~300 songs per GB.",
     ),
     Opus64(
         "opus64",
         "Best Size",
         "Opus 64kb/s",
-        "Optimized for size, ~600 songs per GB."
+        "Optimized for size, ~600 songs per GB.",
     ),
     Mp3v0(
         "mp3v0",
         "Compatibility + Quality",
         "MP3 V0",
-        "Use with apps that don't support Opus.\nOptimized for quality, ~150 songs per GB."
+        "Use with apps that don't support Opus.\nOptimized for quality, ~150 songs per GB.",
     ),
     Mp3v5(
         "mp3v5",
         "Compatibility + Size",
         "MP3 V5",
-        "Use with apps that don't support Opus.\nOptimized for size, ~300 songs per GB."
+        "Use with apps that don't support Opus.\nOptimized for size, ~300 songs per GB.",
     ),
     None(
         "none",
         "Original",
         null,
-        "Don't convert files when transferring."
-    );
+        "Don't convert files when transferring.",
+    ),
+    ;
 
     companion object
 }
 
-fun TranscodeFormat.Companion.fromId(id: String): TranscodeFormat? {
-    return when (id) {
+fun TranscodeFormat.Companion.fromId(id: String): TranscodeFormat? =
+    when (id) {
         TranscodeFormat.Opus128.id -> TranscodeFormat.Opus128
         TranscodeFormat.Opus64.id -> TranscodeFormat.Opus64
         TranscodeFormat.Mp3v0.id -> TranscodeFormat.Mp3v0
@@ -194,4 +201,3 @@ fun TranscodeFormat.Companion.fromId(id: String): TranscodeFormat? {
         TranscodeFormat.None.id -> TranscodeFormat.None
         else -> null
     }
-}

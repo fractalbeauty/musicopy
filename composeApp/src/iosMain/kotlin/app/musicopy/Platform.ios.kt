@@ -26,10 +26,11 @@ actual val isAndroid = false
 
 actual class PlatformAppContext {
     actual val systemDetails
-        get() = buildString {
-            appendLine("Platform: ${UIDevice.currentDevice.systemName} ${UIDevice.currentDevice.systemVersion}")
-            appendLine("Device: ${UIDevice.currentDevice.model}")
-        }
+        get() =
+            buildString {
+                appendLine("Platform: ${UIDevice.currentDevice.systemName} ${UIDevice.currentDevice.systemVersion}")
+                appendLine("Device: ${UIDevice.currentDevice.model}")
+            }
 
     actual val settingsFactory: Settings.Factory = NSUserDefaultsSettings.Factory()
 }
@@ -46,15 +47,17 @@ actual fun PlatformActivityContext.sendFeedbackEmail(
     onError: (Exception) -> Unit,
 ) {
     val logsLength = logs.size.toULong()
-    val data = logs.usePinned { logs ->
-        NSData.create(
-            bytes = logs.addressOf(0),
-            length = logsLength
-        )
-    }
+    val data =
+        logs.usePinned { logs ->
+            NSData.create(
+                bytes = logs.addressOf(0),
+                length = logsLength,
+            )
+        }
 
-    val viewController = UIApplication.sharedApplication.keyWindow?.rootViewController
-        ?: throw Exception("viewController is null")
+    val viewController =
+        UIApplication.sharedApplication.keyWindow?.rootViewController
+            ?: throw Exception("viewController is null")
 
     if (MFMailComposeViewController.canSendMail()) {
         val mail = MFMailComposeViewController()
@@ -63,26 +66,27 @@ actual fun PlatformActivityContext.sendFeedbackEmail(
         mail.setMessageBody(description, isHTML = false)
         mail.addAttachmentData(data, "text/plain", filename)
 
-        mailDelegate = object : NSObject(), MFMailComposeViewControllerDelegateProtocol {
-            override fun mailComposeController(
-                controller: MFMailComposeViewController,
-                didFinishWithResult: MFMailComposeResult,
-                error: NSError?
-            ) {
-                when (didFinishWithResult) {
-                    MFMailComposeResult.MFMailComposeResultSent -> {}
+        mailDelegate =
+            object : NSObject(), MFMailComposeViewControllerDelegateProtocol {
+                override fun mailComposeController(
+                    controller: MFMailComposeViewController,
+                    didFinishWithResult: MFMailComposeResult,
+                    error: NSError?,
+                ) {
+                    when (didFinishWithResult) {
+                        MFMailComposeResult.MFMailComposeResultSent -> {}
 
-                    else -> {
-                        onError(
-                            Exception("mailComposeDelegate got MFMailComposeResult: $didFinishWithResult")
-                        )
+                        else -> {
+                            onError(
+                                Exception("mailComposeDelegate got MFMailComposeResult: $didFinishWithResult"),
+                            )
+                        }
                     }
-                }
 
-                controller.dismissViewControllerAnimated(true, completion = null)
-                mailDelegate = null
+                    controller.dismissViewControllerAnimated(true, completion = null)
+                    mailDelegate = null
+                }
             }
-        }
         mail.mailComposeDelegate = mailDelegate
 
         viewController.presentViewController(mail, animated = true, completion = null)
@@ -96,7 +100,10 @@ actual object CoreProvider : ICoreProvider
 @OptIn(ExperimentalComposeUiApi::class)
 actual fun toClipEntry(string: String): ClipEntry = ClipEntry.withPlainText(string)
 
-actual fun formatFloat(f: Float, decimals: Int): String {
+actual fun formatFloat(
+    f: Float,
+    decimals: Int,
+): String {
     val formatter = NSNumberFormatter()
     formatter.minimumFractionDigits = 0u
     formatter.maximumFractionDigits = decimals.toULong()
@@ -105,11 +112,12 @@ actual fun formatFloat(f: Float, decimals: Int): String {
 }
 
 @Composable
-actual fun rememberNotificationsPermission(): MutableState<PermissionState> {
-    return stubRememberNotificationsPermission()
-}
+actual fun rememberNotificationsPermission(): MutableState<PermissionState> = stubRememberNotificationsPermission()
 
 @Composable
-actual fun BackHandler(enabled: Boolean, onBack: () -> Unit) {
+actual fun BackHandler(
+    enabled: Boolean,
+    onBack: () -> Unit,
+) {
     // not implemented on iOS
 }

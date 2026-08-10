@@ -21,7 +21,6 @@ import app.musicopy.ui.widgetHeadline
 fun DisconnectedScreen(
     snackbarHost: @Composable () -> Unit,
     onShowNodeStatus: () -> Unit,
-
     endpointId: String,
     name: String,
     isConnecting: Boolean,
@@ -33,7 +32,7 @@ fun DisconnectedScreen(
             TopBar(
                 title = "Disconnected",
                 onShowNodeStatus = onShowNodeStatus,
-                onBack = onCancel
+                onBack = onCancel,
             )
         },
         snackbarHost = snackbarHost,
@@ -41,7 +40,7 @@ fun DisconnectedScreen(
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
                 text = "DISCONNECTED",
@@ -51,12 +50,12 @@ fun DisconnectedScreen(
 
             Text(
                 text = name,
-                style = MaterialTheme.typography.headlineMedium
+                style = MaterialTheme.typography.headlineMedium,
             )
 
             Text(
                 text = shortenEndpointId(endpointId),
-                style = MaterialTheme.typography.labelMedium
+                style = MaterialTheme.typography.labelMedium,
             )
 
             LoadingButton(
@@ -73,11 +72,10 @@ fun DisconnectedScreenSandbox() {
     DisconnectedScreen(
         snackbarHost = {},
         onShowNodeStatus = {},
-
         endpointId = mockEndpointId(),
         name = "My Desktop",
         isConnecting = false,
         onCancel = {},
-        onReconnect = {}
+        onReconnect = {},
     )
 }

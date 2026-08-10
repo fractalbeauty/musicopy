@@ -24,7 +24,6 @@ import uniffi.musicopy.ClientModel
 fun WaitingScreen(
     snackbarHost: @Composable () -> Unit,
     onShowNodeStatus: () -> Unit,
-
     clientModel: ClientModel,
     onCancel: () -> Unit,
 ) {
@@ -33,7 +32,7 @@ fun WaitingScreen(
             TopBar(
                 title = "Waiting to connect",
                 onShowNodeStatus = onShowNodeStatus,
-                onBack = onCancel
+                onBack = onCancel,
             )
         },
         snackbarHost = snackbarHost,
@@ -45,7 +44,7 @@ fun WaitingScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         "Press Accept on the other device to continue.",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 }
             }
@@ -53,7 +52,7 @@ fun WaitingScreen(
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
                     text = "CONNECTED",
@@ -63,12 +62,12 @@ fun WaitingScreen(
 
                 Text(
                     text = clientModel.name,
-                    style = MaterialTheme.typography.headlineMedium
+                    style = MaterialTheme.typography.headlineMedium,
                 )
 
                 Text(
                     text = shortenEndpointId(clientModel.endpointId),
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.labelMedium,
                 )
 
                 Button(
@@ -86,7 +85,6 @@ fun WaitingScreenSandbox() {
     WaitingScreen(
         snackbarHost = {},
         onShowNodeStatus = {},
-
         clientModel = mockClientModel(),
         onCancel = {},
     )

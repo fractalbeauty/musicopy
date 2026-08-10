@@ -64,17 +64,17 @@ fun ConnectWidget(
     onAcceptAndTrust: (remoteEndpointId: String) -> Unit,
     onAcceptOnce: (remoteEndpointId: String) -> Unit,
     onDeny: (remoteEndpointId: String) -> Unit,
-
     modifier: Modifier = Modifier,
 ) {
     val nextPending = nodeModel.servers.values.find { it.state is ServerStateModel.Pending }
 
     // TODO: animate
-    val title = if (nextPending == null) {
-        "CONNECT"
-    } else {
-        "PENDING CONNECTION"
-    }
+    val title =
+        if (nextPending == null) {
+            "CONNECT"
+        } else {
+            "PENDING CONNECTION"
+        }
 
     WidgetContainer(
         title = title,
@@ -91,16 +91,16 @@ fun ConnectWidget(
                     // If the target number is larger, it slides up and fades in
                     // while the initial (smaller) number slides up and fades out.
                     slideInVertically { height -> height } + fadeIn() togetherWith
-                            slideOutVertically { height -> -height } + fadeOut()
+                        slideOutVertically { height -> -height } + fadeOut()
                 } else {
                     // If the target number is smaller, it slides down and fades in
                     // while the initial number slides down and fades out.
                     slideInVertically { height -> -height } + fadeIn() togetherWith
-                            slideOutVertically { height -> height } + fadeOut()
+                        slideOutVertically { height -> height } + fadeOut()
                 }.using(
                     // Disable clipping since the faded slide-in/out should
                     // be displayed out of bounds.
-                    SizeTransform(clip = false)
+                    SizeTransform(clip = false),
                 )
             },
         ) { targetState ->
@@ -115,7 +115,7 @@ fun ConnectWidget(
             } ?: run {
                 DefaultScreen(
                     localEndpointId = nodeModel.endpointId,
-                    showHints = showHints
+                    showHints = showHints,
                 )
             }
         }
@@ -132,7 +132,7 @@ private fun DefaultScreen(
         state = downloadAppState,
         onClose = {
             downloadAppState.visible = false
-        }
+        },
     )
 
     val enterManuallyState = rememberDialogState(initiallyVisible = false)
@@ -141,38 +141,39 @@ private fun DefaultScreen(
         localEndpointId = localEndpointId,
         onClose = {
             enterManuallyState.visible = false
-        }
+        },
     )
 
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.SpaceBetween,
     ) {
         if (showHints) {
             Info {
                 Text(
                     "Scan the QR code using the mobile app to connect.",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }
 
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.Center,
         ) {
             Image(
-                painter = rememberQrCodePainter(
-                    QrData.text(localEndpointId)
-                ),
+                painter =
+                    rememberQrCodePainter(
+                        QrData.text(localEndpointId),
+                    ),
                 contentDescription = "QR code containing node ID",
-                modifier = Modifier.widthIn(max = 120.dp)
+                modifier = Modifier.widthIn(max = 120.dp),
             )
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             TextButton(
                 onClick = {
@@ -181,13 +182,13 @@ private fun DefaultScreen(
             ) {
                 Text(
                     "Download app",
-                    modifier = Modifier.padding(end = 4.dp)
+                    modifier = Modifier.padding(end = 4.dp),
                 )
 
                 Icon(
                     painter = painterResource(Res.drawable.open_in_new_24px),
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
             }
 
@@ -199,12 +200,12 @@ private fun DefaultScreen(
                 Icon(
                     painter = painterResource(Res.drawable.input_24px),
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
 
                 Text(
                     "Enter manually",
-                    modifier = Modifier.padding(start = 4.dp)
+                    modifier = Modifier.padding(start = 4.dp),
                 )
             }
         }
@@ -223,13 +224,13 @@ private fun PendingScreen(
 
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Box {}
 
         Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(remoteNodeName, style = MaterialTheme.typography.titleMedium)
             Text(shortenEndpointId(remoteEndpointId), style = MaterialTheme.typography.titleSmall)
@@ -237,7 +238,7 @@ private fun PendingScreen(
 
         Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = {
@@ -270,9 +271,10 @@ private fun DownloadAppDialog(
     UnstyledDialog(state = state, onDismiss = onClose) {
         UnstyledScrim()
         UnstyledDialogPanel(
-            modifier = Modifier
-                .widthIn(max = 500.dp)
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .widthIn(max = 500.dp)
+                    .padding(16.dp),
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -288,20 +290,21 @@ private fun DownloadAppDialog(
 
                     Box(
                         modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Image(
-                            painter = rememberQrCodePainter(
-                                QrData.text("https://musicopy.app/download")
-                            ),
+                            painter =
+                                rememberQrCodePainter(
+                                    QrData.text("https://musicopy.app/download"),
+                                ),
                             contentDescription = "QR code containing download link",
-                            modifier = Modifier.widthIn(max = 120.dp)
+                            modifier = Modifier.widthIn(max = 120.dp),
                         )
                     }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
+                        horizontalArrangement = Arrangement.Center,
                     ) {
                         val uriHandler = LocalUriHandler.current
 
@@ -312,13 +315,13 @@ private fun DownloadAppDialog(
                         ) {
                             Text(
                                 text = "musicopy.app/download",
-                                modifier = Modifier.padding(end = 4.dp)
+                                modifier = Modifier.padding(end = 4.dp),
                             )
 
                             Icon(
                                 painter = painterResource(Res.drawable.open_in_new_24px),
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(16.dp),
                             )
                         }
                     }
@@ -348,9 +351,10 @@ private fun EnterManuallyDialog(
     UnstyledDialog(state = state, onDismiss = onClose) {
         UnstyledScrim()
         UnstyledDialogPanel(
-            modifier = Modifier
-                .widthIn(max = 500.dp)
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .widthIn(max = 500.dp)
+                    .padding(16.dp),
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -366,18 +370,19 @@ private fun EnterManuallyDialog(
 
                     Text(
                         text = "This code can be used to connect manually to this device.",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
 
                     val split = localEndpointId.chunked(32).joinToString("\n")
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(
-                            8.dp,
-                            Alignment.CenterHorizontally
-                        ),
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement =
+                            Arrangement.spacedBy(
+                                8.dp,
+                                Alignment.CenterHorizontally,
+                            ),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(text = split, style = MaterialTheme.typography.monospaceMedium)
 
@@ -395,7 +400,7 @@ private fun EnterManuallyDialog(
                         ) {
                             Icon(
                                 painter = painterResource(Res.drawable.content_copy_24px),
-                                contentDescription = "Copy button"
+                                contentDescription = "Copy button",
                             )
                         }
                     }

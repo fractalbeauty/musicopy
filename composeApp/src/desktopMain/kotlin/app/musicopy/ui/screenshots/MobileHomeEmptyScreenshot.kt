@@ -4,10 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import app.musicopy.AppSettings
-import app.musicopy.mockEndpointId
-import app.musicopy.now
 import app.musicopy.ui.screens.HomeScreen
-import uniffi.musicopy.RecentServerModel
 
 @Composable
 fun MobileHomeEmptyScreenshot() {
@@ -21,7 +18,6 @@ fun MobileHomeEmptyScreenshot() {
     HomeScreen(
         snackbarHost = {},
         onShowNodeStatus = {},
-
         appSettings = appSettings,
         recentServers = emptyList(),
         connectingTo = null,

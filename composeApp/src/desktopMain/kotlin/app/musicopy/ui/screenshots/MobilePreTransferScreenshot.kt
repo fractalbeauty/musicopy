@@ -8,27 +8,27 @@ import uniffi.musicopy.ClientStateModel
 
 @Composable
 fun MobilePreTransferScreenshot() {
-    val clientModel = ClientModel(
-        name = "Desktop",
-        endpointId = demoEndpointId,
-        connectedAt = now(),
-        state = ClientStateModel.Accepted,
-        connectionType = "direct",
-        latencyMs = 42u,
-        index = screenshotIndex,
-        transferJobs = emptyList(),
-        paused = false,
-    )
+    val clientModel =
+        ClientModel(
+            name = "Desktop",
+            endpointId = demoEndpointId,
+            connectedAt = now(),
+            state = ClientStateModel.Accepted,
+            connectionType = "direct",
+            latencyMs = 42u,
+            index = screenshotIndex,
+            transferJobs = emptyList(),
+            paused = false,
+        )
 
     PreTransferScreen(
         snackbarHost = {},
         onShowNodeStatus = {},
-
         clientModel = clientModel,
         hasDownloadDirectory = true,
         onPickDownloadDirectory = {},
         onSetDownloads = {},
         onNavigateToTransfer = {},
-        onCancel = {}
+        onCancel = {},
     )
 }

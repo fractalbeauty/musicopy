@@ -56,12 +56,17 @@ import platform.darwin.dispatch_get_main_queue
 
 private sealed interface CameraAccess {
     object Unknown : CameraAccess
+
     object Denied : CameraAccess
+
     object Authorized : CameraAccess
 }
 
 @Composable
-actual fun QRScanner(autoLaunch: Boolean, onResult: (String) -> Unit) {
+actual fun QRScanner(
+    autoLaunch: Boolean,
+    onResult: (String) -> Unit,
+) {
     var cameraAccess: CameraAccess by remember { mutableStateOf(CameraAccess.Unknown) }
     LaunchedEffect(Unit) {
         when (AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)) {
@@ -75,7 +80,7 @@ actual fun QRScanner(autoLaunch: Boolean, onResult: (String) -> Unit) {
 
             AVAuthorizationStatusNotDetermined -> {
                 AVCaptureDevice.requestAccessForMediaType(
-                    mediaType = AVMediaTypeVideo
+                    mediaType = AVMediaTypeVideo,
                 ) { success ->
                     cameraAccess = if (success) CameraAccess.Authorized else CameraAccess.Denied
                 }
@@ -85,7 +90,7 @@ actual fun QRScanner(autoLaunch: Boolean, onResult: (String) -> Unit) {
 
     Box(
         modifier = Modifier.fillMaxSize().aspectRatio(1f).background(Color.Black),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         when (cameraAccess) {
             CameraAccess.Unknown -> {
@@ -106,18 +111,20 @@ actual fun QRScanner(autoLaunch: Boolean, onResult: (String) -> Unit) {
 
 @Composable
 internal fun CameraAuthorized(onResult: (String) -> Unit) {
-    val camera: AVCaptureDevice? = remember {
-        discoverySessionWithDeviceTypes(
-            deviceTypes = listOf(
-                AVCaptureDeviceTypeBuiltInTripleCamera,
-                AVCaptureDeviceTypeBuiltInDualWideCamera,
-                AVCaptureDeviceTypeBuiltInDualCamera,
-                AVCaptureDeviceTypeBuiltInWideAngleCamera,
-            ),
-            mediaType = AVMediaTypeVideo,
-            position = AVCaptureDevicePositionBack,
-        ).devices.firstOrNull() as? AVCaptureDevice
-    }
+    val camera: AVCaptureDevice? =
+        remember {
+            discoverySessionWithDeviceTypes(
+                deviceTypes =
+                    listOf(
+                        AVCaptureDeviceTypeBuiltInTripleCamera,
+                        AVCaptureDeviceTypeBuiltInDualWideCamera,
+                        AVCaptureDeviceTypeBuiltInDualCamera,
+                        AVCaptureDeviceTypeBuiltInWideAngleCamera,
+                    ),
+                mediaType = AVMediaTypeVideo,
+                position = AVCaptureDevicePositionBack,
+            ).devices.firstOrNull() as? AVCaptureDevice
+        }
     if (camera != null) {
         CameraFound(onResult, camera)
     } else {
@@ -129,70 +136,73 @@ internal fun CameraAuthorized(onResult: (String) -> Unit) {
 @Composable
 internal fun CameraFound(
     onResult: (String) -> Unit,
-    camera: AVCaptureDevice
+    camera: AVCaptureDevice,
 ) {
-    val metadataObjectsDelegate = remember {
-        object : NSObject(), AVCaptureMetadataOutputObjectsDelegateProtocol {
-            lateinit var captureSession: AVCaptureSession
+    val metadataObjectsDelegate =
+        remember {
+            object : NSObject(), AVCaptureMetadataOutputObjectsDelegateProtocol {
+                lateinit var captureSession: AVCaptureSession
 
-            override fun captureOutput(
-                output: AVCaptureOutput,
-                didOutputMetadataObjects: List<*>,
-                fromConnection: AVCaptureConnection
-            ) {
-                didOutputMetadataObjects.forEach { metadataObject ->
-                    if (metadataObject is AVMetadataMachineReadableCodeObject) {
-                        val code = metadataObject.stringValue ?: ""
-                        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
-                        onResult(code)
-                        captureSession.stopRunning()
+                override fun captureOutput(
+                    output: AVCaptureOutput,
+                    didOutputMetadataObjects: List<*>,
+                    fromConnection: AVCaptureConnection,
+                ) {
+                    didOutputMetadataObjects.forEach { metadataObject ->
+                        if (metadataObject is AVMetadataMachineReadableCodeObject) {
+                            val code = metadataObject.stringValue ?: ""
+                            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+                            onResult(code)
+                            captureSession.stopRunning()
+                        }
                     }
                 }
             }
         }
-    }
 
-    val captureSession = remember {
-        val captureSession = AVCaptureSession()
-        captureSession.sessionPreset = AVCaptureSessionPresetPhoto
+    val captureSession =
+        remember {
+            val captureSession = AVCaptureSession()
+            captureSession.sessionPreset = AVCaptureSessionPresetPhoto
 
-        val captureDeviceInput = deviceInputWithDevice(device = camera, error = null)!!
-        captureSession.addInput(captureDeviceInput)
+            val captureDeviceInput = deviceInputWithDevice(device = camera, error = null)!!
+            captureSession.addInput(captureDeviceInput)
 
-        val capturePhotoOutput = AVCapturePhotoOutput()
-        captureSession.addOutput(capturePhotoOutput)
+            val capturePhotoOutput = AVCapturePhotoOutput()
+            captureSession.addOutput(capturePhotoOutput)
 
-        val metadataOutput = AVCaptureMetadataOutput()
-        if (captureSession.canAddOutput(metadataOutput)) {
-            captureSession.addOutput(metadataOutput)
+            val metadataOutput = AVCaptureMetadataOutput()
+            if (captureSession.canAddOutput(metadataOutput)) {
+                captureSession.addOutput(metadataOutput)
 
-            metadataOutput.setMetadataObjectsDelegate(
-                metadataObjectsDelegate,
-                dispatch_get_main_queue()
-            )
+                metadataOutput.setMetadataObjectsDelegate(
+                    metadataObjectsDelegate,
+                    dispatch_get_main_queue(),
+                )
 
-            metadataOutput.metadataObjectTypes = listOf(AVMetadataObjectTypeQRCode)
+                metadataOutput.metadataObjectTypes = listOf(AVMetadataObjectTypeQRCode)
+            }
+
+            metadataObjectsDelegate.captureSession = captureSession
+
+            captureSession
         }
-
-        metadataObjectsDelegate.captureSession = captureSession
-
-        captureSession
-    }
 
     val cameraPreviewLayer = remember { AVCaptureVideoPreviewLayer(session = captureSession) }
 
     UIKitView(
         modifier = Modifier.fillMaxSize(),
         factory = {
-            val cameraContainer = object : UIView(frame = CGRectZero.readValue()) {
-                override fun layoutSubviews() {
-                    CATransaction.begin()
-                    CATransaction.setValue(true, kCATransactionDisableActions)
-                    layer.setFrame(frame)
-                    cameraPreviewLayer.setFrame(frame)
-                    CATransaction.commit()
+            val cameraContainer =
+                object : UIView(frame = CGRectZero.readValue()) {
+                    override fun layoutSubviews() {
+                        CATransaction.begin()
+                        CATransaction.setValue(true, kCATransactionDisableActions)
+                        layer.setFrame(frame)
+                        cameraPreviewLayer.setFrame(frame)
+                        CATransaction.commit()
+                    }
                 }
-            }
             cameraContainer.layer.addSublayer(cameraPreviewLayer)
             cameraPreviewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill
             captureSession.startRunning()

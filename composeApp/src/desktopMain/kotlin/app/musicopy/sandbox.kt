@@ -35,13 +35,6 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.musicopy.ui.Theme
 import app.musicopy.ui.components.Info
-import app.musicopy.ui.screens.DisconnectedScreenSandbox
-import app.musicopy.ui.screens.HomeScreenSandbox
-import app.musicopy.ui.screens.PreTransferScreenSandbox
-import app.musicopy.ui.screens.SettingsScreenSandbox
-import app.musicopy.ui.screens.TransferScreenFinishedSandbox
-import app.musicopy.ui.screens.TransferScreenSandbox
-import app.musicopy.ui.screens.WaitingScreenSandbox
 import app.musicopy.ui.screenshots.DesktopHeroScreenshot
 import app.musicopy.ui.screenshots.DesktopHomeEmptyScreenshot
 import app.musicopy.ui.screenshots.MobileHeroScreenshot
@@ -55,27 +48,29 @@ import io.github.alexzhirkevich.qrose.toByteArray
 import kotlinx.coroutines.launch
 import java.io.File
 
-fun main() = application {
-    val state = rememberWindowState(
-        size = DpSize(WINDOW_WIDTH.dp, WINDOW_HEIGHT.dp),
-    )
+fun main() =
+    application {
+        val state =
+            rememberWindowState(
+                size = DpSize(WINDOW_WIDTH.dp, WINDOW_HEIGHT.dp),
+            )
 
-    Window(
-        title = "Musicopy [Sandbox]",
-        onCloseRequest = ::exitApplication,
-        state = state,
-    ) {
-        val platformAppContext = PlatformAppContext()
-        val platformActivityContext = PlatformActivityContext(mainWindow = window)
+        Window(
+            title = "Musicopy [Sandbox]",
+            onCloseRequest = ::exitApplication,
+            state = state,
+        ) {
+            val platformAppContext = PlatformAppContext()
+            val platformActivityContext = PlatformActivityContext(mainWindow = window)
 
-        Sandbox()
+            Sandbox()
 
-        // TODO
-        Box(modifier = Modifier.offset(x = 8.dp, y = 8.dp)) {
-            Text("window: ${LocalWindowInfo.current.containerSize}")
+            // TODO
+            Box(modifier = Modifier.offset(x = 8.dp, y = 8.dp)) {
+                Text("window: ${LocalWindowInfo.current.containerSize}")
+            }
         }
     }
-}
 
 @Composable
 private fun Sandbox() {
@@ -108,132 +103,128 @@ class ScreenshotConfig(
 )
 
 const val initialConfig = 15 - 1
-val screenshotConfigs = listOf(
-    // web hero images
-    ScreenshotConfig(
-        file = "web/public/static/hero_mobile.png",
-        description = "web home hero",
-        dimensions = 350 to 550,
-        content = { MobileHeroScreenshot() }
-    ),
-    ScreenshotConfig(
-        file = "web/public/static/hero_desktop.png",
-        description = "web home hero - expand status jobs",
-        dimensions = 900 to 550,
-        content = { DesktopHeroScreenshot() }
-    ),
-
-    // google - phone
-    ScreenshotConfig(
-        file = "screenshots/google/phone/google_phone_1.png",
-        description = "transfer - expand all. should be 14 transferring",
-        dimensions = 1080 to 1920,
-        density = 3f,
-        content = { MobileTransferScreenshot() }
-    ),
-    ScreenshotConfig(
-        file = "screenshots/google/phone/google_phone_2.png",
-        description = "pretransfer - select all of boneyard, navigate to fishmonger, select all. should be 14 selected",
-        dimensions = 1080 to 1920,
-        density = 3f,
-        content = { MobilePreTransferScreenshot() }
-    ),
-    ScreenshotConfig(
-        file = "screenshots/google/phone/google_phone_3.png",
-        dimensions = 1080 to 1920,
-        density = 3f,
-        content = { MobileHomeScreenshot() }
-    ),
-
-    // google - tablet
-    ScreenshotConfig(
-        file = "screenshots/google/tablet/google_tablet_1.png",
-        description = "transfer - expand all. should be 14 transferring",
-        dimensions = 1080 to 1920,
-        density = 1.5f,
-        content = { MobileTransferScreenshot() }
-    ),
-    ScreenshotConfig(
-        file = "screenshots/google/tablet/google_tablet_2.png",
-        description = "pretransfer - select all of boneyard, navigate to fishmonger, select all. should be 14 selected",
-        dimensions = 1080 to 1920,
-        density = 1.5f,
-        content = { MobilePreTransferScreenshot() }
-    ),
-    ScreenshotConfig(
-        file = "screenshots/google/tablet/google_tablet_3.png",
-        dimensions = 1080 to 1920,
-        density = 1.5f,
-        content = { MobileHomeScreenshot() }
-    ),
-
-    // apple - iphone 6.5"
-    ScreenshotConfig(
-        file = "screenshots/apple/phone65/apple_phone65_1.png",
-        description = "transfer - expand all. should be 14 transferring",
-        dimensions = 1284 to 2778,
-        density = 3.5f,
-        content = { MobileTransferScreenshot() }
-    ),
-    ScreenshotConfig(
-        file = "screenshots/apple/phone65/apple_phone65_2.png",
-        description = "pretransfer - select all of boneyard, navigate to fishmonger, select all. should be 14 selected",
-        dimensions = 1284 to 2778,
-        density = 3.5f,
-        content = { MobilePreTransferScreenshot() }
-    ),
-    ScreenshotConfig(
-        file = "screenshots/apple/phone65/apple_phone65_3.png",
-        dimensions = 1284 to 2778,
-        density = 3.5f,
-        content = { MobileHomeScreenshot() }
-    ),
-
-    // apple - ipad 13"
-    ScreenshotConfig(
-        file = "screenshots/apple/ipad13/apple_ipad13_1.png",
-        description = "transfer - expand all. should be 14 transferring",
-        dimensions = 2064 to 2752,
-        density = 2f,
-        content = { MobileTransferScreenshot() }
-    ),
-    ScreenshotConfig(
-        file = "screenshots/apple/ipad13/apple_ipad13_2.png",
-        description = "pretransfer - select all of boneyard, navigate to fishmonger, select all. should be 14 selected",
-        dimensions = 2064 to 2752,
-        density = 2f,
-        content = { MobilePreTransferScreenshot() }
-    ),
-    ScreenshotConfig(
-        file = "screenshots/apple/ipad13/apple_ipad13_3.png",
-        dimensions = 2064 to 2752,
-        density = 2f,
-        content = { MobileHomeScreenshot() }
-    ),
-
-    // manual
-    ScreenshotConfig(
-        file = "web/public/static/manual/desktop_home.png",
-        dimensions = 800 to 550,
-        content = { DesktopHomeEmptyScreenshot() }
-    ),
-    ScreenshotConfig(
-        file = "web/public/static/manual/mobile_home.png",
-        dimensions = 400 to 600,
-        content = { MobileHomeEmptyScreenshot() }
-    ),
-    ScreenshotConfig(
-        file = "web/public/static/manual/mobile_pretransfer.png",
-        dimensions = 400 to 600,
-        content = { MobilePreTransferEmptyScreenshot() }
-    ),
-    ScreenshotConfig(
-        file = "web/public/static/manual/mobile_transfer.png",
-        description = "transfer - expand all",
-        dimensions = 400 to 600,
-        content = { MobileTransferScreenshot() }
-    ),
-)
+val screenshotConfigs =
+    listOf(
+        // web hero images
+        ScreenshotConfig(
+            file = "web/public/static/hero_mobile.png",
+            description = "web home hero",
+            dimensions = 350 to 550,
+            content = { MobileHeroScreenshot() },
+        ),
+        ScreenshotConfig(
+            file = "web/public/static/hero_desktop.png",
+            description = "web home hero - expand status jobs",
+            dimensions = 900 to 550,
+            content = { DesktopHeroScreenshot() },
+        ),
+        // google - phone
+        ScreenshotConfig(
+            file = "screenshots/google/phone/google_phone_1.png",
+            description = "transfer - expand all. should be 14 transferring",
+            dimensions = 1080 to 1920,
+            density = 3f,
+            content = { MobileTransferScreenshot() },
+        ),
+        ScreenshotConfig(
+            file = "screenshots/google/phone/google_phone_2.png",
+            description = "pretransfer - select all of boneyard, navigate to fishmonger, select all. should be 14 selected",
+            dimensions = 1080 to 1920,
+            density = 3f,
+            content = { MobilePreTransferScreenshot() },
+        ),
+        ScreenshotConfig(
+            file = "screenshots/google/phone/google_phone_3.png",
+            dimensions = 1080 to 1920,
+            density = 3f,
+            content = { MobileHomeScreenshot() },
+        ),
+        // google - tablet
+        ScreenshotConfig(
+            file = "screenshots/google/tablet/google_tablet_1.png",
+            description = "transfer - expand all. should be 14 transferring",
+            dimensions = 1080 to 1920,
+            density = 1.5f,
+            content = { MobileTransferScreenshot() },
+        ),
+        ScreenshotConfig(
+            file = "screenshots/google/tablet/google_tablet_2.png",
+            description = "pretransfer - select all of boneyard, navigate to fishmonger, select all. should be 14 selected",
+            dimensions = 1080 to 1920,
+            density = 1.5f,
+            content = { MobilePreTransferScreenshot() },
+        ),
+        ScreenshotConfig(
+            file = "screenshots/google/tablet/google_tablet_3.png",
+            dimensions = 1080 to 1920,
+            density = 1.5f,
+            content = { MobileHomeScreenshot() },
+        ),
+        // apple - iphone 6.5"
+        ScreenshotConfig(
+            file = "screenshots/apple/phone65/apple_phone65_1.png",
+            description = "transfer - expand all. should be 14 transferring",
+            dimensions = 1284 to 2778,
+            density = 3.5f,
+            content = { MobileTransferScreenshot() },
+        ),
+        ScreenshotConfig(
+            file = "screenshots/apple/phone65/apple_phone65_2.png",
+            description = "pretransfer - select all of boneyard, navigate to fishmonger, select all. should be 14 selected",
+            dimensions = 1284 to 2778,
+            density = 3.5f,
+            content = { MobilePreTransferScreenshot() },
+        ),
+        ScreenshotConfig(
+            file = "screenshots/apple/phone65/apple_phone65_3.png",
+            dimensions = 1284 to 2778,
+            density = 3.5f,
+            content = { MobileHomeScreenshot() },
+        ),
+        // apple - ipad 13"
+        ScreenshotConfig(
+            file = "screenshots/apple/ipad13/apple_ipad13_1.png",
+            description = "transfer - expand all. should be 14 transferring",
+            dimensions = 2064 to 2752,
+            density = 2f,
+            content = { MobileTransferScreenshot() },
+        ),
+        ScreenshotConfig(
+            file = "screenshots/apple/ipad13/apple_ipad13_2.png",
+            description = "pretransfer - select all of boneyard, navigate to fishmonger, select all. should be 14 selected",
+            dimensions = 2064 to 2752,
+            density = 2f,
+            content = { MobilePreTransferScreenshot() },
+        ),
+        ScreenshotConfig(
+            file = "screenshots/apple/ipad13/apple_ipad13_3.png",
+            dimensions = 2064 to 2752,
+            density = 2f,
+            content = { MobileHomeScreenshot() },
+        ),
+        // manual
+        ScreenshotConfig(
+            file = "web/public/static/manual/desktop_home.png",
+            dimensions = 800 to 550,
+            content = { DesktopHomeEmptyScreenshot() },
+        ),
+        ScreenshotConfig(
+            file = "web/public/static/manual/mobile_home.png",
+            dimensions = 400 to 600,
+            content = { MobileHomeEmptyScreenshot() },
+        ),
+        ScreenshotConfig(
+            file = "web/public/static/manual/mobile_pretransfer.png",
+            dimensions = 400 to 600,
+            content = { MobilePreTransferEmptyScreenshot() },
+        ),
+        ScreenshotConfig(
+            file = "web/public/static/manual/mobile_transfer.png",
+            description = "transfer - expand all",
+            dimensions = 400 to 600,
+            content = { MobileTransferScreenshot() },
+        ),
+    )
 
 @Composable
 fun SandboxScreenshot() {
@@ -245,25 +236,26 @@ fun SandboxScreenshot() {
         val height = config.dimensions.second
 
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Info {
                 Text(
                     text = "Config ${configIndex + 1} / ${screenshotConfigs.size}",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
 
                 Text(
                     text = "File: ${config.file}",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
 
                 Text(
                     text = "Description: ${config.description}",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -309,11 +301,11 @@ private fun Screenshot(
     Info {
         Text(
             text = "Image size: $width x $height",
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
         )
         Text(
             text = "Device size: ${width / density} x ${height / density} (density = $density)",
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
         )
 
         OutlinedButton(
@@ -322,41 +314,44 @@ private fun Screenshot(
                     val bitmap = graphicsLayer.toImageBitmap()
                     val bytes = bitmap.toByteArray()
 
-                    val file = File("../${file}")
+                    val file = File("../$file")
 
                     val parent = File(file.parent)
                     parent.mkdirs()
 
                     file.writeBytes(bytes)
                 }
-            }
+            },
         ) {
             Text("Screenshot")
         }
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .horizontalScroll(rememberScrollState())
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .horizontalScroll(rememberScrollState()),
     ) {
         CompositionLocalProvider(
-            LocalDensity provides Density(density)
+            LocalDensity provides Density(density),
         ) {
             Box(
-                modifier = Modifier
-                    .drawWithContent {
-                        graphicsLayer.record {
-                            this@drawWithContent.drawContent()
-                        }
-                        drawLayer(graphicsLayer)
-                    }
+                modifier =
+                    Modifier
+                        .drawWithContent {
+                            graphicsLayer.record {
+                                this@drawWithContent.drawContent()
+                            }
+                            drawLayer(graphicsLayer)
+                        },
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(width = width.dp / density, height = height.dp / density)
-                        .background(MaterialTheme.colorScheme.surface)
+                    modifier =
+                        Modifier
+                            .size(width = width.dp / density, height = height.dp / density)
+                            .background(MaterialTheme.colorScheme.surface),
                 ) {
                     content()
                 }

@@ -15,16 +15,17 @@ actual val isAndroid = false
 
 actual class PlatformAppContext {
     actual val systemDetails
-        get() = buildString {
-            appendLine(
-                "Platform: ${System.getProperty("os.name")} ${System.getProperty("os.version")} (${
-                    System.getProperty(
-                        "os.arch"
-                    )
-                })"
-            )
-            appendLine("Java: ${System.getProperty("java.version")}")
-        }
+        get() =
+            buildString {
+                appendLine(
+                    "Platform: ${System.getProperty("os.name")} ${System.getProperty("os.version")} (${
+                        System.getProperty(
+                            "os.arch",
+                        )
+                    })",
+                )
+                appendLine("Java: ${System.getProperty("java.version")}")
+            }
 
     actual val settingsFactory: Settings.Factory = PreferencesSettings.Factory()
 }
@@ -42,9 +43,7 @@ actual fun PlatformActivityContext.sendFeedbackEmail(
     logs: ByteArray,
     filename: String,
     onError: (Exception) -> Unit,
-) {
-    throw Exception("Not supported on this platform")
-}
+): Unit = throw Exception("Not supported on this platform")
 
 actual object CoreProvider : ICoreProvider {
     override fun getOptions(
@@ -60,18 +59,22 @@ actual object CoreProvider : ICoreProvider {
 @OptIn(ExperimentalComposeUiApi::class)
 actual fun toClipEntry(string: String): ClipEntry = ClipEntry(StringSelection(string))
 
-actual fun formatFloat(f: Float, decimals: Int): String {
+actual fun formatFloat(
+    f: Float,
+    decimals: Int,
+): String {
     val df = DecimalFormat()
     df.maximumFractionDigits = decimals
     return df.format(f)
 }
 
 @Composable
-actual fun rememberNotificationsPermission(): MutableState<PermissionState> {
-    return stubRememberNotificationsPermission()
-}
+actual fun rememberNotificationsPermission(): MutableState<PermissionState> = stubRememberNotificationsPermission()
 
 @Composable
-actual fun BackHandler(enabled: Boolean, onBack: () -> Unit) {
+actual fun BackHandler(
+    enabled: Boolean,
+    onBack: () -> Unit,
+) {
     // not implemented on desktop
 }

@@ -90,7 +90,7 @@ fun SettingsWidget(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SettingCard(outlined = true) {
                 Column(
-                    modifier = Modifier.padding(start = 8.dp).weight(1f)
+                    modifier = Modifier.padding(start = 8.dp).weight(1f),
                 ) {
                     Text(
                         text = "Transcodes cache",
@@ -100,13 +100,13 @@ fun SettingsWidget(
                     )
                     val count by rememberPoll(1000) {
                         libraryModel.transcodeCountQueued.get() +
-                                libraryModel.transcodeCountInprogress.get() +
-                                libraryModel.transcodeCountReady.get()
+                            libraryModel.transcodeCountInprogress.get() +
+                            libraryModel.transcodeCountReady.get()
                     }
                     Text(
                         text = "$count files, ${
                             formatSize(
-                                libraryModel.transcodesDirSize
+                                libraryModel.transcodesDirSize,
                             )
                         }",
                         style = MaterialTheme.typography.labelMedium,
@@ -122,7 +122,7 @@ fun SettingsWidget(
                 ) {
                     Icon(
                         painter = painterResource(Res.drawable.folder_open_24px),
-                        contentDescription = "Open button"
+                        contentDescription = "Open button",
                     )
                 }
 
@@ -133,7 +133,7 @@ fun SettingsWidget(
                 ) {
                     Icon(
                         painter = painterResource(Res.drawable.delete_sweep_24px),
-                        contentDescription = "Clean button"
+                        contentDescription = "Clean button",
                     )
                 }
             }
@@ -165,16 +165,16 @@ fun SettingsWidget(
                     },
                     body = {
                         Column(
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             for (trustedNode in nodeModel.trustedNodes) {
                                 TrustedNode(
                                     trustedNode = trustedNode,
-                                    onUntrust = { onUntrustNode(trustedNode.endpointId) }
+                                    onUntrust = { onUntrustNode(trustedNode.endpointId) },
                                 )
                             }
                         }
-                    }
+                    },
                 )
             }
         }
@@ -189,7 +189,7 @@ internal fun SettingCard(
     val inner = @Composable {
         Row(
             modifier = Modifier.padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             content()
         }
@@ -197,13 +197,13 @@ internal fun SettingCard(
 
     if (outlined) {
         OutlinedCard(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             inner()
         }
     } else {
         Card(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             inner()
         }
@@ -224,16 +224,17 @@ internal fun ExpandableCard(
     ) {
         Column {
             Row(
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .clickable { expanded = !expanded },
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .heightIn(min = 48.dp)
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.medium)
+                        .clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
                     modifier = Modifier.padding(4.dp).padding(end = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     labelLeft()
 
@@ -245,7 +246,7 @@ internal fun ExpandableCard(
                         painter = painterResource(Res.drawable.chevron_forward_24px),
                         contentDescription = "Expand icon",
                         modifier = Modifier.rotate(degrees),
-                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
+                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
                     )
                 }
             }
@@ -272,29 +273,39 @@ internal fun TranscodePolicyButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val innerRadius = if (isPressed) 4.dp else if (isSelected) 100.dp else 8.dp
+    val innerRadius =
+        if (isPressed) {
+            4.dp
+        } else if (isSelected) {
+            100.dp
+        } else {
+            8.dp
+        }
     val animInnerRadius by animateDpAsState(
         targetValue = innerRadius,
-        animationSpec = spring(
-            dampingRatio = 0.9f,
-            stiffness = 1400f
-        )
+        animationSpec =
+            spring(
+                dampingRatio = 0.9f,
+                stiffness = 1400f,
+            ),
     )
 
     val outerRadius = 100.dp
 
-    val shape = RoundedCornerShape(
-        topStart = if (startOuter) outerRadius else animInnerRadius,
-        bottomStart = if (startOuter) outerRadius else animInnerRadius,
-        topEnd = if (endOuter) outerRadius else animInnerRadius,
-        bottomEnd = if (endOuter) outerRadius else animInnerRadius,
-    )
+    val shape =
+        RoundedCornerShape(
+            topStart = if (startOuter) outerRadius else animInnerRadius,
+            bottomStart = if (startOuter) outerRadius else animInnerRadius,
+            topEnd = if (endOuter) outerRadius else animInnerRadius,
+            bottomEnd = if (endOuter) outerRadius else animInnerRadius,
+        )
 
     val selectedColors = ButtonDefaults.buttonColors()
-    val unselectedColors = ButtonDefaults.buttonColors(
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    val unselectedColors =
+        ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
     FilledTonalButton(
         onClick = onClick,
@@ -317,9 +328,10 @@ private fun CleanTranscodesDialog(
     UnstyledDialog(state = state, onDismiss = onClose) {
         UnstyledScrim()
         UnstyledDialogPanel(
-            modifier = Modifier
-                .widthIn(max = 600.dp)
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .widthIn(max = 600.dp)
+                    .padding(16.dp),
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -336,23 +348,23 @@ private fun CleanTranscodesDialog(
                     var selected by remember { mutableStateOf("all") }
 
                     Column(
-                        modifier = Modifier.selectableGroup()
+                        modifier = Modifier.selectableGroup(),
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .selectable(
-                                    selected = (selected == "all"),
-                                    onClick = { selected = "all" },
-                                    role = Role.RadioButton,
-                                )
-                                .padding(8.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = (selected == "all"),
+                                        onClick = { selected = "all" },
+                                        role = Role.RadioButton,
+                                    ).padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             RadioButton(
                                 selected = (selected == "all"),
-                                onClick = null
+                                onClick = null,
                             )
                             Text(
                                 text = "Delete all transcodes",
@@ -361,20 +373,20 @@ private fun CleanTranscodesDialog(
                         }
 
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .selectable(
-                                    selected = (selected == "unused"),
-                                    onClick = { selected = "unused" },
-                                    role = Role.RadioButton,
-                                )
-                                .padding(8.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = (selected == "unused"),
+                                        onClick = { selected = "unused" },
+                                        role = Role.RadioButton,
+                                    ).padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             RadioButton(
                                 selected = (selected == "unused"),
-                                onClick = null
+                                onClick = null,
                             )
                             Text(
                                 text = "Delete only unused transcodes",
@@ -402,7 +414,7 @@ private fun CleanTranscodesDialog(
                                 }
 
                                 onClose()
-                            }
+                            },
                         ) {
                             Text("Delete")
                         }
@@ -418,19 +430,20 @@ fun TrustedNode(
     trustedNode: TrustedNodeModel,
     onUntrust: () -> Unit,
 ) {
-    val readableDaysAgo = trustedNode.connectedAt?.let { connectedAt ->
-        val daysAgo = (now() - connectedAt).toInt().seconds.inWholeDays
-        when (daysAgo) {
-            0L -> "today"
-            1L -> "1 day ago"
-            else -> "$daysAgo days ago"
-        }
-    } ?: "never"
+    val readableDaysAgo =
+        trustedNode.connectedAt?.let { connectedAt ->
+            val daysAgo = (now() - connectedAt).toInt().seconds.inWholeDays
+            when (daysAgo) {
+                0L -> "today"
+                1L -> "1 day ago"
+                else -> "$daysAgo days ago"
+            }
+        } ?: "never"
     val detail = "${shortenEndpointId(trustedNode.endpointId)}, $readableDaysAgo"
 
     SettingCard {
         Column(
-            modifier = Modifier.padding(start = 8.dp).weight(1f)
+            modifier = Modifier.padding(start = 8.dp).weight(1f),
         ) {
             Text(
                 text = trustedNode.name,
@@ -451,7 +464,7 @@ fun TrustedNode(
         ) {
             Icon(
                 painter = painterResource(Res.drawable.close_24px),
-                contentDescription = "Remove button"
+                contentDescription = "Remove button",
             )
         }
     }

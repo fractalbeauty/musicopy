@@ -22,15 +22,15 @@ const val TRANSCODE_FORMAT_KEY = "transcodeFormat"
 
 const val defaultTranscodeFormat = "opus128"
 
-class AppSettings private constructor(private val settings: ObservableSettings) {
+class AppSettings private constructor(
+    private val settings: ObservableSettings,
+) {
     constructor(platformAppContext: PlatformAppContext) : this(
-        settings = platformAppContext.settingsFactory.create().makeObservable()
+        settings = platformAppContext.settingsFactory.create().makeObservable(),
     )
 
     companion object {
-        fun createMock(): AppSettings {
-            return AppSettings(settings = MapSettings())
-        }
+        fun createMock(): AppSettings = AppSettings(settings = MapSettings())
     }
 
     fun clearSettings() {

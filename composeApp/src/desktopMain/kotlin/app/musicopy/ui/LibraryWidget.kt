@@ -59,7 +59,6 @@ fun LibraryWidget(
     onAddRoot: (name: String, path: String) -> Unit,
     onRemoveRoot: (name: String) -> Unit,
     onRescan: () -> Unit,
-
     modifier: Modifier = Modifier,
 ) {
     val localRoots = libraryModel.localRoots
@@ -86,7 +85,7 @@ fun LibraryWidget(
                 }
             } catch (e: CoreException) {
                 // TODO: toast?
-                println("Error: ${e}")
+                println("Error: $e")
             }
         }
         Unit
@@ -109,7 +108,7 @@ fun LibraryWidget(
                 dialogName = ""
                 addDialogState.visible = false
             },
-            localRoots = localRoots
+            localRoots = localRoots,
         )
     }
 
@@ -134,7 +133,7 @@ fun LibraryWidget(
                 },
                 onCancel = {
                     removeDialogState.visible = false
-                }
+                },
             )
         }
     }
@@ -154,7 +153,7 @@ fun LibraryWidget(
                         Icon(
                             painter = painterResource(Res.drawable.add_24px),
                             contentDescription = "Add library folder icon",
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(20.dp),
                         )
 
                         Text("Add", modifier = Modifier.padding(start = 8.dp))
@@ -162,7 +161,7 @@ fun LibraryWidget(
 
                     OutlinedButton(
                         onClick = onRescan,
-                        enabled = !libraryModel.isScanning
+                        enabled = !libraryModel.isScanning,
                     ) {
                         if (libraryModel.isScanning) {
                             CircularProgressIndicator(
@@ -173,7 +172,7 @@ fun LibraryWidget(
                             Icon(
                                 painter = painterResource(Res.drawable.cell_tower_24px),
                                 contentDescription = "Rescan library icon",
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(20.dp),
                             )
                         }
 
@@ -184,9 +183,10 @@ fun LibraryWidget(
 
             ScrollableContainer { scrollModifier ->
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(scrollModifier),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .then(scrollModifier),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     if (localRoots.isNotEmpty()) {
@@ -203,13 +203,16 @@ fun LibraryWidget(
 }
 
 @Composable
-private fun LibraryRoot(root: LibraryRootModel, onStartRemoveRoot: (String) -> Unit) {
+private fun LibraryRoot(
+    root: LibraryRootModel,
+    onStartRemoveRoot: (String) -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.padding(start = 8.dp).weight(1f)) {
                 Text(
@@ -233,7 +236,7 @@ private fun LibraryRoot(root: LibraryRootModel, onStartRemoveRoot: (String) -> U
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.folder_open_24px),
-                    contentDescription = "Open button"
+                    contentDescription = "Open button",
                 )
             }
 
@@ -242,7 +245,7 @@ private fun LibraryRoot(root: LibraryRootModel, onStartRemoveRoot: (String) -> U
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.close_24px),
-                    contentDescription = "Remove button"
+                    contentDescription = "Remove button",
                 )
             }
         }
@@ -255,7 +258,7 @@ private fun Empty(onStartAddRoot: () -> Unit) {
         Info {
             Text(
                 "Get started by adding a folder to your library.",
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
 
             Text(
@@ -267,7 +270,7 @@ private fun Empty(onStartAddRoot: () -> Unit) {
 
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.Center,
         ) {
             IconButton(
                 onClick = onStartAddRoot,
@@ -298,23 +301,26 @@ private fun AddRootDialog(
     val isValidAlphabet = name.all { c -> c.isLetterOrDigit() || c == ' ' || c == '_' || c == '-' }
     val isValid = !isEmpty && !isTaken && isValidAlphabet
     val isError = !isEmpty && !isValid
-    val supportingText = when {
-        isEmpty -> ""
-        isTaken -> "Name is in use."
-        !isValidAlphabet -> "Name contains invalid characters."
-        else -> ""
-    }
+    val supportingText =
+        when {
+            isEmpty -> ""
+            isTaken -> "Name is in use."
+            !isValidAlphabet -> "Name contains invalid characters."
+            else -> ""
+        }
 
     UnstyledDialog(state = state, onDismiss = onCancel) {
         UnstyledScrim()
         UnstyledDialogPanel(
-            modifier = Modifier
-                .widthIn(max = 500.dp)
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .widthIn(max = 500.dp)
+                    .padding(16.dp),
         ) {
             Card(
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(32.dp),
@@ -322,18 +328,19 @@ private fun AddRootDialog(
                 ) {
                     Text(
                         text = "Add folder to library",
-                        style = MaterialTheme.typography.headlineSmall
+                        style = MaterialTheme.typography.headlineSmall,
                     )
 
                     Text(
-                        text = buildAnnotatedString {
-                            append("Choose a short name for ")
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                                append(path)
-                            }
-                            append(".")
-                        },
-                        style = MaterialTheme.typography.bodyMedium
+                        text =
+                            buildAnnotatedString {
+                                append("Choose a short name for ")
+                                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                    append(path)
+                                }
+                                append(".")
+                            },
+                        style = MaterialTheme.typography.bodyMedium,
                     )
 
                     OutlinedTextField(
@@ -345,12 +352,13 @@ private fun AddRootDialog(
                         maxLines = 1,
                         modifier = Modifier.fillMaxWidth(),
                         isError = isError,
-                        supportingText = { Text(supportingText) }
+                        supportingText = { Text(supportingText) },
                     )
 
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth(),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.End),
                     ) {
                         TextButton(
@@ -361,7 +369,7 @@ private fun AddRootDialog(
 
                         TextButton(
                             onClick = { onSubmit(name, path) },
-                            enabled = isValid
+                            enabled = isValid,
                         ) {
                             Text("Add")
                         }
@@ -383,13 +391,15 @@ private fun RemoveRootDialog(
     UnstyledDialog(state = state, onDismiss = onCancel) {
         UnstyledScrim()
         UnstyledDialogPanel(
-            modifier = Modifier
-                .widthIn(max = 500.dp)
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .widthIn(max = 500.dp)
+                    .padding(16.dp),
         ) {
             Card(
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(32.dp),
@@ -397,23 +407,25 @@ private fun RemoveRootDialog(
                 ) {
                     Text(
                         text = "Remove folder from library?",
-                        style = MaterialTheme.typography.headlineSmall
+                        style = MaterialTheme.typography.headlineSmall,
                     )
 
                     Text(
-                        text = buildAnnotatedString {
-                            append("You are about to remove ")
-                            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                                append(path)
-                            }
-                            append(" from your library. Your files will not be affected.")
-                        },
-                        style = MaterialTheme.typography.bodyMedium
+                        text =
+                            buildAnnotatedString {
+                                append("You are about to remove ")
+                                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                    append(path)
+                                }
+                                append(" from your library. Your files will not be affected.")
+                            },
+                        style = MaterialTheme.typography.bodyMedium,
                     )
 
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth(),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.End),
                     ) {
                         TextButton(
@@ -423,7 +435,7 @@ private fun RemoveRootDialog(
                         }
 
                         TextButton(
-                            onClick = onConfirm
+                            onClick = onConfirm,
                         ) {
                             Text("Remove")
                         }

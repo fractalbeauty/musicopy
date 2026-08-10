@@ -57,7 +57,7 @@ kotlin {
     listOf(
         iosX64(),
         iosArm64(),
-        iosSimulatorArm64()
+        iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
@@ -126,12 +126,21 @@ kotlin {
 
 android {
     namespace = "app.musicopy"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    compileSdk =
+        libs.versions.android.compileSdk
+            .get()
+            .toInt()
 
     defaultConfig {
         applicationId = "app.musicopy"
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+        targetSdk =
+            libs.versions.android.targetSdk
+                .get()
+                .toInt()
         versionCode = appVersionCode
         versionName = androidVersionName
     }
@@ -147,7 +156,6 @@ android {
 
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-             
                 // TODO: workarounds for Gobley proguard rules not being applied/comprehensive
                 layout.buildDirectory.file("generated/uniffi/androidMain/generated-proguard-rules.txt"),
                 "proguard-rules.pro",
@@ -188,11 +196,12 @@ compose.desktop {
     }
 }
 
-val gobleyRustVariant = when (System.getenv("GOBLEY_RUST_VARIANT")) {
-    "release" -> gobley.gradle.Variant.Release
-    "debug" -> gobley.gradle.Variant.Debug
-    else -> null
-} ?: gobley.gradle.Variant.Debug
+val gobleyRustVariant =
+    when (System.getenv("GOBLEY_RUST_VARIANT")) {
+        "release" -> gobley.gradle.Variant.Release
+        "debug" -> gobley.gradle.Variant.Debug
+        else -> null
+    } ?: gobley.gradle.Variant.Debug
 val gobleyRustSkip = System.getenv("GOBLEY_RUST_SKIP") == "true"
 
 cargo {
@@ -221,14 +230,16 @@ cargo {
     }
 }
 
-val gobleyUniffiTarget = System.getenv("GOBLEY_UNIFFI_TARGET")?.let {
-    RustTarget(it)
-} ?: RustAndroidTarget.Arm64
-val gobleyUniffiVariant = when (System.getenv("GOBLEY_UNIFFI_VARIANT")) {
-    "release" -> gobley.gradle.Variant.Release
-    "debug" -> gobley.gradle.Variant.Debug
-    else -> null
-} ?: gobleyRustVariant
+val gobleyUniffiTarget =
+    System.getenv("GOBLEY_UNIFFI_TARGET")?.let {
+        RustTarget(it)
+    } ?: RustAndroidTarget.Arm64
+val gobleyUniffiVariant =
+    when (System.getenv("GOBLEY_UNIFFI_VARIANT")) {
+        "release" -> gobley.gradle.Variant.Release
+        "debug" -> gobley.gradle.Variant.Debug
+        else -> null
+    } ?: gobleyRustVariant
 
 uniffi {
     generateFromLibrary {

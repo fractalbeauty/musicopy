@@ -77,7 +77,6 @@ import uniffi.musicopy.TransferJobProgressModel
 fun TransferScreen(
     snackbarHost: @Composable () -> Unit,
     onShowNodeStatus: () -> Unit,
-
     clientModel: ClientModel,
     onBack: () -> Unit,
     onPause: () -> Unit,
@@ -95,11 +94,12 @@ fun TransferScreen(
     val finishedJobs = jobs.filter { job -> job.progress is TransferJobProgressModel.Finished }
     val failedJobs = jobs.filter { job -> job.progress is TransferJobProgressModel.Failed }
 
-    val waitingJobs = jobs.filter { job ->
-        job.progress !is TransferJobProgressModel.InProgress &&
+    val waitingJobs =
+        jobs.filter { job ->
+            job.progress !is TransferJobProgressModel.InProgress &&
                 job.progress !is TransferJobProgressModel.Finished &&
                 job.progress !is TransferJobProgressModel.Failed
-    }
+        }
 
     BackHandler(enabled = true) {
         onBack()
@@ -118,11 +118,11 @@ fun TransferScreen(
                         IconButton(onClick = onPause) {
                             Icon(
                                 painter = painterResource(Res.drawable.pause_24px),
-                                contentDescription = "Pause downloads"
+                                contentDescription = "Pause downloads",
                             )
                         }
                     }
-                }
+                },
             )
         },
         bottomBar = {
@@ -135,7 +135,7 @@ fun TransferScreen(
                     Row(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         TextButton(
                             onClick = onTransferMore,
@@ -144,7 +144,7 @@ fun TransferScreen(
                         }
 
                         Button(
-                            onClick = onDone
+                            onClick = onDone,
                         ) {
                             Text("Done")
                         }
@@ -159,12 +159,12 @@ fun TransferScreen(
         ) {
             Column(
                 modifier = Modifier.padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 var progress by remember { mutableStateOf(0f) }
                 val animatedProgress by animateFloatAsState(
                     targetValue = progress,
-                    animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec
+                    animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
                 )
 
                 LaunchedEffect(clientModel.transferJobs) {
@@ -183,7 +183,7 @@ fun TransferScreen(
 
                 LinearProgressIndicator(
                     progress = { animatedProgress },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 
@@ -197,25 +197,25 @@ fun TransferScreen(
                 collapsibleSection(
                     title = "FAILED",
                     expanded = failedExpanded,
-                    jobs = failedJobs
+                    jobs = failedJobs,
                 )
 
                 collapsibleSection(
                     title = "IN PROGRESS",
                     expanded = inProgressExpanded,
-                    jobs = inProgressJobs
+                    jobs = inProgressJobs,
                 )
 
                 collapsibleSection(
                     title = "WAITING",
                     expanded = waitingExpanded,
-                    jobs = waitingJobs
+                    jobs = waitingJobs,
                 )
 
                 collapsibleSection(
                     title = "FINISHED",
                     expanded = finishedExpanded,
-                    jobs = finishedJobs
+                    jobs = finishedJobs,
                 )
             }
         }
@@ -225,7 +225,7 @@ fun TransferScreen(
 @Composable
 fun TransferJob(job: TransferJobModel) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
@@ -237,17 +237,17 @@ fun TransferJob(job: TransferJobModel) {
                     formatJobName(job),
                     style = MaterialTheme.typography.labelLarge,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     formatJobSubtitle(job),
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.labelMedium,
                 )
             }
 
             Box(
                 modifier = Modifier.size(30.dp),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 val progress = job.progress
                 when (progress) {
@@ -314,16 +314,17 @@ internal fun LazyListScope.collapsibleSection(
         val degrees by animateFloatAsState(if (expanded) 90f else 0f)
 
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .clickable { expanded = !expanded }
-                .animateItem()
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .clickable { expanded = !expanded }
+                    .animateItem(),
         ) {
             Row(
                 modifier = Modifier.fillMaxSize().padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = "$title (${jobs.size})",
@@ -337,7 +338,7 @@ internal fun LazyListScope.collapsibleSection(
                     painter = painterResource(Res.drawable.chevron_forward_24px),
                     contentDescription = "Expand icon",
                     modifier = Modifier.rotate(degrees),
-                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
                 )
             }
         }
@@ -352,12 +353,13 @@ internal fun LazyListScope.collapsibleSection(
             items = jobs,
             // key by section so we don't animate between sections
             key = { job -> "job-$title-${job.jobId}" },
-            contentType = { "job" }
+            contentType = { "job" },
         ) { job ->
             Box(
-                modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .animateItem()
+                modifier =
+                    Modifier
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .animateItem(),
             ) {
                 TransferJob(job)
             }
@@ -424,19 +426,19 @@ internal fun NotificationPermissionPrompt() {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         "Transfers will continue in the background. Enable notifications to see progress and be notified when transfers finish.",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
 
                     Button(
                         onClick = { notificationPermission.requestPermission() },
                         modifier = Modifier.fillMaxWidth().height(64.dp),
                         shape = MaterialTheme.shapes.large,
-                        contentPadding = PaddingValues(16.dp)
+                        contentPadding = PaddingValues(16.dp),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text("Enable notifications")
 
@@ -457,7 +459,6 @@ fun TransferScreenSandbox() {
     TransferScreen(
         snackbarHost = {},
         onShowNodeStatus = {},
-
         clientModel = mockClientModel(),
         onBack = {},
         onPause = {},
@@ -470,32 +471,34 @@ fun TransferScreenSandbox() {
 fun TransferScreenFinishedSandbox() {
     var finished by remember { mutableStateOf(true) }
 
-    val clientModel = if (finished) {
-        mockClientModel(
-            transferJobs = listOf(
-                mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
-                mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
-                mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
-                mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
-                mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
+    val clientModel =
+        if (finished) {
+            mockClientModel(
+                transferJobs =
+                    listOf(
+                        mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
+                        mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
+                        mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
+                        mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
+                        mockTransferJobModel(progress = mockTransferJobProgressModelFinished()),
+                    ),
             )
-        )
-    } else {
-        mockClientModel(
-            transferJobs = listOf(
-                mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
-                mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
-                mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
-                mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
-                mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
+        } else {
+            mockClientModel(
+                transferJobs =
+                    listOf(
+                        mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
+                        mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
+                        mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
+                        mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
+                        mockTransferJobModel(progress = mockTransferJobProgressModelInProgress()),
+                    ),
             )
-        )
-    }
+        }
 
     TransferScreen(
         snackbarHost = {},
         onShowNodeStatus = {},
-
         clientModel = clientModel,
         onBack = { finished = !finished },
         onPause = {},

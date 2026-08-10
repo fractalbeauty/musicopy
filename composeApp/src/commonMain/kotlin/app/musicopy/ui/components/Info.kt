@@ -15,9 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun Info(
-    content: @Composable () -> Unit,
-) {
+fun Info(content: @Composable () -> Unit) {
     val shape = CutCornerShape(topEnd = 16.dp)
 
     Box(
@@ -25,20 +23,19 @@ fun Info(
             .fillMaxWidth()
             .background(
                 color = MaterialTheme.colorScheme.secondary,
-            )
+            ),
     ) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .background(
                     color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = shape
-                )
-                .border(
+                    shape = shape,
+                ).border(
                     color = MaterialTheme.colorScheme.outlineVariant,
                     width = 1.dp,
-                    shape = shape
-                )
+                    shape = shape,
+                ),
         ) {
             Column(Modifier.padding(8.dp)) {
                 CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSecondaryContainer) {

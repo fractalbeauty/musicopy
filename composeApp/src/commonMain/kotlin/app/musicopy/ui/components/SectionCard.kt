@@ -27,11 +27,11 @@ fun SectionCard(
     val hasAction = onCancel !== null || onAction !== null
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(title, style = MaterialTheme.typography.titleLarge)
 
@@ -40,7 +40,7 @@ fun SectionCard(
             if (hasAction) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.End)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.End),
                 ) {
                     onCancel?.let {
                         OutlinedButton(
@@ -54,7 +54,7 @@ fun SectionCard(
                             onClick = onAction,
                             label = actionLabel,
                             enabled = actionEnabled,
-                            loading = actionLoading
+                            loading = actionLoading,
                         )
                     }
                 }
