@@ -6,6 +6,7 @@ Our minimum deployment target is currently iOS 14.0.0.
 
 It is constrained by:
 - Compose Multiplatform 1.11.1 iOS minimum version is iOS 14 ([source](https://kotlinlang.org/docs/multiplatform/compose-compatibility-and-versioning.html))
+- `App Store Connect Warning: MinimumOSVersion too low. This app has a MinimumOSVersion of 14.0. Starting in Spring 2027, all iOS apps must have a MinimumOSVersion of 15.0 or later in order to be uploaded to App Store Connect or submitted for distribution.`
 
 This needs to be updated:
 - For XCode, under Targets > iosApp > Build Settings > Deployment > iOS Deployment Target
