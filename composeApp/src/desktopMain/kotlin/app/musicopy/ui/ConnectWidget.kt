@@ -40,11 +40,11 @@ import app.musicopy.shortenEndpointId
 import app.musicopy.toClipEntry
 import app.musicopy.ui.components.Info
 import app.musicopy.ui.components.WidgetContainer
-import com.composables.core.Dialog
-import com.composables.core.DialogPanel
-import com.composables.core.DialogState
-import com.composables.core.Scrim
-import com.composables.core.rememberDialogState
+import com.composeunstyled.DialogState
+import com.composeunstyled.UnstyledDialog
+import com.composeunstyled.UnstyledDialogPanel
+import com.composeunstyled.UnstyledScrim
+import com.composeunstyled.rememberDialogState
 import io.github.alexzhirkevich.qrose.QrData
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import io.github.alexzhirkevich.qrose.text
@@ -267,9 +267,9 @@ private fun DownloadAppDialog(
     state: DialogState,
     onClose: () -> Unit,
 ) {
-    Dialog(state = state, onDismiss = onClose) {
-        Scrim()
-        DialogPanel(
+    UnstyledDialog(state = state, onDismiss = onClose) {
+        UnstyledScrim()
+        UnstyledDialogPanel(
             modifier = Modifier
                 .widthIn(max = 500.dp)
                 .padding(16.dp)
@@ -345,9 +345,9 @@ private fun EnterManuallyDialog(
     localEndpointId: String,
     onClose: () -> Unit,
 ) {
-    Dialog(state = state, onDismiss = onClose) {
-        Scrim()
-        DialogPanel(
+    UnstyledDialog(state = state, onDismiss = onClose) {
+        UnstyledScrim()
+        UnstyledDialogPanel(
             modifier = Modifier
                 .widthIn(max = 500.dp)
                 .padding(16.dp)

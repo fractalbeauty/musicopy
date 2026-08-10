@@ -50,11 +50,11 @@ import app.musicopy.openDirectoryInExplorer
 import app.musicopy.rememberPoll
 import app.musicopy.shortenEndpointId
 import app.musicopy.ui.components.WidgetContainer
-import com.composables.core.Dialog
-import com.composables.core.DialogPanel
-import com.composables.core.DialogState
-import com.composables.core.Scrim
-import com.composables.core.rememberDialogState
+import com.composeunstyled.DialogState
+import com.composeunstyled.UnstyledDialog
+import com.composeunstyled.UnstyledDialogPanel
+import com.composeunstyled.UnstyledScrim
+import com.composeunstyled.rememberDialogState
 import musicopy_root.musicopy.generated.resources.Res
 import musicopy_root.musicopy.generated.resources.chevron_forward_24px
 import musicopy_root.musicopy.generated.resources.close_24px
@@ -314,9 +314,9 @@ private fun CleanTranscodesDialog(
     onDeleteUnusedTranscodes: () -> Unit,
     onDeleteAllTranscodes: () -> Unit,
 ) {
-    Dialog(state = state, onDismiss = onClose) {
-        Scrim()
-        DialogPanel(
+    UnstyledDialog(state = state, onDismiss = onClose) {
+        UnstyledScrim()
+        UnstyledDialogPanel(
             modifier = Modifier
                 .widthIn(max = 600.dp)
                 .padding(16.dp)
