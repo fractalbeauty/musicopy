@@ -32,7 +32,7 @@ plugins {
 // YYMMDDBB set by CI
 val appVersionCode = System.getenv("APP_VERSION_CODE")?.toInt() ?: 1
 
-val appVersion = "1.14.1"
+val appVersion = "1.14.2"
 
 version = appVersion
 val androidVersionName = appVersion
