@@ -111,7 +111,7 @@ pub fn get_file_duration(path: &Path) -> anyhow::Result<f64> {
         audio_track.duration.is_some(),
         audio_track.num_frames.is_some()
     );
-    let duration_secs = if let Some(duration) = get_audio_track_duration(&audio_track) {
+    let duration_secs = if let Some(duration) = get_audio_track_duration(audio_track) {
         duration
     } else {
         // TODO: check if this actually happens in practice. it is probably slow to decode the whole file
@@ -175,9 +175,7 @@ pub fn get_file_duration(path: &Path) -> anyhow::Result<f64> {
 /// Get the duration in seconds from an audio track using the time base and num frames or duration.
 #[cfg(feature = "transcode")]
 fn get_audio_track_duration(audio_track: &Track) -> Option<f64> {
-    let Some(time_base) = audio_track.time_base else {
-        return None;
-    };
+    let time_base = audio_track.time_base?;
 
     if let Some(num_frames) = audio_track.num_frames {
         let end_timestamp = Timestamp::new(num_frames as i64);

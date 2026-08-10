@@ -254,7 +254,7 @@ impl<'a> App<'a> {
             Line::from(vec!["Closed Clients: ".into(), closed_clients.yellow()]),
             Line::from(""),
             if self.library_model.is_scanning {
-                Line::from(vec!["Library".bold(), " (Scanning...)".green().into()])
+                Line::from(vec!["Library".bold(), " (Scanning...)".green()])
             } else {
                 Line::from("Library".bold())
             },
