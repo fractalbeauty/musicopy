@@ -26,6 +26,12 @@ fn fixture_files() -> Vec<PathBuf> {
         .filter_map(Result::ok)
         .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
         .map(|e| e.path())
+        .filter(|p| {
+            // Filter out files starting with . (like `.DS_Store`)
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| !n.starts_with('.'))
+        })
         .collect();
 
     files.sort();
