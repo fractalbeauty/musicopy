@@ -5,6 +5,8 @@ import gobley.gradle.rust.targets.RustTarget
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.konan.target.HostManager
+import org.jetbrains.kotlin.konan.target.KonanTarget
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -53,16 +55,19 @@ kotlin {
         }
     }
 
+    // Skip registering iOS targets that can't be built
+    val hostManager = HostManager()
     listOf(
-        iosX64(),
-        iosArm64(),
-        iosSimulatorArm64(),
-    ).forEach { iosTarget ->
-        iosTarget.binaries.framework {
-            baseName = "ComposeApp"
-            isStatic = true
+        KonanTarget.IOS_X64 to { iosX64() },
+        KonanTarget.IOS_ARM64 to { iosArm64() },
+        KonanTarget.IOS_SIMULATOR_ARM64 to { iosSimulatorArm64() },
+    ).filter { (konanTarget, _) -> hostManager.isEnabled(konanTarget) }
+        .forEach { (_, registerTarget) ->
+            registerTarget().binaries.framework {
+                baseName = "ComposeApp"
+                isStatic = true
+            }
         }
-    }
 
     jvm("desktop")
 
