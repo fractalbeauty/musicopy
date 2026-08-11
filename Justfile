@@ -13,13 +13,9 @@ run-tui *FLAGS:
   cargo run --package musicopy-tui -- {{FLAGS}}
 
 run-desktop:
-  # Build UniFFI bindings using the host target
-  GOBLEY_UNIFFI_TARGET=`rustc -vV | grep 'host:' | cut -d' ' -f2` \
   ./gradlew desktopRun -DmainClass=app.musicopy.MainKt
 
 run-desktop-hot:
-  # Build UniFFI bindings using the host target
-  GOBLEY_UNIFFI_TARGET=`rustc -vV | grep 'host:' | cut -d' ' -f2` \
   ./gradlew hotRunDesktop -DmainClass=app.musicopy.MainKt --auto
 
 run-android:
@@ -49,16 +45,12 @@ test-rust *FLAGS:
   cargo nextest run --workspace --features musicopy/test-hooks {{FLAGS}}
 
 test-gradle *FLAGS:
-  # Build UniFFI bindings using the host target
-  GOBLEY_UNIFFI_TARGET=`rustc -vV | grep 'host:' | cut -d' ' -f2` \
   ./gradlew desktopTest {{FLAGS}}
 
 test-gradle-report:
   {{opener}} ./composeApp/build/reports/tests/desktopTest/index.html
 
 ktlint:
-  # Build UniFFI bindings using the host target
-  GOBLEY_UNIFFI_TARGET=`rustc -vV | grep 'host:' | cut -d' ' -f2` \
   ./gradlew ktlintFormat
 
 cov:

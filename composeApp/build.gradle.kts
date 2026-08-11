@@ -1,7 +1,6 @@
 import gobley.gradle.GobleyHost
 import gobley.gradle.cargo.dsl.appleMobile
 import gobley.gradle.cargo.dsl.jvm
-import gobley.gradle.rust.targets.RustAndroidTarget
 import gobley.gradle.rust.targets.RustTarget
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
@@ -222,7 +221,10 @@ cargo {
             buildTaskProvider.configure {
                 when (rustTarget.cinteropName) {
                     // Set the iOS deployment target to match XCode. Without this we get linking errors.
-                    "ios" -> additionalEnvironment.put("IPHONEOS_DEPLOYMENT_TARGET", "14.0.0")
+                    "ios" -> {
+                        additionalEnvironment.put("IPHONEOS_DEPLOYMENT_TARGET", "14.0.0")
+                    }
+
                     else -> {}
                 }
             }
@@ -233,7 +235,7 @@ cargo {
 val gobleyUniffiTarget =
     System.getenv("GOBLEY_UNIFFI_TARGET")?.let {
         RustTarget(it)
-    } ?: RustAndroidTarget.Arm64
+    } ?: GobleyHost.current.rustTarget
 val gobleyUniffiVariant =
     when (System.getenv("GOBLEY_UNIFFI_VARIANT")) {
         "release" -> gobley.gradle.Variant.Release
