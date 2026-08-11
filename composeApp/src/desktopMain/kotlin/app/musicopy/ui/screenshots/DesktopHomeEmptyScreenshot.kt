@@ -15,7 +15,7 @@ fun DesktopHomeEmptyScreenshot() {
         }
     val nodeModel =
         mockNodeModel(
-            endpointId = demoEndpointId,
+            endpointId = DEMO_ENDPOINT_ID,
         )
     val libraryModel =
         mockLibraryModel(

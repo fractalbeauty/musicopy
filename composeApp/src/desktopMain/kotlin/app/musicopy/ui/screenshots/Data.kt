@@ -8,7 +8,7 @@ import uniffi.musicopy.IndexItemModel
 import uniffi.musicopy.TransferJobModel
 import uniffi.musicopy.TransferJobProgressModel
 
-const val demoEndpointId = "941117ff675f3ac981ed27eb0bef5f32471bbc493fdc7aa4d416e5fa0d99f83a"
+const val DEMO_ENDPOINT_ID = "941117ff675f3ac981ed27eb0bef5f32471bbc493fdc7aa4d416e5fa0d99f83a"
 
 private val sizes =
     listOf(
@@ -147,7 +147,7 @@ val screenshotIndex =
         for ((index, title) in boneyard.withIndex()) {
             add(
                 IndexItemModel(
-                    endpointId = demoEndpointId,
+                    endpointId = DEMO_ENDPOINT_ID,
                     root = "Favorites",
                     path = "underscores/boneyard/$title.flac",
                     fileSize = nextSize(),
@@ -158,7 +158,7 @@ val screenshotIndex =
 
         add(
             IndexItemModel(
-                endpointId = demoEndpointId,
+                endpointId = DEMO_ENDPOINT_ID,
                 root = "Favorites",
                 path = "underscores/Poplife/Poplife.flac",
                 fileSize = nextSize(),
@@ -169,7 +169,7 @@ val screenshotIndex =
         repeat(12) {
             add(
                 IndexItemModel(
-                    endpointId = demoEndpointId,
+                    endpointId = DEMO_ENDPOINT_ID,
                     root = "Favorites",
                     path = "underscores/Wallsocket/placeholder$it.flac",
                     fileSize = nextSize(),
@@ -181,7 +181,7 @@ val screenshotIndex =
         for ((index, title) in fishmonger.withIndex()) {
             add(
                 IndexItemModel(
-                    endpointId = demoEndpointId,
+                    endpointId = DEMO_ENDPOINT_ID,
                     root = "Favorites",
                     path = "underscores/fishmonger/$title.flac",
                     fileSize = nextSize(),
@@ -283,7 +283,7 @@ val emptyScreenshotIndex =
         for (title in titles) {
             add(
                 IndexItemModel(
-                    endpointId = demoEndpointId,
+                    endpointId = DEMO_ENDPOINT_ID,
                     root = "Favorites",
                     path = "underscores/$title/placeholder.flac",
                     fileSize = nextSize(),

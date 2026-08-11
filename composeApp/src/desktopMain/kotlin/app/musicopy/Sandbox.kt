@@ -102,7 +102,7 @@ class ScreenshotConfig(
     val content: @Composable () -> Unit,
 )
 
-const val initialConfig = 15 - 1
+const val INITIAL_CONFIG = 15 - 1
 val screenshotConfigs =
     listOf(
         // web hero images
@@ -228,7 +228,7 @@ val screenshotConfigs =
 
 @Composable
 fun SandboxScreenshot() {
-    var configIndex by remember { mutableStateOf(initialConfig) }
+    var configIndex by remember { mutableStateOf(INITIAL_CONFIG) }
     val config = screenshotConfigs.getOrNull(configIndex)
 
     config?.let { config ->

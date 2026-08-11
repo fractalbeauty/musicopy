@@ -11,7 +11,7 @@ fun MobilePreTransferScreenshot() {
     val clientModel =
         ClientModel(
             name = "Desktop",
-            endpointId = demoEndpointId,
+            endpointId = DEMO_ENDPOINT_ID,
             connectedAt = now(),
             state = ClientStateModel.Accepted,
             connectionType = "direct",

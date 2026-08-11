@@ -19,8 +19,7 @@ const val DETAILED_ERRORS_KEY = "detailedErrors"
 const val LICENSE_KEY_KEY = "licenseKey"
 const val LICENSE_ACTIVATED_AT_KEY = "licenseActivatedAt"
 const val TRANSCODE_FORMAT_KEY = "transcodeFormat"
-
-const val defaultTranscodeFormat = "opus128"
+const val TRANSCODE_FORMAT_DEFAULT = "opus128"
 
 class AppSettings private constructor(
     private val settings: ObservableSettings,
@@ -109,11 +108,11 @@ class AppSettings private constructor(
     val licenseActivatedAtFlow: Flow<Long?> = settings.getLongOrNullFlow(LICENSE_ACTIVATED_AT_KEY)
 
     var transcodeFormat: String
-        get() = settings.getString(TRANSCODE_FORMAT_KEY, defaultTranscodeFormat)
+        get() = settings.getString(TRANSCODE_FORMAT_KEY, TRANSCODE_FORMAT_DEFAULT)
         set(value) {
             settings.putString(TRANSCODE_FORMAT_KEY, value)
         }
 
     val transcodeFormatFlow: Flow<String> =
-        settings.getStringFlow(TRANSCODE_FORMAT_KEY, defaultTranscodeFormat)
+        settings.getStringFlow(TRANSCODE_FORMAT_KEY, TRANSCODE_FORMAT_DEFAULT)
 }

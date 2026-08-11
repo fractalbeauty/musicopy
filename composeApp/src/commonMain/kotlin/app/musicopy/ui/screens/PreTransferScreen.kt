@@ -925,7 +925,7 @@ private fun DrawScope.drawBox(
  */
 internal class SelectionManager {
     private val _selectedKeys = mutableStateSetOf<Pair<String, String>>()
-    private val _preselectedKeys = mutableStateSetOf<Pair<String, String>>()
+    private val preselectedKeys = mutableStateSetOf<Pair<String, String>>()
 
     val selectedKeys: Set<Pair<String, String>> get() = _selectedKeys
 
@@ -945,10 +945,10 @@ internal class SelectionManager {
                 index
                     .filter { it.downloadStatus == IndexItemDownloadStatusModel.WAITING }
                     .map { it.root to it.path }
-                    .filterNot { _preselectedKeys.contains(it) }
+                    .filterNot { preselectedKeys.contains(it) }
 
             _selectedKeys.addAll(toPreselect)
-            _preselectedKeys.addAll(toPreselect)
+            preselectedKeys.addAll(toPreselect)
         }
 
         val toDeselect =
@@ -960,7 +960,7 @@ internal class SelectionManager {
                 }.map { it.root to it.path }
 
         _selectedKeys.removeAll(toDeselect)
-        _preselectedKeys.removeAll(toDeselect)
+        preselectedKeys.removeAll(toDeselect)
     }
 
     /**
