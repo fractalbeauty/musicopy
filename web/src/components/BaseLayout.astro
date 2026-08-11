@@ -10,7 +10,7 @@ const MATERIAL_SYMBOLS_ICONS = ["arrow_forward", "close", "menu"];
 
 const DESCRIPTION =
   "Transfer music from your desktop to your phone with Musicopy. Add folders, scan a QR code, and transfer files over a fast and secure direct connection.";
-const OG_IMAGE = new URL("/static/featuregraphic.png", Astro.site);
+const OG_IMAGE = new URL("/static/opengraph.png", Astro.site);
 const CANONICAL_URL = new URL(Astro.url.pathname, Astro.site);
 ---
 
@@ -29,8 +29,8 @@ const CANONICAL_URL = new URL(Astro.url.pathname, Astro.site);
     <meta property="og:description" content={DESCRIPTION} />
     <meta property="og:url" content={CANONICAL_URL} />
     <meta property="og:image" content={OG_IMAGE} />
-    <meta property="og:image:width" content="1024" />
-    <meta property="og:image:height" content="500" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
