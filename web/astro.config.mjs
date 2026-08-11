@@ -17,6 +17,6 @@ export default defineConfig({
     }),
   ],
   redirects: {
-    "/pricing": "/license",
+    "/pricing": "/license/",
   },
 });
