@@ -43,7 +43,7 @@ test:
   cargo fmt --check
   just test-rust
   just test-gradle
-  ./gradlew ktlintFormat
+  just ktlint
 
 test-rust *FLAGS:
   cargo nextest run --workspace --features musicopy/test-hooks {{FLAGS}}
@@ -55,6 +55,11 @@ test-gradle *FLAGS:
 
 test-gradle-report:
   {{opener}} ./composeApp/build/reports/tests/desktopTest/index.html
+
+ktlint:
+  # Build UniFFI bindings using the host target
+  GOBLEY_UNIFFI_TARGET=`rustc -vV | grep 'host:' | cut -d' ' -f2` \
+  ./gradlew ktlintFormat
 
 cov:
   cargo llvm-cov --html nextest --package musicopy --features musicopy/test-hooks
