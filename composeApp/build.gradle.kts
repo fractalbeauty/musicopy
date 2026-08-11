@@ -248,6 +248,12 @@ uniffi {
     }
 }
 
+// Force Ktlint to run after Gobley generates code. Without this, Gradle complains because
+// Ktlint reads the files without declaring a dependency on them.
+tasks.matching { it.name.startsWith("runKtlint") }.configureEach {
+    mustRunAfter("buildUniffiBindings")
+}
+
 // region Work around temporary Compose bugs.
 configurations.all {
     attributes {

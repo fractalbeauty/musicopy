@@ -4,26 +4,29 @@ import androidx.compose.ui.text.buildAnnotatedString
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
-class AboutTextTest : FunSpec({
-    context("AnnotatedString.trimAnnotated") {
-        test("removes leading and trailing whitespace") {
-            val original = buildAnnotatedString {
-                append("  foo  ")
+class AboutTextTest :
+    FunSpec({
+        context("AnnotatedString.trimAnnotated") {
+            test("removes leading and trailing whitespace") {
+                val original =
+                    buildAnnotatedString {
+                        append("  foo  ")
+                    }
+
+                val trimmed = original.trimAnnotated()
+
+                trimmed.text shouldBe "foo"
             }
 
-            val trimmed = original.trimAnnotated()
+            test("removes trailing newline") {
+                val original =
+                    buildAnnotatedString {
+                        appendLine("foo")
+                    }
 
-            trimmed.text shouldBe "foo"
-        }
+                val trimmed = original.trimAnnotated()
 
-        test("removes trailing newline") {
-            val original = buildAnnotatedString {
-                appendLine("foo")
+                trimmed.text shouldBe "foo"
             }
-
-            val trimmed = original.trimAnnotated()
-
-            trimmed.text shouldBe "foo"
         }
-    }
-})
+    })
