@@ -51,6 +51,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+          prefix-key: v2
 
       - name: Set build variables (MacOS, Linux)
         if: startsWith(matrix.key, 'linux') || startsWith(matrix.key, 'darwin')
