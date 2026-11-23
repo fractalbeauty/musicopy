@@ -84,6 +84,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Linux build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libwayland-dev pkg-config
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -95,8 +98,9 @@ jobs:
 
       - name: Set up Rust
         run: |
-          rustup install stable
-          rustup default stable
+          # Pinned to 1.99 since Gobley breaks on 1.100+ because of file layout changes
+          rustup install 1.99.1
+          rustup default 1.99.1
 
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2
