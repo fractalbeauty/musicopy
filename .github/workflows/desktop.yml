@@ -43,15 +43,15 @@ jobs:
 
       - name: Set up Rust
         run: |
-          rustup install stable
-          rustup default stable
+          # Pinned to 1.99 since Gobley breaks on 1.100+ because of file layout changes
+          rustup install 1.99.1
+          rustup default 1.99.1
           rustup target add ${{ matrix.target }}
 
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
-          prefix-key: v2
 
       - name: Set build variables (MacOS, Linux)
         if: startsWith(matrix.key, 'linux') || startsWith(matrix.key, 'darwin')
