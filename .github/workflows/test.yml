@@ -29,9 +29,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Set up Rust
-        run: |
-          rustup install stable
-          rustup default stable
+        run: rustup toolchain install
       
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2

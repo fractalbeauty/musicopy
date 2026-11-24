@@ -1,0 +1,4 @@
+[toolchain]
+# Pinned to 1.99 since Gobley breaks on 1.100+ because of file layout changes.
+channel = "1.99.1"
+profile = "minimal"

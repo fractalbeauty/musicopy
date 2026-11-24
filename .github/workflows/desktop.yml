@@ -43,9 +43,7 @@ jobs:
 
       - name: Set up Rust
         run: |
-          # Pinned to 1.99 since Gobley breaks on 1.100+ because of file layout changes
-          rustup install 1.99.1
-          rustup default 1.99.1
+          rustup toolchain install
           rustup target add ${{ matrix.target }}
 
       - name: Set up Rust cache
@@ -98,9 +96,7 @@ jobs:
 
       - name: Set up Rust
         run: |
-          # Pinned to 1.99 since Gobley breaks on 1.100+ because of file layout changes
-          rustup install 1.99.1
-          rustup default 1.99.1
+          rustup toolchain install
 
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2
