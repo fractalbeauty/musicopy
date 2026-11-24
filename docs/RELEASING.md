@@ -1,7 +1,7 @@
 # Releasing
 
 Release process:
-- Bump versions in `composeApp/build.gradle.kts` according to Versioning
+- Bump version in `gradle.properties` according to Versioning
 - Commit with message: `dev: release X.Y.Z`
 - Tag: `git tag vX.Y.Z`
 

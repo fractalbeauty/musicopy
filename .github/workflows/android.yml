@@ -59,12 +59,12 @@ jobs:
           APP_VERSION_CODE: ${{ steps.buildcount.outputs.versioncode }}
           # Build UniFFI bindings from the release build since we need to do the release build either way
           GOBLEY_UNIFFI_VARIANT: release
-        run: ./gradlew bundleRelease
+        run: ./gradlew :androidApp:bundleRelease
 
       - name: Sign app
         uses: r0adkll/sign-android-release@v1
         with:
-          releaseDirectory: composeApp/build/outputs/bundle/release
+          releaseDirectory: androidApp/build/outputs/bundle/release
           signingKeyBase64: ${{ secrets.KEYSTORE }}
           alias: ${{ secrets.SIGNING_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.SIGNING_STORE_PASSWORD }}
@@ -73,7 +73,7 @@ jobs:
       - name: Upload app
         uses: r0adkll/upload-google-play@v1
         with:
-          releaseFiles: composeApp/build/outputs/bundle/release/musicopy-release.aab
+          releaseFiles: androidApp/build/outputs/bundle/release/androidApp-release.aab
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: app.musicopy
           tracks: alpha,production

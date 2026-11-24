@@ -13,13 +13,13 @@ run-tui *FLAGS:
   cargo run --package musicopy-tui -- {{FLAGS}}
 
 run-desktop:
-  ./gradlew desktopRun -DmainClass=app.musicopy.MainKt
+  ./gradlew :desktopApp:run -DmainClass=app.musicopy.MainKt
 
 run-desktop-hot:
-  ./gradlew hotRunDesktop -DmainClass=app.musicopy.MainKt --auto
+  ./gradlew :desktopApp:hotRun -DmainClass=app.musicopy.MainKt --auto
 
 run-android:
-  ./gradlew installDebug
+  ./gradlew :androidApp:installDebug
   adb shell am start -n app.musicopy/.MainActivity
 
 [positional-arguments]
@@ -45,10 +45,10 @@ test-rust *FLAGS:
   cargo nextest run --workspace --features musicopy/test-hooks {{FLAGS}}
 
 test-gradle *FLAGS:
-  ./gradlew desktopTest {{FLAGS}}
+  ./gradlew :shared:jvmTest {{FLAGS}}
 
 test-gradle-report:
-  {{opener}} ./composeApp/build/reports/tests/desktopTest/index.html
+  {{opener}} ./shared/build/reports/tests/jvmTest/index.html
 
 ktlint:
   ./gradlew ktlintFormat
@@ -60,14 +60,14 @@ cov-report:
   {{opener}} ./target/llvm-cov/html/index.html
 
 download-icon icon variant="default":
-  curl "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/{{icon}}/{{variant}}/24px.xml" -o ./composeApp/src/commonMain/composeResources/drawable/{{icon}}_24px.xml
-  sed -i 's/?attr\/colorControlNormal/#FFFFFF/g' ./composeApp/src/commonMain/composeResources/drawable/{{icon}}_24px.xml
-  sed -i 's/@android:color\/white/#FFFFFF/g' ./composeApp/src/commonMain/composeResources/drawable/{{icon}}_24px.xml
+  curl "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/{{icon}}/{{variant}}/24px.xml" -o ./shared/src/commonMain/composeResources/drawable/{{icon}}_24px.xml
+  sed -i 's/?attr\/colorControlNormal/#FFFFFF/g' ./shared/src/commonMain/composeResources/drawable/{{icon}}_24px.xml
+  sed -i 's/@android:color\/white/#FFFFFF/g' ./shared/src/commonMain/composeResources/drawable/{{icon}}_24px.xml
 
 android-size:
   which bundletool || (echo "missing bundletool"; exit 1)
   rm build/bundletool/musicopy.apks build/bundletool/bundletool-get-size.csv || true
-  ./gradlew :musicopy:bundleRelease
-  bundletool build-apks --bundle composeApp/build/outputs/bundle/release/musicopy-release.aab --output build/bundletool/musicopy.apks
+  ./gradlew :androidApp:bundleRelease
+  bundletool build-apks --bundle androidApp/build/outputs/bundle/release/androidApp-release.aab --output build/bundletool/musicopy.apks
   bundletool get-size total --apks build/bundletool/musicopy.apks > build/bundletool/bundletool-get-size.csv
   cat build/bundletool/bundletool-get-size.csv

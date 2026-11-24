@@ -10,7 +10,7 @@
             </option>
             <option name="taskNames">
                 <list>
-                    <option value=":musicopy:hotRunDesktop --auto" />
+                    <option value=":desktopApp:hotRun --auto" />
                 </list>
             </option>
             <option name="vmOptions" />

@@ -74,7 +74,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: desktop-rust-${{ matrix.key }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: composeApp/build/libs/*.jar
+          path: shared/build/libs/*.jar
           if-no-files-found: error
           retention-days: 1
 
@@ -111,25 +111,25 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: desktop-rust-linux-x86-64-${{ github.run_id }}-${{ github.run_attempt }}
-          path: composeApp/build/libs
+          path: shared/build/libs
 
       - name: Download Rust jar for darwin-x86-64
         uses: actions/download-artifact@v4
         with:
           name: desktop-rust-darwin-x86-64-${{ github.run_id }}-${{ github.run_attempt }}
-          path: composeApp/build/libs
+          path: shared/build/libs
 
       - name: Download Rust jar for darwin-aarch64
         uses: actions/download-artifact@v4
         with:
           name: desktop-rust-darwin-aarch64-${{ github.run_id }}-${{ github.run_attempt }}
-          path: composeApp/build/libs
+          path: shared/build/libs
 
       - name: Download Rust jar for win32-x86-64
         uses: actions/download-artifact@v4
         with:
           name: desktop-rust-win32-x86-64-${{ github.run_id }}-${{ github.run_attempt }}
-          path: composeApp/build/libs
+          path: shared/build/libs
 
       - name: Set build variables
         run: |
@@ -140,7 +140,7 @@ jobs:
           echo "GOBLEY_UNIFFI_VARIANT=debug" >> $GITHUB_ENV
 
       - name: Build app
-        run: ./gradlew desktopJar
+        run: ./gradlew :desktopApp:jar
 
       - name: Run Conveyor
         uses: hydraulic-software/conveyor/actions/build@v19.0
