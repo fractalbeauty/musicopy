@@ -29,8 +29,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.musicopy.AppSettings
+import app.musicopy.PreviewWrapper
+import app.musicopy.ScreenPreview
 import app.musicopy.mockEndpointId
 import app.musicopy.now
 import app.musicopy.shortenEndpointId
@@ -369,4 +372,14 @@ fun HomeScreenSandbox() {
         onShowSettings = {},
         onShowFeedback = {},
     )
+}
+
+@Preview
+@Composable
+private fun `Preview HomeScreen Default`() {
+    PreviewWrapper {
+        ScreenPreview {
+            HomeScreenSandbox()
+        }
+    }
 }

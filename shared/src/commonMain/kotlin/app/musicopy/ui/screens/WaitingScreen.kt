@@ -12,7 +12,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import app.musicopy.PreviewWrapper
+import app.musicopy.ScreenPreview
 import app.musicopy.mockClientModel
 import app.musicopy.shortenEndpointId
 import app.musicopy.ui.components.Info
@@ -88,4 +91,14 @@ fun WaitingScreenSandbox() {
         clientModel = mockClientModel(),
         onCancel = {},
     )
+}
+
+@Preview
+@Composable
+private fun `Preview WaitingScreen Default`() {
+    PreviewWrapper {
+        ScreenPreview {
+            WaitingScreenSandbox()
+        }
+    }
 }

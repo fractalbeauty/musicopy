@@ -21,7 +21,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import app.musicopy.PreviewWrapper
+import app.musicopy.ScreenPreview
 import app.musicopy.ui.components.Info
 import app.musicopy.ui.components.LoadingButton
 import app.musicopy.ui.components.TopBar
@@ -155,4 +158,14 @@ fun ConnectManuallyScreenSandbox() {
         onSubmit = { isConnecting = true },
         onCancel = { isConnecting = false },
     )
+}
+
+@Preview
+@Composable
+private fun `Preview ConnectManuallyScreen Default`() {
+    PreviewWrapper {
+        ScreenPreview {
+            ConnectManuallyScreenSandbox()
+        }
+    }
 }

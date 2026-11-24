@@ -22,8 +22,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.musicopy.AppSettings
+import app.musicopy.PreviewWrapper
+import app.musicopy.ScreenPreview
 import app.musicopy.ui.components.SectionHeader
 import app.musicopy.ui.components.TopBar
 import app.musicopy.ui.components.aboutText
@@ -158,4 +161,14 @@ fun SettingsScreenSandbox() {
         onClearData = {},
         onCancel = {},
     )
+}
+
+@Preview
+@Composable
+private fun `Preview SettingsScreen Default`() {
+    PreviewWrapper {
+        ScreenPreview {
+            SettingsScreenSandbox()
+        }
+    }
 }
