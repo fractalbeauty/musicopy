@@ -86,6 +86,14 @@ kotlin {
                 implementation(libs.kotest.assertions.json)
 
                 implementation(libs.kotlinx.serialization.json)
+
+                // Compose UI tests, which render offscreen with Skia.
+                implementation(compose.desktop.currentOs)
+                @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+                implementation(compose.uiTest)
+
+                // Finds `@Preview` functions in compiled classes, for `RenderPreviewsTest`.
+                implementation(libs.classgraph)
             }
         }
 
@@ -209,8 +217,11 @@ configurations.all {
 }
 // endregion
 
-// region Kotest setup
+// region Test setup
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+
+    // UI tests render offscreen; headless stops the JVM from showing a Dock icon or stealing focus.
+    systemProperty("java.awt.headless", "true")
 }
 // endregion
