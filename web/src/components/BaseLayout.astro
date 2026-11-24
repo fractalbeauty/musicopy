@@ -43,6 +43,11 @@ const CANONICAL_URL = new URL(Astro.url.pathname, Astro.site);
       href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=REM:ital,wght@0,100..900;1,100..900&display=swap"
       rel="stylesheet"
     />
+    <!-- Use Noto Emoji for "♥" -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Emoji&text=%E2%99%A5&display=swap"
+    />
     <link
       rel="stylesheet"
       href={`https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=${MATERIAL_SYMBOLS_ICONS.join(",")}`}
@@ -62,7 +67,8 @@ const CANONICAL_URL = new URL(Astro.url.pathname, Astro.site);
       sizes="16x16"
       href="/static/favicon-16x16.png"
     />
-  </head><body>
+  </head>
+  <body>
     <slot />
   </body>
 </html>

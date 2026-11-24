@@ -73,3 +73,10 @@ body {
   clear: both;
   display: table;
 }
+
+/* Use Noto Emoji for "♥" */
+.heart {
+  font-family: "Noto Emoji", Inter, sans-serif;
+  font-size: 0.85em;
+  vertical-align: 0.07em;
+}
