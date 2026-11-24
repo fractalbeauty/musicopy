@@ -13,7 +13,7 @@ import kotlinx.datetime.format
 import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
-import musicopy_root.musicopy.BuildConfig
+import musicopy_root.shared.BuildConfig
 import kotlin.text.appendLine
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant

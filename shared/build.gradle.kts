@@ -1,0 +1,216 @@
+import gobley.gradle.GobleyHost
+import gobley.gradle.cargo.dsl.appleMobile
+import gobley.gradle.cargo.dsl.jvm
+import gobley.gradle.rust.targets.RustTarget
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.konan.target.HostManager
+import org.jetbrains.kotlin.konan.target.KonanTarget
+
+plugins {
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.compose)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+
+    alias(libs.plugins.buildconfig)
+
+    // Gobley (requires atomicfu)
+    alias(libs.plugins.gobleyCargo)
+    alias(libs.plugins.gobleyRust)
+    alias(libs.plugins.gobleyUniffi)
+    alias(libs.plugins.atomicfu)
+
+    // Kotest (requires KSP)
+    alias(libs.plugins.kotest)
+    alias(libs.plugins.ksp)
+}
+
+val appVersion: String by project
+
+version = appVersion
+
+buildConfig {
+    buildConfigField("APP_VERSION", appVersion)
+    buildConfigField("BUILD_TIME", System.currentTimeMillis())
+}
+
+kotlin {
+    androidTarget {
+        @OptIn(ExperimentalKotlinGradlePluginApi::class)
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
+        }
+    }
+
+    // Skip registering iOS targets that can't be built
+    val hostManager = HostManager()
+    listOf(
+        KonanTarget.IOS_X64 to { iosX64() },
+        KonanTarget.IOS_ARM64 to { iosArm64() },
+        KonanTarget.IOS_SIMULATOR_ARM64 to { iosSimulatorArm64() },
+    ).filter { (konanTarget, _) -> hostManager.isEnabled(konanTarget) }
+        .forEach { (_, registerTarget) ->
+            registerTarget().binaries.framework {
+                baseName = "Shared"
+                isStatic = true
+            }
+        }
+
+    jvm()
+
+    // We set this so that Conveyor knows which JVM toolchain to use for packaging the desktop app,
+    // but we have an option to disable it since it causes problems when using the Nix flake.
+    val skipJvmToolchain = System.getenv("MUSICOPY_UNSET_JVM_TOOLCHAIN") == "true"
+    if (!skipJvmToolchain) {
+        jvmToolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+            vendor = JvmVendorSpec.JETBRAINS
+        }
+    }
+
+    sourceSets {
+        val jvmMain by getting {
+            dependencies {
+                implementation(compose.desktop.currentOs)
+                implementation(libs.kotlinx.coroutines.swing)
+            }
+        }
+        val jvmTest by getting {
+            dependencies {
+                // Kotest
+                implementation(libs.kotest.runner.junit5)
+                implementation(libs.kotest.framework.engine)
+                implementation(libs.kotest.assertions.core)
+                implementation(libs.kotest.assertions.json)
+
+                implementation(libs.kotlinx.serialization.json)
+            }
+        }
+
+        androidMain.dependencies {
+            implementation(libs.compose.ui.tooling.preview)
+            implementation(libs.androidx.activity.compose)
+            implementation(libs.play.services.code.scanner)
+        }
+        commonMain.dependencies {
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.ui)
+            implementation(libs.compose.components.resources)
+            implementation(libs.compose.ui.tooling.preview)
+            implementation(libs.androidx.lifecycle.viewmodel)
+            implementation(libs.androidx.lifecycle.runtime.compose)
+            implementation(libs.androidx.lifecycle.viewmodel.compose)
+            implementation(libs.androidx.navigation.compose)
+            implementation(libs.composables.composeunstyled.primitives)
+            implementation(libs.qrose)
+            implementation(libs.multiplatform.settings)
+            implementation(libs.multiplatform.settings.make.observable)
+            implementation(libs.multiplatform.settings.coroutines)
+            implementation(libs.multiplatform.settings.test)
+            implementation(libs.kotlinx.datetime)
+        }
+    }
+}
+
+android {
+    namespace = "app.musicopy.shared"
+    compileSdk =
+        libs.versions.android.compileSdk
+            .get()
+            .toInt()
+
+    defaultConfig {
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+}
+
+dependencies {
+    debugImplementation(libs.compose.ui.tooling)
+}
+
+val gobleyRustVariant =
+    when (System.getenv("GOBLEY_RUST_VARIANT")) {
+        "release" -> gobley.gradle.Variant.Release
+        "debug" -> gobley.gradle.Variant.Debug
+        else -> null
+    } ?: gobley.gradle.Variant.Debug
+val gobleyRustSkip = System.getenv("GOBLEY_RUST_SKIP") == "true"
+
+cargo {
+    // don't install rustup targets automatically
+    installTargetBeforeBuild = false
+
+    packageDirectory = rootProject.layout.projectDirectory.dir("crates/musicopy")
+
+    jvmVariant = gobleyRustVariant
+
+    // skip if GOBLEY_RUST_SKIP is set, otherwise build desktop for the host target only
+    builds.jvm {
+        embedRustLibrary = !gobleyRustSkip && (rustTarget == GobleyHost.current.rustTarget)
+    }
+
+    builds.appleMobile {
+        variants {
+            buildTaskProvider.configure {
+                when (rustTarget.cinteropName) {
+                    // Set the iOS deployment target to match XCode. Without this we get linking errors.
+                    "ios" -> {
+                        additionalEnvironment.put("IPHONEOS_DEPLOYMENT_TARGET", "14.0.0")
+                    }
+
+                    else -> {}
+                }
+            }
+        }
+    }
+}
+
+val gobleyUniffiTarget =
+    System.getenv("GOBLEY_UNIFFI_TARGET")?.let {
+        RustTarget(it)
+    } ?: GobleyHost.current.rustTarget
+val gobleyUniffiVariant =
+    when (System.getenv("GOBLEY_UNIFFI_VARIANT")) {
+        "release" -> gobley.gradle.Variant.Release
+        "debug" -> gobley.gradle.Variant.Debug
+        else -> null
+    } ?: gobleyRustVariant
+
+uniffi {
+    generateFromLibrary {
+        build = gobleyUniffiTarget
+        variant = gobleyUniffiVariant
+    }
+}
+
+// Force Ktlint to run after Gobley generates code. Without this, Gradle complains because
+// Ktlint reads the files without declaring a dependency on them.
+tasks.matching { it.name.startsWith("runKtlint") }.configureEach {
+    mustRunAfter("buildUniffiBindings")
+}
+
+// region Work around temporary Compose bugs.
+configurations.all {
+    attributes {
+        // https://github.com/JetBrains/compose-jb/issues/1404#issuecomment-1146894731
+        attribute(Attribute.of("ui", String::class.java), "awt")
+    }
+}
+// endregion
+
+// region Kotest setup
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+}
+// endregion

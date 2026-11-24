@@ -1,12 +1,14 @@
 package app.musicopy
 
 import android.Manifest
+import android.app.Application
 import android.content.ClipData
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.icu.text.DecimalFormat
 import android.os.Build
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -38,19 +40,21 @@ actual class PlatformAppContext {
 
     actual val settingsFactory: Settings.Factory
 
-    val application: AppApplication
+    val application: Application
 
-    constructor(application: AppApplication) {
+    constructor(application: Application) {
         this.application = application
         this.settingsFactory = SharedPreferencesSettings.Factory(this.application)
     }
 }
 
 actual class PlatformActivityContext {
-    val mainActivity: MainActivity
+    val mainActivity: ComponentActivity
+    val observer: AppLifecycleObserver
 
-    constructor(mainActivity: MainActivity) {
+    constructor(mainActivity: ComponentActivity, observer: AppLifecycleObserver) {
         this.mainActivity = mainActivity
+        this.observer = observer
     }
 }
 

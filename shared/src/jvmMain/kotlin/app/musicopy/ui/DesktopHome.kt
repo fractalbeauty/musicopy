@@ -50,11 +50,11 @@ import kotlinx.datetime.format
 import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
-import musicopy_root.musicopy.generated.resources.Res
-import musicopy_root.musicopy.generated.resources.favorite_24px
-import musicopy_root.musicopy.generated.resources.heart_plus_24px
-import musicopy_root.musicopy.generated.resources.icon
-import musicopy_root.musicopy.generated.resources.info_24px
+import musicopy_root.shared.generated.resources.Res
+import musicopy_root.shared.generated.resources.favorite_24px
+import musicopy_root.shared.generated.resources.heart_plus_24px
+import musicopy_root.shared.generated.resources.icon
+import musicopy_root.shared.generated.resources.info_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.LibraryModel
 import uniffi.musicopy.NodeModel

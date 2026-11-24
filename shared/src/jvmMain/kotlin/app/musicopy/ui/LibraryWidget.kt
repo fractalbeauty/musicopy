@@ -40,11 +40,11 @@ import com.composeunstyled.UnstyledDialogPanel
 import com.composeunstyled.UnstyledScrim
 import com.composeunstyled.rememberDialogState
 import kotlinx.coroutines.launch
-import musicopy_root.musicopy.generated.resources.Res
-import musicopy_root.musicopy.generated.resources.add_24px
-import musicopy_root.musicopy.generated.resources.cell_tower_24px
-import musicopy_root.musicopy.generated.resources.close_24px
-import musicopy_root.musicopy.generated.resources.folder_open_24px
+import musicopy_root.shared.generated.resources.Res
+import musicopy_root.shared.generated.resources.add_24px
+import musicopy_root.shared.generated.resources.cell_tower_24px
+import musicopy_root.shared.generated.resources.close_24px
+import musicopy_root.shared.generated.resources.folder_open_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.CoreException
 import uniffi.musicopy.LibraryModel

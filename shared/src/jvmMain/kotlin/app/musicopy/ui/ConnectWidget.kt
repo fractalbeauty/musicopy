@@ -49,10 +49,10 @@ import io.github.alexzhirkevich.qrose.QrData
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import io.github.alexzhirkevich.qrose.text
 import kotlinx.coroutines.runBlocking
-import musicopy_root.musicopy.generated.resources.Res
-import musicopy_root.musicopy.generated.resources.content_copy_24px
-import musicopy_root.musicopy.generated.resources.input_24px
-import musicopy_root.musicopy.generated.resources.open_in_new_24px
+import musicopy_root.shared.generated.resources.Res
+import musicopy_root.shared.generated.resources.content_copy_24px
+import musicopy_root.shared.generated.resources.input_24px
+import musicopy_root.shared.generated.resources.open_in_new_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.NodeModel
 import uniffi.musicopy.ServerStateModel

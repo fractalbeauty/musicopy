@@ -20,8 +20,8 @@ import androidx.compose.ui.unit.dp
 import app.musicopy.ui.QRScanner
 import app.musicopy.ui.components.Info
 import app.musicopy.ui.components.TopBar
-import musicopy_root.musicopy.generated.resources.Res
-import musicopy_root.musicopy.generated.resources.open_in_new_24px
+import musicopy_root.shared.generated.resources.Res
+import musicopy_root.shared.generated.resources.open_in_new_24px
 import org.jetbrains.compose.resources.painterResource
 
 @Composable

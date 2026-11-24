@@ -32,8 +32,8 @@ import app.musicopy.ui.components.ScrollableContainer
 import app.musicopy.ui.components.WidgetContainer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import musicopy_root.musicopy.generated.resources.Res
-import musicopy_root.musicopy.generated.resources.chevron_forward_24px
+import musicopy_root.shared.generated.resources.Res
+import musicopy_root.shared.generated.resources.chevron_forward_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.LibraryModel
 import uniffi.musicopy.NodeModel

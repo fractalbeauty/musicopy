@@ -55,11 +55,11 @@ import com.composeunstyled.UnstyledDialog
 import com.composeunstyled.UnstyledDialogPanel
 import com.composeunstyled.UnstyledScrim
 import com.composeunstyled.rememberDialogState
-import musicopy_root.musicopy.generated.resources.Res
-import musicopy_root.musicopy.generated.resources.chevron_forward_24px
-import musicopy_root.musicopy.generated.resources.close_24px
-import musicopy_root.musicopy.generated.resources.delete_sweep_24px
-import musicopy_root.musicopy.generated.resources.folder_open_24px
+import musicopy_root.shared.generated.resources.Res
+import musicopy_root.shared.generated.resources.chevron_forward_24px
+import musicopy_root.shared.generated.resources.close_24px
+import musicopy_root.shared.generated.resources.delete_sweep_24px
+import musicopy_root.shared.generated.resources.folder_open_24px
 import org.jetbrains.compose.resources.painterResource
 import uniffi.musicopy.LibraryModel
 import uniffi.musicopy.NodeModel

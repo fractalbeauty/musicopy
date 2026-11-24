@@ -15,10 +15,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextOverflow
-import musicopy_root.musicopy.generated.resources.Res
-import musicopy_root.musicopy.generated.resources.arrow_back_24px
-import musicopy_root.musicopy.generated.resources.more_vert_24px
-import musicopy_root.musicopy.generated.resources.network_node_24px
+import musicopy_root.shared.generated.resources.Res
+import musicopy_root.shared.generated.resources.arrow_back_24px
+import musicopy_root.shared.generated.resources.more_vert_24px
+import musicopy_root.shared.generated.resources.network_node_24px
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 

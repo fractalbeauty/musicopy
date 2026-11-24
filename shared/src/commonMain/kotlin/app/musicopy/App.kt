@@ -51,7 +51,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
 import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
-import musicopy_root.musicopy.BuildConfig
+import musicopy_root.shared.BuildConfig
 import uniffi.musicopy.ClientStateModel
 import uniffi.musicopy.CoreException
 import uniffi.musicopy.logError

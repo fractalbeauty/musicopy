@@ -27,8 +27,8 @@ import app.musicopy.AppSettings
 import app.musicopy.ui.components.SectionHeader
 import app.musicopy.ui.components.TopBar
 import app.musicopy.ui.components.aboutText
-import musicopy_root.musicopy.generated.resources.Res
-import musicopy_root.musicopy.generated.resources.arrow_forward_24px
+import musicopy_root.shared.generated.resources.Res
+import musicopy_root.shared.generated.resources.arrow_forward_24px
 import org.jetbrains.compose.resources.painterResource
 import kotlin.time.ExperimentalTime
 
