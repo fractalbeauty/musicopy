@@ -47,6 +47,12 @@ test-rust *FLAGS:
 test-gradle *FLAGS:
   ./gradlew :shared:jvmTest {{FLAGS}}
 
+# Render `@Preview` functions to PNGs in shared/build/previews/<source file>/. FILTER matches names by substring.
+preview *FILTER:
+  rm -rf shared/build/previews
+  MUSICOPY_RENDER_PREVIEWS=1 MUSICOPY_RENDER_PREVIEWS_FILTER={{quote(FILTER)}} ./gradlew :shared:jvmTest --tests 'app.musicopy.RenderPreviewsTest' --rerun --quiet
+  find "$PWD/shared/build/previews" -name '*.png' | sort
+
 test-gradle-report:
   {{opener}} ./shared/build/reports/tests/jvmTest/index.html
 

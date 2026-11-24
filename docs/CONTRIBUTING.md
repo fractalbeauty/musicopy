@@ -25,6 +25,7 @@ For iOS:
 - Run all tests and checks with `just test`
   - Run Rust tests with `just test-rust` 
   - Run Kotlin tests with `just test-gradle` (open report HTML with `just test-gradle-report`)
+- Render `@Preview` functions to PNGs with `just preview` (optionally filtered by name, like `just preview ConnectQRScreen`)
 
 ### Using the TUI
 
